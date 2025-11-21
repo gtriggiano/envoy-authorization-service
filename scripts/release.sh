@@ -20,7 +20,7 @@ ensure_git_chglog() {
 	if ! command -v git-chglog >/dev/null 2>&1; then
 		cat >&2 <<'EOF'
 git-chglog is required to generate the changelog.
-Install it with: go install github.com/git-chglog/git-chglog/cmd/git-chglog@v0.17.1
+Install it with: go install github.com/git-chglog/git-chglog/cmd/git-chglog@latest
 EOF
 		exit 1
 	fi
