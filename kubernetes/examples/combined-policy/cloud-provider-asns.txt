@@ -1,0 +1,17 @@
+# Google Cloud
+AS15169
+
+# Amazon AWS
+AS16509
+
+# Microsoft Azure
+AS8075
+
+# DigitalOcean
+AS14061
+
+# Cloudflare
+AS13335
+
+# Oracle Cloud
+AS31898
