@@ -19,12 +19,14 @@
 {{ end }}
 
 {{ end -}}
-{{ if .Notes -}}
-### BREAKING CHANGES
+{{ if .NoteGroups -}}
+{{ range .NoteGroups -}}
+### {{ .Title }}
 {{ range .Notes -}}
-- {{ .Body }}
+{{ .Body }}
 {{ end }}
 
+{{ end -}}
 {{ end -}}
 {{ end -}}
 {{ end -}}
