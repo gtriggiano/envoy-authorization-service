@@ -1,0 +1,38 @@
+logging:
+  level: info
+
+shutdown:
+  timeout: 25s  
+
+server:
+  address: ":9001"
+
+metrics:
+  address: ":9090"
+  healthPath: /healthz
+  readinessPath: /readyz
+
+analysisControllers:
+  - name: asn-detect
+    type: maxmind-asn
+    settings:
+      databasePath: config/GeoLite2-ASN.mmdb
+  - name: geoip-detect
+    type: maxmind-geoip
+    settings:
+      databasePath: config/GeoLite2-City.mmdb
+
+authorizationControllers:
+  - name: ip-blacklist
+    type: ip-match
+    settings:
+      action: deny
+      cidrList: config/ip-blacklist.txt
+  - name: ip-whitelist
+    type: ip-match
+    settings:
+      action: allow
+      cidrList: config/ip-whitelist.txt
+
+authorizationPolicy: "ip-whitelist || !ip-blacklist"
+authorizationPolicyBypass: false
