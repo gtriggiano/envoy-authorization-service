@@ -1,2 +1,4 @@
 GeoLite2-ASN.mmdb
 GeoLite2-City.mmdb
+ip-blacklist.txt
+ip-whitelist.txt
