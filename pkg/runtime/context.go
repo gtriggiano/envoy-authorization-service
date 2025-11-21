@@ -17,14 +17,14 @@ import (
 // by controllers during request processing.
 type RequestContext struct {
 	// Request is the original Envoy CheckRequest received from the external auth filter.
-	Request    *authv3.CheckRequest
+	Request *authv3.CheckRequest
 	// ReceivedAt records the timestamp when the request was first processed.
 	ReceivedAt time.Time
 	// IpAddress contains the parsed downstream client IP address extracted from the request.
-	IpAddress  netip.Addr
+	IpAddress netip.Addr
 
 	// mu protects concurrent access to logFields.
-	mu        sync.RWMutex
+	mu sync.RWMutex
 	// logFields accumulates structured logging fields throughout request processing.
 	logFields []zap.Field
 }
