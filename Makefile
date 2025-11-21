@@ -3,11 +3,11 @@ BINARY ?= envoy-authorization-service
 BUILD_DIR ?= bin
 PLATFORMS ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
 LDFLAGS ?=
-DOCKER_IMAGE ?= gtriggiano/$(BINARY)
+RELEASE_BUMP ?= auto
 
-.PHONY: all build build-all clean test tidy run fmt docker
+.PHONY: all build build-all clean test tidy run fmt docker release docker
 
-all: build
+all: clean tidy fmt test build-all
 
 build:
 	@mkdir -p $(BUILD_DIR)
@@ -30,7 +30,7 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 test:
-	$(GO) test ./...
+	$(GO) test -cover ./...
 
 tidy:
 	$(GO) mod tidy
@@ -41,3 +41,8 @@ run:
 fmt:
 	gofmt -w $$(find . -name '*.go' -not -path './vendor/*')
 
+release: clean tidy fmt test build-all
+	@./scripts/release.sh $(RELEASE_BUMP)
+
+docker:
+	docker build -t $(BINARY):dev .
