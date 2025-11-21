@@ -185,7 +185,7 @@ Configuration is validated at startup:
 
 ## Available Analysis Controllers
 
-### MaxMind ASN ([`maxmind-asn`](./pkg/analysis/maxmind_asn/Readme.md))
+### MaxMind ASN ([`maxmind-asn`](./pkg/analysis/maxmind_asn/))
 
 Performs IP-to-ASN lookups using MaxMind ASN database.
 
@@ -202,7 +202,7 @@ Performs IP-to-ASN lookups using MaxMind ASN database.
 ```
 ---
 
-### MaxMind GeoIP ([`maxmind-geoip`](./pkg/analysis/maxmind_geoip/Readme.md))
+### MaxMind GeoIP ([`maxmind-geoip`](./pkg/analysis/maxmind_geoip/))
 
 Performs IP-to-location lookups using MaxMind City database.
 
@@ -228,7 +228,7 @@ Performs IP-to-location lookups using MaxMind City database.
 
 ## Available Authorization Controllers
 
-### IP Match ([`ip-match`]((./pkg/authorization/ip_match/Readme.md)))
+### IP Match ([`ip-match`]((./pkg/authorization/ip_match/)))
 
 Allow or deny based on request IP match versus a list of IP/CIDR.
 
@@ -250,7 +250,7 @@ Allow or deny based on request IP match versus a list of IP/CIDR.
 ```
 ---
 
-### ASN Match ([`asn-match`](./pkg/authorization/asn_match/Readme.md))
+### ASN Match ([`asn-match`](./pkg/authorization/asn_match/))
 
 Allow or deny based on request IP belonging to a list of Autonomous System Numbers.
 
@@ -274,7 +274,7 @@ Allow or deny based on request IP belonging to a list of Autonomous System Numbe
 ```
 ---
 
-## [Policy DSL](./pkg/policy/Readme.md)
+## [Policy DSL](./pkg/policy/)
 
 The policy DSL is a boolean expression language for combining authorization controller verdicts.
 
