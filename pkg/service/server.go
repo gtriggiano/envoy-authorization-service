@@ -1,4 +1,4 @@
-package grpc
+package service
 
 import (
 	"context"
@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/gtriggiano/envoy-authorization-service/pkg/auth"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
 )
 
@@ -26,13 +25,13 @@ const (
 // Server wraps the Envoy authorization gRPC server.
 type Server struct {
 	cfg        config.ServerConfig
-	logger     *zap.Logger
-	manager    *auth.Manager
+	manager    *Manager
 	grpcServer *grpc.Server
+	logger     *zap.Logger
 }
 
 // NewServer constructs the gRPC server and registers handlers.
-func NewServer(cfg config.ServerConfig, logger *zap.Logger, manager *auth.Manager) (*Server, error) {
+func NewServer(cfg config.ServerConfig, manager *Manager, logger *zap.Logger) (*Server, error) {
 	opts := []grpc.ServerOption{}
 	if cfg.TLS != nil {
 		tlsConfig, err := buildTLSConfig(cfg)
@@ -46,7 +45,7 @@ func NewServer(cfg config.ServerConfig, logger *zap.Logger, manager *auth.Manage
 	authv3Server := &authorizationService{manager: manager, logger: logger}
 	registerService(grpcServer, authv3Server)
 
-	return &Server{cfg: cfg, logger: logger, manager: manager, grpcServer: grpcServer}, nil
+	return &Server{cfg: cfg, manager: manager, grpcServer: grpcServer, logger: logger}, nil
 }
 
 // Start begins serving and blocks until context cancellation or server error.
@@ -119,7 +118,7 @@ func buildTLSConfig(cfg config.ServerConfig) (*tls.Config, error) {
 
 type authorizationService struct {
 	authv3.UnimplementedAuthorizationServer
-	manager *auth.Manager
+	manager *Manager
 	logger  *zap.Logger
 }
 

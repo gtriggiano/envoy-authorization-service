@@ -13,13 +13,12 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/gtriggiano/envoy-authorization-service/pkg/auth"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/controller"
-	grpcserver "github.com/gtriggiano/envoy-authorization-service/pkg/grpc"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/logging"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/metrics"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/policy"
+	"github.com/gtriggiano/envoy-authorization-service/pkg/service"
 
 	// Register analysis controllers
 	_ "github.com/gtriggiano/envoy-authorization-service/pkg/analysis/maxmind_asn"
@@ -61,12 +60,8 @@ var startCmd = &cobra.Command{
 		defer func() { _ = baseLogger.Sync() }()
 		logger := baseLogger.With(zap.String("component", "cli"))
 
-		runCtx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		metricsServer := metrics.NewServer(cfg.Metrics, baseLogger.With(zap.String("component", "metrics")))
-		defer metricsServer.SetReady(false)
-		instrumentation := metricsServer.Instrumentation()
+		runCtx, cancelRunCtx := context.WithCancel(context.Background())
+		defer cancelRunCtx()
 
 		analysisControllers, err := controller.BuildAnalysisControllers(runCtx, baseLogger.With(zap.String("component", "analysis-controller")), cfg.AnalysisControllers)
 		if err != nil {
@@ -86,21 +81,34 @@ var startCmd = &cobra.Command{
 			return err
 		}
 
-		manager := auth.NewManager(analysisControllers, authorizationControllers, baseLogger.With(zap.String("component", "auth")), instrumentation, authorizationPolicy, cfg.AuthorizationPolicyBypass)
-		grpcSrv, err := grpcserver.NewServer(cfg.Server, baseLogger.With(zap.String("component", "grpc")), manager)
+		metricsServer := metrics.NewServer(cfg.Metrics, baseLogger.With(zap.String("component", "metrics-server")), analysisControllers, authorizationControllers)
+		metricsServer.SetReady(false)
+
+		serviceServer, err := service.NewServer(
+			cfg.Server,
+			service.NewManager(
+				analysisControllers,
+				authorizationControllers,
+				metricsServer.Instrumentation(),
+				authorizationPolicy,
+				cfg.AuthorizationPolicyBypass,
+				baseLogger.With(zap.String("component", "service-manager")),
+			),
+			baseLogger.With(zap.String("component", "service-server")),
+		)
 		if err != nil {
 			logger.Error("could not create gRPC server", zap.Error(err))
 			return err
 		}
 
-		g, ctx := errgroup.WithContext(runCtx)
+		serversGroup, serversCtx := errgroup.WithContext(runCtx)
 
-		g.Go(func() error {
-			return metricsServer.Start(ctx)
+		serversGroup.Go(func() error {
+			return metricsServer.Start(serversCtx)
 		})
 
-		g.Go(func() error {
-			return grpcSrv.Start(ctx, func() { metricsServer.SetReady(true) })
+		serversGroup.Go(func() error {
+			return serviceServer.Start(serversCtx, func() { metricsServer.SetReady(true) })
 		})
 
 		sigCh := make(chan os.Signal, 1)
@@ -109,11 +117,12 @@ var startCmd = &cobra.Command{
 
 		done := make(chan struct{})
 		defer close(done)
+
 		go func() {
 			select {
 			case <-sigCh:
 				logger.Info("shutdown signal received")
-				cancel()
+				cancelRunCtx()
 				timeout := cfg.Shutdown.ShutdownTimeout()
 				timer := time.NewTimer(timeout)
 				defer timer.Stop()
@@ -128,7 +137,7 @@ var startCmd = &cobra.Command{
 			}
 		}()
 
-		if err := g.Wait(); err != nil && ctx.Err() == nil {
+		if err := serversGroup.Wait(); err != nil && serversCtx.Err() == nil {
 			logger.Error("server exited with error", zap.Error(err))
 			return err
 		}

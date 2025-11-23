@@ -76,6 +76,12 @@ func (c *ipMatchAuthorizationController) Kind() string {
 	return ControllerKind
 }
 
+// HealthCheck implements controller.AuthorizationController.
+func (c *ipMatchAuthorizationController) HealthCheck(ctx context.Context) error {
+	// No external dependencies to check
+	return nil
+}
+
 // getOrComputeMatch returns the cached CIDR match for the IP or computes and
 // stores it when absent. A nil pointer indicates no CIDR contained the IP.
 func (c *ipMatchAuthorizationController) getOrComputeMatch(ipAddress string) *cidrlist.CIDR {

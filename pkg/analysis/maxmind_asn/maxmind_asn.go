@@ -88,6 +88,12 @@ func (c *maxMindAsnAnalysisController) Kind() string {
 	return ControllerKind
 }
 
+// HealthCheck implements controller.AnalysisController.
+func (c *maxMindAsnAnalysisController) HealthCheck(ctx context.Context) error {
+	// No external dependencies to check
+	return nil
+}
+
 // ipLookup fetches ASN metadata for the provided IP, using a cache to avoid
 // repeated database lookups.
 func (c *maxMindAsnAnalysisController) ipLookup(ipAddress netip.Addr) *IpLookupResult {

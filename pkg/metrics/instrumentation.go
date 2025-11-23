@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"sync/atomic"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -13,7 +12,6 @@ type Instrumentation struct {
 	requestDuration  *prometheus.HistogramVec
 	controllerTiming *prometheus.HistogramVec
 	inFlight         prometheus.Gauge
-	ready            atomic.Bool
 }
 
 // NewInstrumentation registers all metric vectors.
@@ -68,14 +66,4 @@ func (i *Instrumentation) InFlight(delta float64) {
 		return
 	}
 	i.inFlight.Sub(-delta)
-}
-
-// Ready reports readiness to health probes.
-func (i *Instrumentation) Ready() bool {
-	return i.ready.Load()
-}
-
-// SetReady flips readiness status.
-func (i *Instrumentation) SetReady(ready bool) {
-	i.ready.Store(ready)
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -11,6 +13,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
+	"github.com/gtriggiano/envoy-authorization-service/pkg/controller"
 )
 
 const (
@@ -20,18 +23,34 @@ const (
 
 // Server exposes Prometheus metrics and health probes.
 type Server struct {
-	cfg             config.MetricsConfig
-	logger          *zap.Logger
-	registry        *prometheus.Registry
-	instrumentation *Instrumentation
-	httpServer      *http.Server
+	cfg                      config.MetricsConfig
+	logger                   *zap.Logger
+	registry                 *prometheus.Registry
+	instrumentation          *Instrumentation
+	httpServer               *http.Server
+	analysisControllers      []controller.AnalysisController
+	authorizationControllers []controller.AuthorizationController
+	serviceServerReady       atomic.Bool
 }
 
 // NewServer builds a metrics server instance.
-func NewServer(cfg config.MetricsConfig, logger *zap.Logger) *Server {
+func NewServer(
+	cfg config.MetricsConfig,
+	logger *zap.Logger,
+	analysisControllers []controller.AnalysisController,
+	authorizationControllers []controller.AuthorizationController,
+) *Server {
 	reg := prometheus.NewRegistry()
 	inst := NewInstrumentation(reg)
-	return &Server{cfg: cfg, logger: logger, registry: reg, instrumentation: inst}
+
+	return &Server{
+		cfg:                      cfg,
+		logger:                   logger,
+		registry:                 reg,
+		instrumentation:          inst,
+		analysisControllers:      analysisControllers,
+		authorizationControllers: authorizationControllers,
+	}
 }
 
 // Instrumentation returns the metrics instrumentation helper.
@@ -76,7 +95,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 // SetReady toggles readiness probing state.
 func (s *Server) SetReady(ready bool) {
-	s.instrumentation.SetReady(ready)
+	s.serviceServerReady.Store(ready)
 }
 
 // livenessHandler exposes a simple OK response for Kubernetes-style health probes.
@@ -87,13 +106,65 @@ func (s *Server) livenessHandler() http.Handler {
 	})
 }
 
-// readinessHandler reports readiness based on instrumentation state.
+// readinessHandler reports readiness based on instrumentation state and controller health checks.
 func (s *Server) readinessHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		if !s.instrumentation.Ready() {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !s.serviceServerReady.Load() {
 			http.Error(w, "not ready", http.StatusServiceUnavailable)
 			return
 		}
+
+		// Check health of all controllers in parallel
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		var wg sync.WaitGroup
+		var mu sync.Mutex
+		healthCheckFailed := false
+
+		// Check analysis controllers
+		for _, ctrl := range s.analysisControllers {
+			wg.Add(1)
+			go func(ctrl controller.AnalysisController) {
+				defer wg.Done()
+				if err := ctrl.HealthCheck(ctx); err != nil {
+					s.logger.Warn("analysis controller health check failed",
+						zap.String("controller", ctrl.Name()),
+						zap.String("controller_type", ctrl.Kind()),
+						zap.Error(err),
+					)
+					mu.Lock()
+					healthCheckFailed = true
+					mu.Unlock()
+				}
+			}(ctrl)
+		}
+
+		// Check authorization controllers
+		for _, ctrl := range s.authorizationControllers {
+			wg.Add(1)
+			go func(ctrl controller.AuthorizationController) {
+				defer wg.Done()
+				if err := ctrl.HealthCheck(ctx); err != nil {
+					s.logger.Warn("authorization controller health check failed",
+						zap.String("controller", ctrl.Name()),
+						zap.String("controller_type", ctrl.Kind()),
+						zap.Error(err),
+					)
+					mu.Lock()
+					healthCheckFailed = true
+					mu.Unlock()
+				}
+			}(ctrl)
+		}
+
+		wg.Wait()
+
+		if healthCheckFailed {
+			http.Error(w, "controller health check failed", http.StatusServiceUnavailable)
+			return
+		}
+
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ready"))
 	})

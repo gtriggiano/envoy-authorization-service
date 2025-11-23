@@ -42,6 +42,7 @@ type AnalysisController interface {
 	Name() string
 	Kind() string
 	Analyze(ctx context.Context, req *runtime.RequestContext) (*AnalysisReport, error)
+	HealthCheck(ctx context.Context) error
 }
 
 // AuthorizationController defines how a controller makes authorization decisions.
@@ -49,6 +50,7 @@ type AuthorizationController interface {
 	Name() string
 	Kind() string
 	Authorize(ctx context.Context, req *runtime.RequestContext, reports AnalysisReports) (*AuthorizationVerdict, error)
+	HealthCheck(ctx context.Context) error
 }
 
 // AnalysisFactory builds an analysis controller instance from configuration.

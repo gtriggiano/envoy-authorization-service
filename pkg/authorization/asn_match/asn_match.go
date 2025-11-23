@@ -60,6 +60,12 @@ func (c *asnMatchAuthorizationController) Kind() string {
 	return ControllerKind
 }
 
+// HealthCheck implements controller.AuthorizationController.
+func (c *asnMatchAuthorizationController) HealthCheck(ctx context.Context) error {
+	// No external dependencies to check
+	return nil
+}
+
 // deriveVerdict inspects analyzer reports, determines whether the request ASN
 // matches the configured allow/deny list, and returns the resulting status.
 func (c *asnMatchAuthorizationController) deriveVerdict(reports controller.AnalysisReports) (codes.Code, string) {

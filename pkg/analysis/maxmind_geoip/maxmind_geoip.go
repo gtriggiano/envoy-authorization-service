@@ -95,6 +95,12 @@ func (c *maxMindCityAnalysisController) Kind() string {
 	return ControllerKind
 }
 
+// HealthCheck implements controller.AnalysisController.
+func (c *maxMindCityAnalysisController) HealthCheck(ctx context.Context) error {
+	// No external dependencies to check
+	return nil
+}
+
 // ipLookup fetches GeoIP information for an address while caching prior lookups.
 func (c *maxMindCityAnalysisController) ipLookup(ipAddress netip.Addr) *IpLookupResult {
 	ipAddressAsString := ipAddress.String()
