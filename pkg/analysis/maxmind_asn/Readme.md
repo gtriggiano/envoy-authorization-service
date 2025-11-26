@@ -35,7 +35,7 @@ analysisControllers:
 
 ## Output
 
-### HTTP Headers
+### Upstream Headers
 
 The controller injects the following headers into upstream requests (if the request is ultimately proxied):
 
