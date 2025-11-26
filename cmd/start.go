@@ -27,6 +27,7 @@ import (
 	// Register authorization controllers
 	_ "github.com/gtriggiano/envoy-authorization-service/pkg/authorization/asn_match"
 	_ "github.com/gtriggiano/envoy-authorization-service/pkg/authorization/ip_match"
+	_ "github.com/gtriggiano/envoy-authorization-service/pkg/authorization/ip_match_database"
 )
 
 var (

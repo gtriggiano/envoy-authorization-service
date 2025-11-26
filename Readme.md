@@ -10,7 +10,7 @@ The Envoy Authorization Service enables access control policies for services beh
 
 1. **Analysis Phase**: Extract and enrich request metadata (e.g., GeoIP, ASN lookups)
 2. **Authorization Phase**: Make allow/deny decisions based on configured controllers
-3. **Policy Evaluation**: Combine controller verdicts using boolean expressions
+3. **Policy Evaluation**: Combine authorization controllers'verdicts using boolean expressions
 
 This architecture allows you to compose authorization logic like:
 ```
@@ -20,7 +20,7 @@ corporate-network || ip-whitelist
 ## Key Features
 
 - **🚀 Production-Ready**: Graceful shutdown, health endpoints, structured logging, and Prometheus metrics
-- **🔌 Pluggable Controllers**: Extensible analysis and authorization controller system
+- **🔌 Extensible**: Extensible analysis and authorization controller system
 - **📜 Policy DSL**: Express complex requirements with validated boolean expressions
 - **🏷️ Header Injection**: Dynamically add headers to upstream/downstream requests
 - **📊 Full Observability**: Prometheus metrics, structured logs (logfmt), health checks
@@ -85,13 +85,13 @@ sequenceDiagram
 ### Controller Architecture
 
 **Analysis Controllers** run first and produce metadata reports:
-- Execute concurrently (no blocking)
+- Execute concurrently
 - Cannot block requests directly
 - Emit headers and structured data
 - Results available to authorization controllers
 
 **Authorization Controllers** make allow/deny decisions:
-- Execute concurrently (parallel evaluation)
+- Execute concurrently
 - Return gRPC status codes (OK, PermissionDenied, etc.)
 - Can reference analysis reports
 - Verdicts combined via policy expression
@@ -272,6 +272,55 @@ Allow or deny based on request IP belonging to a list of Autonomous System Numbe
     action: deny
     asList: config/malicious-botnet-asns.txt
 ```
+---
+
+### IP Match Database ([`ip-match-database`](./pkg/authorization/ip_match_database/))
+
+Allow or deny based on IP address lookups in external databases (Redis or PostgreSQL).
+
+Enables dynamic IP control based on behavioral analysis, threat intelligence, or partner management systems.
+
+**Features**:
+- Redis and PostgreSQL support
+- Optional TTL-based caching
+- Configurable fail-open/fail-closed behavior
+
+**Configuration**:
+```yaml
+# Redis blocklist
+- name: scraper
+  type: ip-match-database
+  settings:
+    action: deny
+    cache:
+      ttl: 10m
+    database:
+      type: redis
+      redis:
+        keyPrefix: "scraper:"
+        host: redis.example.com
+        port: 6379
+
+# PostgreSQL allowlist
+- name: partner
+  type: ip-match-database
+  settings:
+    action: allow
+    cache:
+      ttl: 15m
+    database:
+      type: postgres
+      postgres:
+        query: "SELECT 1 FROM trusted_ips WHERE ip = $1 LIMIT 1"
+        host: postgres.example.com
+        port: 5432
+        databaseName: security
+        usernameEnv: POSTGRES_USER
+        passwordEnv: POSTGRES_PASSWORD
+```
+
+See the [detailed documentation](./pkg/authorization/ip_match_database/) for complete configuration options, TLS setup, and metrics.
+
 ---
 
 ## [Policy DSL](./pkg/policy/)
