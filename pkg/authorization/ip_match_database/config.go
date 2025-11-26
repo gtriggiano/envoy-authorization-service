@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	defaultDatabaseConnectionTimeout = 500 * time.Millisecond
+	DefaultDatabaseConnectionTimeout = 500 * time.Millisecond
 	defaultPostgresPort              = 5432
 	defaultRedisPort                 = 6379
 )
@@ -107,12 +107,12 @@ func (c *IpMatchDatabaseConfig) GetCacheTTL() time.Duration {
 // GetDatabaseConnectionTimeout returns the parsed database connection timeout duration, or default if not specified
 func (c *IpMatchDatabaseConfig) GetDatabaseConnectionTimeout() time.Duration {
 	if c.Database.ConnectionTimeout == "" {
-		return defaultDatabaseConnectionTimeout
+		return DefaultDatabaseConnectionTimeout
 	}
 	timeout, _ := time.ParseDuration(c.Database.ConnectionTimeout)
 
 	if timeout <= 0 {
-		return defaultDatabaseConnectionTimeout
+		return DefaultDatabaseConnectionTimeout
 	}
 
 	return timeout

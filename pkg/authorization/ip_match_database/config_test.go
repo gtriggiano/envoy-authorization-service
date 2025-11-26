@@ -128,7 +128,7 @@ func TestGetDatabaseConnectionTimeout(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{},
 		}
-		expected := 100 * time.Millisecond
+		expected := DefaultDatabaseConnectionTimeout
 		if timeout := config.GetDatabaseConnectionTimeout(); timeout != expected {
 			t.Fatalf("expected %v, got %v", expected, timeout)
 		}
