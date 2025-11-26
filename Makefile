@@ -38,6 +38,9 @@ tidy:
 run:
 	$(GO) run . start --config config/config.example.yaml
 
+fetch-maxmind:
+	@./scripts/fetch-maxmind.sh
+
 fmt:
 	gofmt -w $$(find . -name '*.go' -not -path './vendor/*')
 
