@@ -23,6 +23,7 @@ import (
 	// Register analysis controllers
 	_ "github.com/gtriggiano/envoy-authorization-service/pkg/analysis/maxmind_asn"
 	_ "github.com/gtriggiano/envoy-authorization-service/pkg/analysis/maxmind_geoip"
+	_ "github.com/gtriggiano/envoy-authorization-service/pkg/analysis/ua_detect"
 
 	// Register authorization controllers
 	_ "github.com/gtriggiano/envoy-authorization-service/pkg/authorization/asn_match"

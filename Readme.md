@@ -226,6 +226,26 @@ Performs IP-to-location lookups using MaxMind City database.
 ```
 ---
 
+### User Agent Detection ([`ua-detect`](./pkg/analysis/ua_detect/))
+
+Parses HTTP `User-Agent` headers to identify browser, operating system, device type, and bots.
+
+**Upstream provided headers**:
+- `X-UA-Browser`, `X-UA-Browser-Version`, `X-UA-Browser-Major`, `X-UA-Browser-Minor`, `X-UA-Browser-Patch`
+- `X-UA-OS-Name`, `X-UA-OS-Version`, `X-UA-OS-Major`, `X-UA-OS-Minor`, `X-UA-OS-Platform`
+- `X-UA-Device-Type` (one of `desktop`, `mobile`, `tablet`, `bot`, `tv`, `unknown`)
+- `X-UA-Device-Mobile`, `X-UA-Device-Tablet`, `X-UA-Device-Desktop`, `X-UA-Device-TV` (booleans)
+- `X-UA-Device-Model` when available
+- `X-UA-Bot-Name`, `X-UA-Bot-URL` when bot detected
+
+**Example Configuration**:
+```yaml
+- name: ua-detect
+  type: ua-detect
+  enabled: true
+```
+---
+
 ## Available Authorization Controllers
 
 ### IP Match ([`ip-match`]((./pkg/authorization/ip_match/)))
