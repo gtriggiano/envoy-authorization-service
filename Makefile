@@ -1,4 +1,5 @@
 GO ?= go
+DOCKER ?= docker
 BINARY ?= envoy-authorization-service
 BUILD_DIR ?= bin
 PLATFORMS ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
@@ -49,3 +50,9 @@ release: clean tidy fmt test build-all
 
 docker:
 	docker build -t $(BINARY):dev .
+
+compose-up:
+	docker compose up -d
+
+compose-down:
+	docker compose down

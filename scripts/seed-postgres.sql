@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS trusted_ips (
+  ip inet PRIMARY KEY
+);
+
+INSERT INTO trusted_ips (ip) VALUES
+  ('203.0.113.10'),
+  ('198.51.100.5')
+ON CONFLICT DO NOTHING;
