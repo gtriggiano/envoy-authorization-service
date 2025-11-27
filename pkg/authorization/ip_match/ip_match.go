@@ -117,25 +117,25 @@ func (c *ipMatchAuthorizationController) deriveVerdict(ipAddress string, matched
 		if matchedCIDR != nil {
 			code = codes.OK
 			if matchedCIDR.Comment != "" {
-				reason = fmt.Sprintf("IP %s matched allowed CIDR %s (%s)", ipAddress, matchedCIDR.Value, matchedCIDR.Comment)
+				reason = fmt.Sprintf("IP %s matched CIDR %s (%s) allowed by '%s'", ipAddress, matchedCIDR.Value, matchedCIDR.Comment, c.name)
 			} else {
-				reason = fmt.Sprintf("IP %s matched allowed CIDR %s", ipAddress, matchedCIDR.Value)
+				reason = fmt.Sprintf("IP %s matched CIDR %s allowed by '%s'", ipAddress, matchedCIDR.Value, c.name)
 			}
 		} else {
 			code = codes.PermissionDenied
-			reason = fmt.Sprintf("IP %s not in allowed list", ipAddress)
+			reason = fmt.Sprintf("IP %s not in '%s' allowed list", ipAddress, c.name)
 		}
 	} else { // action == "deny"
 		if matchedCIDR != nil {
 			code = codes.PermissionDenied
 			if matchedCIDR.Comment != "" {
-				reason = fmt.Sprintf("IP %s matched denied CIDR %s (%s)", ipAddress, matchedCIDR.Value, matchedCIDR.Comment)
+				reason = fmt.Sprintf("IP %s matched CIDR %s (%s) denied by '%s'", ipAddress, matchedCIDR.Value, matchedCIDR.Comment, c.name)
 			} else {
-				reason = fmt.Sprintf("IP %s matched denied CIDR %s", ipAddress, matchedCIDR.Value)
+				reason = fmt.Sprintf("IP %s matched denied CIDR %s denied by '%s'", ipAddress, matchedCIDR.Value, c.name)
 			}
 		} else {
 			code = codes.OK
-			reason = fmt.Sprintf("IP %s not in denied list", ipAddress)
+			reason = fmt.Sprintf("IP %s not in '%s' denied list", ipAddress, c.name)
 		}
 	}
 

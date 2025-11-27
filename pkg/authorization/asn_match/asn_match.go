@@ -95,32 +95,32 @@ func (c *asnMatchAuthorizationController) deriveVerdict(reports controller.Analy
 			if c.action == "allow" {
 				code = codes.OK
 				if asnComment != "" {
-					reason = fmt.Sprintf("AS %d %s (%s) matched allow list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment)
+					reason = fmt.Sprintf("AS %d %s (%s) matched '%s' allow list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment, c.name)
 				} else {
-					reason = fmt.Sprintf("AS %d %s matched allow list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization)
+					reason = fmt.Sprintf("AS %d %s matched '%s' allow list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, c.name)
 				}
 			} else { // action == "deny"
 				code = codes.PermissionDenied
 				if asnComment != "" {
-					reason = fmt.Sprintf("AS %d %s (%s) matched deny list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment)
+					reason = fmt.Sprintf("AS %d %s (%s) matched '%s' deny list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment, c.name)
 				} else {
-					reason = fmt.Sprintf("AS %d %s matched deny list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization)
+					reason = fmt.Sprintf("AS %d %s matched '%s' deny list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, c.name)
 				}
 			}
 		} else {
 			if c.action == "allow" {
 				code = codes.PermissionDenied
 				if asnComment != "" {
-					reason = fmt.Sprintf("AS %d %s (%s) did not match allow list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment)
+					reason = fmt.Sprintf("AS %d %s (%s) did not match '%s' allow list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment, c.name)
 				} else {
-					reason = fmt.Sprintf("AS %d %s did not match allow list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization)
+					reason = fmt.Sprintf("AS %d %s did not match '%s' allow list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, c.name)
 				}
 			} else { // action == "deny"
 				code = codes.OK
 				if asnComment != "" {
-					reason = fmt.Sprintf("AS %d %s (%s) did not match deny list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment)
+					reason = fmt.Sprintf("AS %d %s (%s) did not match '%s' deny list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment, c.name)
 				} else {
-					reason = fmt.Sprintf("AS %d %s did not match deny list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization)
+					reason = fmt.Sprintf("AS %d %s did not match '%s' deny list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, c.name)
 				}
 			}
 		}

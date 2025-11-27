@@ -110,13 +110,24 @@ func (c *ipMatchDatabaseAuthorizationController) queryDatabase(ctx context.Conte
 	matched, err := c.dataSource.Contains(ctx, ipAddress)
 	duration := time.Since(start)
 
+	logFields := []zap.Field{
+		zap.String("ip", ipAddress),
+		zap.String("db_type", c.dbType),
+		zap.Duration("duration", duration),
+	}
+
 	if err != nil {
+		logFields = append(logFields, zap.Error(err))
 		c.observeQuery(c.dbType, "error", duration)
 	} else if matched {
+		logFields = append(logFields, zap.Bool("matched", true))
 		c.observeQuery(c.dbType, "found", duration)
 	} else {
+		logFields = append(logFields, zap.Bool("matched", false))
 		c.observeQuery(c.dbType, "not_found", duration)
 	}
+
+	c.logger.Debug("database query", logFields...)
 
 	return matched, err
 }
@@ -162,18 +173,18 @@ func (c *ipMatchDatabaseAuthorizationController) deriveVerdict(ipAddress string,
 	if c.action == "allow" {
 		if matched {
 			code = codes.OK
-			reason = fmt.Sprintf("IP %s matched in database", ipAddress)
+			reason = fmt.Sprintf("IP %s matched in '%s' database", ipAddress, c.name)
 		} else {
 			code = codes.PermissionDenied
-			reason = fmt.Sprintf("IP %s not in allow list", ipAddress)
+			reason = fmt.Sprintf("IP %s not in '%s' allow list", ipAddress, c.name)
 		}
 	} else { // action == "deny"
 		if matched {
 			code = codes.PermissionDenied
-			reason = fmt.Sprintf("IP %s matched deny list", ipAddress)
+			reason = fmt.Sprintf("IP %s matched '%s' deny list", ipAddress, c.name)
 		} else {
 			code = codes.OK
-			reason = fmt.Sprintf("IP %s not found in database", ipAddress)
+			reason = fmt.Sprintf("IP %s not found in '%s' database", ipAddress, c.name)
 		}
 	}
 

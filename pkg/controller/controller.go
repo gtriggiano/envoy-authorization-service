@@ -123,7 +123,7 @@ func BuildAnalysisControllers(ctx context.Context, logger *zap.Logger, configura
 			return nil, fmt.Errorf("analysis controller '%s' is of unknown type '%s'", configuration.Name, configuration.Type)
 		}
 
-		controller, err := factory(ctx, logger.With(zap.String("controller", configuration.Name), zap.String("controller_type", configuration.Type)), configuration)
+		controller, err := factory(ctx, logger.With(zap.String("controller_name", configuration.Name), zap.String("controller_type", configuration.Type)), configuration)
 		if err != nil {
 			return nil, fmt.Errorf("could not build analysis controller '%s' of type '%s': %w", configuration.Name, configuration.Type, err)
 		}
@@ -145,7 +145,7 @@ func BuildAuthorizationControllers(ctx context.Context, logger *zap.Logger, conf
 			return nil, fmt.Errorf("authorization controller '%s' is of unknown type '%s'", configuration.Name, configuration.Type)
 		}
 
-		controller, err := factory(ctx, logger.With(zap.String("controller", configuration.Name), zap.String("controller_type", configuration.Type)), configuration)
+		controller, err := factory(ctx, logger.With(zap.String("controller_name", configuration.Name), zap.String("controller_type", configuration.Type)), configuration)
 		if err != nil {
 			return nil, fmt.Errorf("could not build authorization controller '%s' of type '%s': %w", configuration.Name, configuration.Type, err)
 		}
