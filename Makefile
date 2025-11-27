@@ -5,6 +5,8 @@ BUILD_DIR ?= bin
 PLATFORMS ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
 LDFLAGS ?=
 RELEASE_BUMP ?= auto
+POSTGRES_USER ?= postgres
+POSTGRES_PASSWORD ?= postgres
 
 .PHONY: all build build-all clean test test-e2e tidy run run-redis run-postgres fetch-maxmind seed-postgres seed-redis fmt docker release compose-up compose-down
 
@@ -48,8 +50,6 @@ run-redis: fetch-maxmind compose-up seed-redis
 	$(GO) run . start --config config/config.redis.yaml
 
 run-postgres: fetch-maxmind compose-up seed-postgres
-	POSTGRES_USER?=postgres
-	POSTGRES_PASSWORD?=postgres
 	POSTGRES_USER=$(POSTGRES_USER) POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) $(GO) run . start --config config/config.postgres.yaml
 
 seed-databases: seed-postgres seed-redis
