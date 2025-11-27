@@ -40,13 +40,14 @@ type asnMatchAuthorizationController struct {
 
 // Authorize implements controller.AuthorizationController.
 func (c *asnMatchAuthorizationController) Authorize(ctx context.Context, req *runtime.RequestContext, reports controller.AnalysisReports) (*controller.AuthorizationVerdict, error) {
-	code, reason := c.deriveVerdict(reports)
+	code, reason, inPolicy := c.deriveVerdict(reports)
 
 	return &controller.AuthorizationVerdict{
 		Controller:     c.name,
 		ControllerKind: ControllerKind,
 		Code:           code,
 		Reason:         reason,
+		InPolicy:       inPolicy,
 	}, nil
 }
 
@@ -68,7 +69,7 @@ func (c *asnMatchAuthorizationController) HealthCheck(ctx context.Context) error
 
 // deriveVerdict inspects analyzer reports, determines whether the request ASN
 // matches the configured allow/deny list, and returns the resulting status.
-func (c *asnMatchAuthorizationController) deriveVerdict(reports controller.AnalysisReports) (codes.Code, string) {
+func (c *asnMatchAuthorizationController) deriveVerdict(reports controller.AnalysisReports) (codes.Code, string, bool) {
 	var ipLookupResult *maxmind_asn.IpLookupResult
 	for _, report := range reports {
 		if report == nil || report.ControllerKind != maxmind_asn.ControllerKind {
@@ -79,14 +80,17 @@ func (c *asnMatchAuthorizationController) deriveVerdict(reports controller.Analy
 
 	var code codes.Code
 	var reason string
+	var inPolicy bool
 
 	if ipLookupResult == nil {
 		reason = "no ASN information available"
 
 		if c.action == "allow" {
 			code = codes.PermissionDenied
+			inPolicy = false
 		} else { // action == "deny"
 			code = codes.OK
+			inPolicy = true
 		}
 	} else {
 		asnComment, asnMatched := c.asnMap[ipLookupResult.AutonomousSystemNumber]
@@ -94,39 +98,43 @@ func (c *asnMatchAuthorizationController) deriveVerdict(reports controller.Analy
 		if asnMatched {
 			if c.action == "allow" {
 				code = codes.OK
+				inPolicy = true
 				if asnComment != "" {
-					reason = fmt.Sprintf("AS %d %s (%s) matched '%s' allow list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment, c.name)
+					reason = fmt.Sprintf("AS %d %s [%s] matched allow-list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment)
 				} else {
-					reason = fmt.Sprintf("AS %d %s matched '%s' allow list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, c.name)
+					reason = fmt.Sprintf("AS %d %s matched allow-list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization)
 				}
 			} else { // action == "deny"
 				code = codes.PermissionDenied
+				inPolicy = true
 				if asnComment != "" {
-					reason = fmt.Sprintf("AS %d %s (%s) matched '%s' deny list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment, c.name)
+					reason = fmt.Sprintf("AS %d %s [%s] matched black-list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment)
 				} else {
-					reason = fmt.Sprintf("AS %d %s matched '%s' deny list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, c.name)
+					reason = fmt.Sprintf("AS %d %s matched black-list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization)
 				}
 			}
 		} else {
 			if c.action == "allow" {
 				code = codes.PermissionDenied
+				inPolicy = false
 				if asnComment != "" {
-					reason = fmt.Sprintf("AS %d %s (%s) did not match '%s' allow list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment, c.name)
+					reason = fmt.Sprintf("AS %d %s [%s] did not match allow-list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment)
 				} else {
-					reason = fmt.Sprintf("AS %d %s did not match '%s' allow list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, c.name)
+					reason = fmt.Sprintf("AS %d %s did not match allow-list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization)
 				}
 			} else { // action == "deny"
 				code = codes.OK
+				inPolicy = false
 				if asnComment != "" {
-					reason = fmt.Sprintf("AS %d %s (%s) did not match '%s' deny list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment, c.name)
+					reason = fmt.Sprintf("AS %d %s [%s] did not match black-list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, asnComment)
 				} else {
-					reason = fmt.Sprintf("AS %d %s did not match '%s' deny list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization, c.name)
+					reason = fmt.Sprintf("AS %d %s did not match black-list", ipLookupResult.AutonomousSystemNumber, ipLookupResult.AutonomousSystemOrganization)
 				}
 			}
 		}
 	}
 
-	return code, reason
+	return code, reason, inPolicy
 }
 
 // newASNMatchAuthorizationController loads the ASN allow/deny list from disk

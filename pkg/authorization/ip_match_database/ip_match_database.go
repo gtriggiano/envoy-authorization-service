@@ -170,21 +170,21 @@ func (c *ipMatchDatabaseAuthorizationController) deriveVerdict(ipAddress string,
 	var code codes.Code
 	var reason string
 
-	if c.action == "allow" {
-		if matched {
+	if matched {
+		if c.action == "allow" {
 			code = codes.OK
-			reason = fmt.Sprintf("IP %s matched in '%s' database", ipAddress, c.name)
+			reason = fmt.Sprintf("IP %s found in '%s' allow-list", ipAddress, c.dbType)
 		} else {
 			code = codes.PermissionDenied
-			reason = fmt.Sprintf("IP %s not in '%s' allow list", ipAddress, c.name)
+			reason = fmt.Sprintf("IP %s found in '%s' black-list", ipAddress, c.dbType)
 		}
-	} else { // action == "deny"
-		if matched {
+	} else {
+		if c.action == "allow" {
 			code = codes.PermissionDenied
-			reason = fmt.Sprintf("IP %s matched '%s' deny list", ipAddress, c.name)
+			reason = fmt.Sprintf("IP %s not found in '%s' allow-list", ipAddress, c.dbType)
 		} else {
 			code = codes.OK
-			reason = fmt.Sprintf("IP %s not found in '%s' database", ipAddress, c.name)
+			reason = fmt.Sprintf("IP %s not found in '%s' black-list", ipAddress, c.dbType)
 		}
 	}
 
@@ -198,7 +198,15 @@ func (c *ipMatchDatabaseAuthorizationController) createVerdict(code codes.Code, 
 		ControllerKind: ControllerKind,
 		Code:           code,
 		Reason:         reason,
+		InPolicy:       c.inPolicy(code),
 	}
+}
+
+func (c *ipMatchDatabaseAuthorizationController) inPolicy(code codes.Code) bool {
+	if code == codes.OK {
+		return c.action == "allow"
+	}
+	return c.action == "deny"
 }
 
 // newIpMatchDatabaseAuthorizationController constructs a controller from configuration

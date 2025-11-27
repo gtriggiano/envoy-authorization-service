@@ -47,6 +47,7 @@ func (c *ipMatchAuthorizationController) Authorize(ctx context.Context, req *run
 			Controller:     c.name,
 			ControllerKind: ControllerKind,
 			Code:           codes.PermissionDenied,
+			InPolicy:       c.action == "deny",
 			Reason:         "unable to determine source IP address",
 		}, nil
 	}
@@ -56,13 +57,14 @@ func (c *ipMatchAuthorizationController) Authorize(ctx context.Context, req *run
 	matchedCIDR := c.getOrComputeMatch(ipAddress)
 
 	// Derive verdict from matched CIDR and action
-	code, reason := c.deriveVerdict(ipAddress, matchedCIDR)
+	code, reason, inPolicy := c.deriveVerdict(ipAddress, matchedCIDR)
 
 	return &controller.AuthorizationVerdict{
 		Controller:     c.name,
 		ControllerKind: ControllerKind,
 		Code:           code,
 		Reason:         reason,
+		InPolicy:       inPolicy,
 	}, nil
 }
 
@@ -109,37 +111,42 @@ func (c *ipMatchAuthorizationController) getOrComputeMatch(ipAddress string) *ci
 
 // deriveVerdict maps the configured action ("allow"/"deny") plus the CIDR match
 // outcome into a gRPC status code and human-readable reason.
-func (c *ipMatchAuthorizationController) deriveVerdict(ipAddress string, matchedCIDR *cidrlist.CIDR) (codes.Code, string) {
+func (c *ipMatchAuthorizationController) deriveVerdict(ipAddress string, matchedCIDR *cidrlist.CIDR) (codes.Code, string, bool) {
 	var code codes.Code
 	var reason string
+	var inPolicy bool
 
-	if c.action == "allow" {
-		if matchedCIDR != nil {
+	if matchedCIDR != nil {
+		if c.action == "allow" {
 			code = codes.OK
+			inPolicy = true
 			if matchedCIDR.Comment != "" {
-				reason = fmt.Sprintf("IP %s matched CIDR %s (%s) allowed by '%s'", ipAddress, matchedCIDR.Value, matchedCIDR.Comment, c.name)
+				reason = fmt.Sprintf("IP %s matched allowed CIDR %s [%s]", ipAddress, matchedCIDR.Value, matchedCIDR.Comment)
 			} else {
-				reason = fmt.Sprintf("IP %s matched CIDR %s allowed by '%s'", ipAddress, matchedCIDR.Value, c.name)
+				reason = fmt.Sprintf("IP %s matched allowed CIDR %s", ipAddress, matchedCIDR.Value)
 			}
-		} else {
+		} else { // action == "deny"
 			code = codes.PermissionDenied
-			reason = fmt.Sprintf("IP %s not in '%s' allowed list", ipAddress, c.name)
+			inPolicy = true
+			if matchedCIDR.Comment != "" {
+				reason = fmt.Sprintf("IP %s matched black-listed CIDR %s [%s]", ipAddress, matchedCIDR.Value, matchedCIDR.Comment)
+			} else {
+				reason = fmt.Sprintf("IP %s matched black-listed CIDR %s", ipAddress, matchedCIDR.Value)
+			}
 		}
-	} else { // action == "deny"
-		if matchedCIDR != nil {
+	} else {
+		if c.action == "allow" {
 			code = codes.PermissionDenied
-			if matchedCIDR.Comment != "" {
-				reason = fmt.Sprintf("IP %s matched CIDR %s (%s) denied by '%s'", ipAddress, matchedCIDR.Value, matchedCIDR.Comment, c.name)
-			} else {
-				reason = fmt.Sprintf("IP %s matched denied CIDR %s denied by '%s'", ipAddress, matchedCIDR.Value, c.name)
-			}
-		} else {
+			inPolicy = false
+			reason = fmt.Sprintf("IP %s not allowed", ipAddress)
+		} else { // action == "deny"
 			code = codes.OK
-			reason = fmt.Sprintf("IP %s not in '%s' denied list", ipAddress, c.name)
+			inPolicy = false
+			reason = fmt.Sprintf("IP %s is not black-listed", ipAddress)
 		}
 	}
 
-	return code, reason
+	return code, reason, inPolicy
 }
 
 // newIpMatchAuthorizationController constructs an authorization controller from

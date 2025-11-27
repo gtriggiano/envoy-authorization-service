@@ -30,8 +30,17 @@ type AuthorizationVerdict struct {
 	ControllerKind    string
 	Code              codes.Code
 	Reason            string
+	InPolicy          bool
 	DownstreamHeaders map[string]string
 	UpstreamHeaders   map[string]string
+}
+
+func (av *AuthorizationVerdict) IsAllow() bool {
+	return av.Code == codes.OK
+}
+
+func (av *AuthorizationVerdict) IsDeny() bool {
+	return av.Code != codes.OK
 }
 
 // AuthorizationVerdicts collects verdicts indexed by controller name.
