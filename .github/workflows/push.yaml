@@ -4,7 +4,8 @@ on:
   push: {}
     
 jobs:
-  docker:
+  fmt-tests:
+    name: Checl format and Run Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
