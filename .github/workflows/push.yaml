@@ -42,4 +42,5 @@ jobs:
           GOTMPDIR: ${{ runner.temp }}/go-tmp
         run: |
           set -euo pipefail
+          mkdir -p "$GOCACHE" "$GOTMPDIR"
           go test -cover -tags=e2e ./...
