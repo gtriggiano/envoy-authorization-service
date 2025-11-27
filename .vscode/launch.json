@@ -2,18 +2,18 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug (MaxMind config)",
+      "name": "Debug (IP Match)",
       "type": "go",
       "request": "launch",
       "mode": "debug",
       "program": "${workspaceFolder}",
-      "args": ["start", "--config", "config/config.maxmind.yaml"],
+      "args": ["start", "--config", "config/config.ip-match.yaml"],
       "env": {
         "GODEBUG": "madvdontneed=1"
       }
     },
     {
-      "name": "Debug (Redis config)",
+      "name": "Debug (IP Match Redis)",
       "type": "go",
       "request": "launch",
       "mode": "debug",
@@ -24,7 +24,7 @@
       }
     },
     {
-      "name": "Debug (Postgres config)",
+      "name": "Debug (IP Match Postgres)",
       "type": "go",
       "request": "launch",
       "mode": "debug",
