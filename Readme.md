@@ -23,7 +23,7 @@ corporate-network || ip-whitelist
 - **🔌 Extensible**: Extensible analysis and authorization controller system
 - **📜 Policy DSL**: Express complex requirements with validated boolean expressions
 - **🏷️ Header Injection**: Dynamically add headers to upstream/downstream requests
-- **📊 Full Observability**: Prometheus metrics, structured logs (logfmt), health checks
+- **📊 Full Observability**: [Prometheus metrics](./pkg/metrics/), structured logs (logfmt), health checks
 - **⚡ High Performance**: Concurrent controller execution, caching, minimal latency
 - **🛠️ Easy Configuration**: YAML-based configuration with validation and defaults
 
