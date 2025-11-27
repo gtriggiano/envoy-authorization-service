@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/reflection"
 
 	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
 )
@@ -42,6 +43,7 @@ func NewServer(cfg config.ServerConfig, manager *Manager, logger *zap.Logger) (*
 	}
 
 	grpcServer := grpc.NewServer(opts...)
+	reflection.Register(grpcServer)
 	authv3Server := &authorizationService{manager: manager, logger: logger}
 	registerService(grpcServer, authv3Server)
 
