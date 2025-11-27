@@ -10,21 +10,21 @@ import (
 var (
 	// Metrics are registered using promauto which uses the default registry
 	requestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "envoy_authorization_service",
+		Namespace: "envoy_authz",
 		Subsystem: "ip_match_database",
 		Name:      "requests_total",
 		Help:      "Total authorization requests processed by controller",
 	}, []string{"controller", "result"})
 
 	queriesTotal = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "envoy_authorization_service",
+		Namespace: "envoy_authz",
 		Subsystem: "ip_match_database",
 		Name:      "queries_total",
 		Help:      "Total database queries executed",
 	}, []string{"controller", "database", "result"})
 
 	queryDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace: "envoy_authorization_service",
+		Namespace: "envoy_authz",
 		Subsystem: "ip_match_database",
 		Name:      "query_duration_seconds",
 		Help:      "Database query duration in seconds",
@@ -32,21 +32,21 @@ var (
 	}, []string{"controller", "database"})
 
 	cacheRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "envoy_authorization_service",
+		Namespace: "envoy_authz",
 		Subsystem: "ip_match_database",
 		Name:      "cache_requests_total",
 		Help:      "Total cache lookup requests",
 	}, []string{"controller", "result"})
 
 	cacheEntries = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: "envoy_authorization_service",
+		Namespace: "envoy_authz",
 		Subsystem: "ip_match_database",
 		Name:      "cache_entries",
 		Help:      "Current number of entries in cache",
 	}, []string{"controller"})
 
 	unavailableTotal = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "envoy_authorization_service",
+		Namespace: "envoy_authz",
 		Subsystem: "ip_match_database",
 		Name:      "unavailable_total",
 		Help:      "Total database unavailability events",
