@@ -6,7 +6,7 @@ PLATFORMS ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
 LDFLAGS ?=
 RELEASE_BUMP ?= auto
 
-.PHONY: all build build-all clean test tidy run fmt docker release docker
+.PHONY: all build build-all clean test test-e2e tidy run run-redis run-postgres fetch-maxmind seed-postgres seed-redis fmt docker release compose-up compose-down
 
 all: clean tidy fmt test build-all
 
@@ -33,11 +33,46 @@ clean:
 test:
 	$(GO) test -cover ./...
 
+test-e2e: fetch-maxmind
+	@mkdir -p .cache/go-build .cache/go-tmp
+	$(DOCKER) info >/dev/null
+	GOCACHE=$(PWD)/.cache/go-build GOTMPDIR=$(PWD)/.cache/go-tmp $(GO) test -cover -tags=e2e ./...
+
 tidy:
 	$(GO) mod tidy
 
-run:
-	$(GO) run . start --config config/config.example.yaml
+run-maxmind: fetch-maxmind
+	$(GO) run . start --config config/config.maxmind.yaml
+
+run-redis: fetch-maxmind compose-up seed-redis
+	$(GO) run . start --config config/config.redis.yaml
+
+run-postgres: fetch-maxmind compose-up seed-postgres
+	POSTGRES_USER?=postgres
+	POSTGRES_PASSWORD?=postgres
+	POSTGRES_USER=$(POSTGRES_USER) POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) $(GO) run . start --config config/config.postgres.yaml
+
+seed-databases: seed-postgres seed-redis
+
+seed-postgres: compose-up
+	@echo "Waiting for Postgres to be ready..."
+	@for i in $$(seq 1 30); do \
+		$(DOCKER) compose exec -T postgres pg_isready -U postgres -d security >/dev/null 2>&1 && break; \
+		echo "  postgres not ready yet... ($$i/30)"; \
+		sleep 1; \
+	done
+	@echo "Seeding Postgres database..."
+	$(DOCKER) compose exec -T postgres psql -U postgres -d security -f /seed.sql
+
+seed-redis: compose-up
+	@echo "Waiting for Redis to be ready..."
+	@for i in $$(seq 1 30); do \
+		$(DOCKER) compose exec redis redis-cli ping >/dev/null 2>&1 && break; \
+		echo "  redis not ready yet... ($$i/30)"; \
+		sleep 1; \
+	done
+	$(DOCKER) compose exec redis redis-cli set trusted:203.0.113.10 1
+	$(DOCKER) compose exec redis redis-cli set scraper:211.0.27.6 1
 
 fetch-maxmind:
 	@./scripts/fetch-maxmind.sh
@@ -52,7 +87,7 @@ docker:
 	docker build -t $(BINARY):dev .
 
 compose-up:
-	docker compose up -d
+	$(DOCKER) compose up -d
 
 compose-down:
-	docker compose down
+	$(DOCKER) compose down

@@ -1,0 +1,39 @@
+logging:
+  level: debug
+
+authorizationControllers:
+  - name: trusted
+    type: ip-match-database
+    settings:
+      action: allow
+      cache:
+        ttl: 5m
+      database:
+        type: postgres
+        postgres:
+          query: "SELECT 1 FROM trusted_ips WHERE ip = $1 LIMIT 1"
+          host: localhost
+          port: 5432
+          databaseName: security
+          usernameEnv: POSTGRES_USER
+          passwordEnv: POSTGRES_PASSWORD
+
+  - name: scraper
+    type: ip-match-database
+    settings:
+      action: deny
+      cache:
+        ttl: 5m
+      database:
+        type: postgres
+        postgres:
+          query: "SELECT 1 FROM scrapers WHERE ip = $1 LIMIT 1"
+          host: localhost
+          port: 5432
+          databaseName: security
+          usernameEnv: POSTGRES_USER
+          passwordEnv: POSTGRES_PASSWORD
+
+authorizationPolicy: "trusted"
+# authorizationPolicy: "!scraper"
+authorizationPolicyBypass: false

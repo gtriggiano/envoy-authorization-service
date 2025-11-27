@@ -1,0 +1,33 @@
+logging:
+  level: debug
+
+authorizationControllers:
+  - name: trusted
+    type: ip-match-database
+    settings:
+      action: allow
+      cache:
+        ttl: 5m
+      database:
+        type: redis
+        redis:
+          keyPrefix: "trusted:"
+          host: localhost
+          port: 6379
+  
+  - name: scraper
+    type: ip-match-database
+    settings:
+      action: deny
+      cache:
+        ttl: 5m
+      database:
+        type: redis
+        redis:
+          keyPrefix: "scraper:"
+          host: localhost
+          port: 6379
+
+# authorizationPolicy: "trusted"
+authorizationPolicy: "!scraper"
+authorizationPolicyBypass: false

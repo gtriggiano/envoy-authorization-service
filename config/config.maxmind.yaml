@@ -1,16 +1,5 @@
 logging:
-  level: info
-
-shutdown:
-  timeout: 25s  
-
-server:
-  address: ":9001"
-
-metrics:
-  address: ":9090"
-  healthPath: /healthz
-  readinessPath: /readyz
+  level: debug
 
 analysisControllers:
   - name: asn-detect
@@ -34,5 +23,6 @@ authorizationControllers:
       action: allow
       cidrList: config/ip-whitelist.txt
 
-authorizationPolicy: "ip-whitelist || !ip-blacklist"
+authorizationPolicy: "ip-whitelist"
+# authorizationPolicy: "!ip-blacklist"
 authorizationPolicyBypass: false

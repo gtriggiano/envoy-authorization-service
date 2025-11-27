@@ -1,5 +1,8 @@
 {
     "github.copilot.chat.commitMessageGeneration.instructions": [
         {"file": ".vscode/copilot-commit-message.md"}
-    ]
+    ],
+    "gopls": {
+        "build.buildFlags": ["-tags=e2e"]
+    }
 }
