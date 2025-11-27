@@ -27,7 +27,7 @@ jobs:
           fi
 
       - name: Fetch MaxMind DB
-        run: /scripts/fetch-maxmind.sh
+        run: ./scripts/fetch-maxmind.sh
 
       - name: Run tests
         run: |
