@@ -310,7 +310,13 @@ func headerOptionsFromMap(values map[string]string) []*corev3.HeaderValueOption 
 		if !isSafeHeader(key) {
 			continue
 		}
-		headers = append(headers, &corev3.HeaderValueOption{Header: &corev3.HeaderValue{Key: strings.TrimSpace(key), Value: strings.TrimSpace(value)}})
+		headers = append(headers, &corev3.HeaderValueOption{
+			AppendAction: corev3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
+			Header: &corev3.HeaderValue{
+				Key:   strings.TrimSpace(key),
+				Value: strings.TrimSpace(value),
+			},
+		})
 	}
 
 	return headers
