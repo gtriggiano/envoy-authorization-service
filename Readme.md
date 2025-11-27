@@ -364,9 +364,11 @@ The policy DSL is a boolean expression language for combining authorization cont
 
 ### Evaluation
 
-Each authorization controller returns a gRPC status code:
-- `codes.OK` → Evaluates to `true` in policy
-- Any other code → Evaluates to `false` in policy
+Each authorization controller verdict includes an `InPolicy` field that determines its boolean value in policy expressions:
+- **Allow-mode controllers**: `InPolicy = true` when the request matches the allow-list (even though result is OK)
+- **Deny-mode controllers**: `InPolicy = true` when the request matches the deny-list (even though result is PermissionDenied)
+
+This ensures policy expressions represent semantic intent: a controller evaluates to `true` when the request is "in" its policy, regardless of whether that means allowing or denying the request
 
 ### Validation
 
