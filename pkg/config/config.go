@@ -68,6 +68,8 @@ type MetricsConfig struct {
 	HealthPath string `yaml:"healthPath"`
 	// ReadinessPath is the readiness probe endpoint path.
 	ReadinessPath string `yaml:"readinessPath"`
+	// DropPrefixes specifies metric name prefixes to filter out from the default Go runtime registry.
+	DropPrefixes []string `yaml:"dropPrefixes"`
 }
 
 // ControllerConfig defines one controller instance with its type and settings.
@@ -173,6 +175,9 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Metrics.ReadinessPath == "" {
 		c.Metrics.ReadinessPath = "/readyz"
+	}
+	if c.Metrics.DropPrefixes == nil {
+		c.Metrics.DropPrefixes = []string{"go_", "process_", "promhttp_"}
 	}
 
 	if c.Shutdown.Timeout == "" {

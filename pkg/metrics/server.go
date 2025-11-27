@@ -68,7 +68,11 @@ func (s *Server) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.Handle(s.cfg.HealthPath, s.livenessHandler())
 	mux.Handle(s.cfg.ReadinessPath, s.readinessHandler())
-	mux.Handle("/metrics", promhttp.HandlerFor(s.registry, promhttp.HandlerOpts{}))
+	gatherer := prometheus.Gatherers{ // include default registry but filter out configured prefixes
+		s.registry,
+		filteringGatherer{prometheus.DefaultGatherer, s.cfg.DropPrefixes},
+	}
+	mux.Handle("/metrics", promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{}))
 
 	srv := &http.Server{
 		Addr:    s.cfg.Address,

@@ -130,6 +130,13 @@ metrics:
   address: ":9090"
   healthPath: /healthz
   readinessPath: /readyz
+  
+  # Optional: metric name prefixes to exclude from Go runtime metrics
+  # Defaults to ["go_", "process_", "promhttp_"]
+  dropPrefixes:
+    - go_
+    - process_
+    - promhttp_
 
 # Optional graceful shutdown configuration
 shutdown:
