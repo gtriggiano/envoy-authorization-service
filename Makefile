@@ -43,8 +43,8 @@ test-e2e: fetch-maxmind
 tidy:
 	$(GO) mod tidy
 
-run-maxmind: fetch-maxmind
-	$(GO) run . start --config config/config.maxmind.yaml
+run-ip-match: fetch-maxmind
+	$(GO) run . start --config config/config.ip-match.yaml
 
 run-redis: fetch-maxmind compose-up seed-redis
 	$(GO) run . start --config config/config.redis.yaml
