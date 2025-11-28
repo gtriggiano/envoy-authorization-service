@@ -38,17 +38,15 @@ The readiness probe runs health checks against all configured analysis and autho
 
 These metrics track overall authorization service performance and are produced by the core service.
 
-### `envoy_authz_requests_total`
-
-**Type**: Counter  
-**Labels**: `verdict`
+### envoy_authz_requests_total `Counter`
 
 Total number of authorization requests processed.
 
-**Labels:**
-- `verdict`: Authorization decision
-  - `ALLOW` - Request was allowed by policy
-  - `DENY` - Request was denied by policy
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `verdict` | `ALLOW` | Authorization decision. Possible values: `ALLOW` (request was allowed), `DENY` (request was denied) |
+
+**Type**: Counter
 
 **Example:**
 ```promql
@@ -64,17 +62,16 @@ rate(envoy_authz_requests_total[5m])
 
 ---
 
-### `envoy_authz_request_duration_seconds`
-
-**Type**: Histogram  
-**Labels**: `verdict`
+### envoy_authz_request_duration_seconds `Histogram`
 
 End-to-end authorization request latency in seconds.
 
-**Buckets**: `[.00005, .0001, .0005, .001, .002, .005, .01, .025, .05, .1, .25, .5]`
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `verdict` | `ALLOW` | Authorization decision. Possible values: `ALLOW` (request was allowed), `DENY` (request was denied) |
 
-**Labels:**
-- `verdict`: Authorization decision (`ALLOW` or `DENY`)
+**Type**: Histogram  
+**Buckets**: `[.00005, .0001, .0005, .001, .002, .005, .01, .025, .05, .1, .25, .5]`
 
 **Example:**
 ```promql
@@ -88,24 +85,19 @@ rate(envoy_authz_request_duration_seconds_count{verdict="DENY"}[5m])
 
 ---
 
-### `envoy_authz_controller_phase_duration_seconds`
-
-**Type**: Histogram  
-**Labels**: `controller_name`, `controller_kind`, `phase`, `result`
+### envoy_authz_controller_phase_duration_seconds `Histogram`
 
 Individual controller execution time in seconds.
 
-**Buckets**: `[.00005, .0001, .0005, .001, .002, .005, .01, .025, .05, .1, .25, .5]`
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `controller_name` | `maxmind-asn-lookup` | Unique controller instance name (from configuration) |
+| `controller_kind` | `maxmind-asn` | Type of controller. Possible values: `maxmind-asn`, `maxmind-geoip`, `ua-detect` (analysis controllers), `ip-match`, `asn-match`, `ip-match-database` (authorization controllers) |
+| `phase` | `analysis` | Execution phase. Possible values: `analysis` (analysis controller execution), `authorization` (authorization controller execution) |
+| `result` | `ok` | Execution outcome. Possible values: `ok` (successful execution), `error` (execution failed) |
 
-**Labels:**
-- `controller_name`: Unique controller instance name (from configuration)
-- `controller_kind`: Controller type (e.g., `maxmind-asn`, `ip-match`, `asn-match`)
-- `phase`: Execution phase
-  - `analysis` - Analysis controller execution
-  - `authorization` - Authorization controller execution
-- `result`: Execution outcome
-  - `ok` - Successful execution
-  - `error` - Execution failed
+**Type**: Histogram  
+**Buckets**: `[.00005, .0001, .0005, .001, .002, .005, .01, .025, .05, .1, .25, .5]`
 
 **Example:**
 ```promql
@@ -123,11 +115,12 @@ rate(envoy_authz_controller_phase_duration_seconds_count{phase="authorization"}[
 
 ---
 
-### `envoy_authz_inflight_requests`
-
-**Type**: Gauge
+### envoy_authz_inflight_requests `Gauge`
 
 Current number of authorization requests being processed.
+
+**Type**: Gauge  
+**Labels**: None
 
 **Example:**
 ```promql
@@ -146,46 +139,40 @@ max_over_time(envoy_authz_inflight_requests[1h])
 
 The `ip-match-database` controller produces additional metrics for database operations and caching.
 
-#### `envoy_authz_ip_match_database_requests_total`
-
-**Type**: Counter  
-**Labels**: `controller_name`, `database`, `result`
+#### envoy_authz_ip_match_database_requests_total `Counter`
 
 Total authorization requests processed by this controller.
 
-**Labels:**
-- `controller_name`: Controller instance name
-- `database`: Database type (`redis` or `postgres`)
-- `result`: Authorization result
-  - `allow` - Request was allowed
-  - `deny` - Request was denied
-  - `error` - Processing error occurred
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `controller_name` | `scraper-blocker` | Controller instance name |
+| `database` | `redis` | Database type. Possible values: `redis`, `postgres` |
+| `result` | `allow` | Authorization result. Possible values: `allow` (request was allowed), `deny` (request was denied), `error` (processing error occurred) |
+
+**Type**: Counter
 
 **Example:**
 ```promql
-# Allow rate for scraper blocker
+# Deny rate for scraper blocker
 rate(envoy_authz_ip_match_database_requests_total{
-  controller="scraper-blocker",
+  controller_name="scraper-blocker",
   result="deny"
 }[5m])
 ```
 
 ---
 
-#### `envoy_authz_ip_match_database_queries_total`
-
-**Type**: Counter  
-**Labels**: `controller_name`, `database`, `result`
+#### envoy_authz_ip_match_database_queries_total `Counter`
 
 Total database queries executed.
 
-**Labels:**
-- `controller_name`: Controller instance name
-- `database`: Database type (`redis` or `postgres`)
-- `result`: Query outcome
-  - `found` - IP address matched in database
-  - `not_found` - IP address not found in database
-  - `error` - Query failed
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `controller_name` | `scraper-blocker` | Controller instance name |
+| `database` | `redis` | Database type. Possible values: `redis`, `postgres` |
+| `result` | `found` | Query outcome. Possible values: `found` (IP address matched in database), `not_found` (IP address not found in database), `error` (query failed) |
+
+**Type**: Counter
 
 **Example:**
 ```promql
@@ -204,18 +191,17 @@ rate(envoy_authz_ip_match_database_queries_total{
 
 ---
 
-#### `envoy_authz_ip_match_database_query_duration_seconds`
-
-**Type**: Histogram  
-**Labels**: `controller_name`, `database`
+#### envoy_authz_ip_match_database_query_duration_seconds `Histogram`
 
 Database query duration in seconds.
 
-**Buckets**: `[.001, .002, .005, .01, .025, .05, .1, .25, .5, 1]`
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `controller_name` | `scraper-blocker` | Controller instance name |
+| `database` | `redis` | Database type. Possible values: `redis`, `postgres` |
 
-**Labels:**
-- `controller_name`: Controller instance name
-- `database`: Database type (`redis` or `postgres`)
+**Type**: Histogram  
+**Buckets**: `[.001, .002, .005, .01, .025, .05, .1, .25, .5, 1]`
 
 **Example:**
 ```promql
@@ -240,18 +226,18 @@ histogram_quantile(0.50,
 
 ---
 
-#### `envoy_authz_ip_match_database_cache_requests_total`
-
-**Type**: Counter  
-**Labels**: `controller_name`, `result`
+#### envoy_authz_ip_match_database_cache_requests_total `Counter`
 
 Total cache lookup requests.
 
-**Labels:**
-- `controller_name`: Controller instance name
-- `result`: Cache outcome
-  - `hit` - Entry found in cache
-  - `miss` - Entry not in cache, database query required
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `controller_name` | `scraper-blocker` | Controller instance name |
+| `result` | `hit` | Cache outcome. Possible values: `hit` (entry found in cache), `miss` (entry not in cache, database query required) |
+| `result` | `hit` | Entry found in cache |
+| `result` | `miss` | Entry not in cache, database query required |
+
+**Type**: Counter
 
 **Example:**
 ```promql
@@ -269,15 +255,15 @@ rate(envoy_authz_ip_match_database_cache_requests_total{
 
 ---
 
-#### `envoy_authz_ip_match_database_cache_entries`
-
-**Type**: Gauge  
-**Labels**: `controller_name`
+#### envoy_authz_ip_match_database_cache_entries `Gauge`
 
 Current number of entries in the cache.
 
-**Labels:**
-- `controller_name`: Controller instance name
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `controller_name` | `scraper-blocker` | Controller instance name |
+
+**Type**: Gauge
 
 **Example:**
 ```promql
@@ -290,16 +276,16 @@ delta(envoy_authz_ip_match_database_cache_entries[1h])
 
 ---
 
-#### `envoy_authz_ip_match_database_unavailable_total`
-
-**Type**: Counter  
-**Labels**: `controller_name`, `database`
+#### envoy_authz_ip_match_database_unavailable_total `Counter`
 
 Total database unavailability events (connection failures, timeouts, etc.).
 
-**Labels:**
-- `controller_name`: Controller instance name
-- `database`: Database type (`redis` or `postgres`)
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `controller_name` | `scraper-blocker` | Controller instance name |
+| `database` | `redis` | Database type. Possible values: `redis`, `postgres` |
+
+**Type**: Counter
 
 **Example:**
 ```promql
@@ -366,5 +352,3 @@ rate(envoy_authz_ip_match_database_queries_total[1m])
 # Database unavailability incidents in last 24 hours
 increase(envoy_authz_ip_match_database_unavailable_total[24h])
 ```
-
-
