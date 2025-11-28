@@ -204,6 +204,126 @@ func TestHelperFunctionsNilSafety(t *testing.T) {
 	}
 }
 
+func TestDetermineDeviceType(t *testing.T) {
+	tests := []struct {
+		name         string
+		isBot        bool
+		isMobile     bool
+		isTablet     bool
+		isDesktop    bool
+		expectedType string
+	}{
+		{"bot detected", true, false, false, false, "bot"},
+		{"mobile device", false, true, false, false, "mobile"},
+		{"tablet device", false, false, true, false, "tablet"},
+		{"desktop device", false, false, false, true, "desktop"},
+		{"mobile takes priority over tablet", false, true, true, false, "mobile"},
+		{"unknown device", false, false, false, false, "unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := &UADetectionResult{
+				Bot:    BotInfo{Detected: tt.isBot},
+				Device: DeviceInfo{Mobile: tt.isMobile, Tablet: tt.isTablet, Desktop: tt.isDesktop},
+			}
+			deviceType := determineDeviceType(result)
+			if deviceType != tt.expectedType {
+				t.Errorf("expected %q, got %q", tt.expectedType, deviceType)
+			}
+		})
+	}
+}
+
+func TestFormatBool(t *testing.T) {
+	tests := []struct {
+		input    bool
+		expected string
+	}{
+		{true, "true"},
+		{false, "false"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expected, func(t *testing.T) {
+			result := formatBool(tt.input)
+			if result != tt.expected {
+				t.Errorf("expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestParseInt(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int
+	}{
+		{"123", 123},
+		{"0", 0},
+		{"-1", -1},
+		{"invalid", 0},
+		{"", 0},
+		{"999999", 999999},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := parseInt(tt.input)
+			if result != tt.expected {
+				t.Errorf("expected %d, got %d", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestJoinVersionParts(t *testing.T) {
+	tests := []struct {
+		name     string
+		major    string
+		minor    string
+		patch    string
+		expected string
+	}{
+		{"all parts", "1", "2", "3", "1.2.3"},
+		{"major and minor", "1", "2", "", "1.2"},
+		{"major only", "1", "", "", "1"},
+		{"empty", "", "", "", ""},
+		{"zero values", "0", "0", "0", "0.0.0"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := joinVersionParts(tt.major, tt.minor, tt.patch)
+			if result != tt.expected {
+				t.Errorf("expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestUADetectController_Name(t *testing.T) {
+	ctrl := &uaDetectAnalysisController{name: "test-name"}
+	if ctrl.Name() != "test-name" {
+		t.Errorf("expected 'test-name', got '%s'", ctrl.Name())
+	}
+}
+
+func TestUADetectController_Kind(t *testing.T) {
+	ctrl := &uaDetectAnalysisController{}
+	if ctrl.Kind() != ControllerKind {
+		t.Errorf("expected '%s', got '%s'", ControllerKind, ctrl.Kind())
+	}
+}
+
+func TestUADetectController_HealthCheck(t *testing.T) {
+	ctrl := &uaDetectAnalysisController{}
+	err := ctrl.HealthCheck(context.Background())
+	if err != nil {
+		t.Errorf("HealthCheck should always return nil, got %v", err)
+	}
+}
+
 func BenchmarkUADetect_Parse(b *testing.B) {
 	ctrl := newTestController(b)
 	const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"

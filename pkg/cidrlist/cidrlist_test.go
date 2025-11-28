@@ -90,6 +90,85 @@ func TestFindContaining(t *testing.T) {
 	}
 }
 
+func TestParse_EdgeCases(t *testing.T) {
+	t.Run("empty string", func(t *testing.T) {
+		got := Parse("")
+		if len(got) != 0 {
+			t.Errorf("expected empty list, got %d entries", len(got))
+		}
+	})
+
+	t.Run("only comments", func(t *testing.T) {
+		got := Parse("# Comment 1\n# Comment 2\n")
+		if len(got) != 0 {
+			t.Errorf("expected empty list, got %d entries", len(got))
+		}
+	})
+
+	t.Run("only whitespace", func(t *testing.T) {
+		got := Parse("   \n\t\n   ")
+		if len(got) != 0 {
+			t.Errorf("expected empty list, got %d entries", len(got))
+		}
+	})
+
+	t.Run("mixed valid and invalid", func(t *testing.T) {
+		got := Parse("192.168.1.0/24\ninvalid\n10.0.0.1")
+		if len(got) != 2 {
+			t.Fatalf("expected 2 entries (skipping invalid), got %d", len(got))
+		}
+		if got[0].Value.String() != "192.168.1.0/24" {
+			t.Errorf("unexpected first entry: %s", got[0].Value)
+		}
+		if got[1].Value.String() != "10.0.0.1/32" {
+			t.Errorf("unexpected second entry: %s", got[1].Value)
+		}
+	})
+}
+
+func TestSynthesize_EdgeCases(t *testing.T) {
+	t.Run("empty list", func(t *testing.T) {
+		res := Synthesize([]CIDR{})
+		if len(res.NewList) != 0 {
+			t.Errorf("expected empty NewList, got %d", len(res.NewList))
+		}
+		if len(res.RemovedEntries) != 0 {
+			t.Errorf("expected empty RemovedEntries, got %d", len(res.RemovedEntries))
+		}
+	})
+
+	t.Run("no overlaps", func(t *testing.T) {
+		list := []CIDR{
+			{Value: mustPrefix("10.0.0.0/24"), Comment: "a"},
+			{Value: mustPrefix("20.0.0.0/24"), Comment: "b"},
+		}
+		res := Synthesize(list)
+		if len(res.NewList) != 2 {
+			t.Errorf("expected 2 entries in NewList, got %d", len(res.NewList))
+		}
+		if len(res.RemovedEntries) != 0 {
+			t.Errorf("expected no removed entries, got %d", len(res.RemovedEntries))
+		}
+	})
+}
+
+func TestFormat_EdgeCases(t *testing.T) {
+	t.Run("empty list", func(t *testing.T) {
+		got := Format([]CIDR{})
+		if got != "" {
+			t.Errorf("expected empty string, got %q", got)
+		}
+	})
+
+	t.Run("single entry no comment", func(t *testing.T) {
+		list := []CIDR{{Value: mustPrefix("10.0.0.0/8"), Comment: ""}}
+		want := "10.0.0.0/8"
+		if got := Format(list); got != want {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+	})
+}
+
 // compareSlices asserts two CIDR slices are identical for testing.
 func compareSlices(t *testing.T, got, want []CIDR) {
 	t.Helper()

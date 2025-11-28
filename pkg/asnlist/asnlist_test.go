@@ -84,6 +84,93 @@ func TestFindContaining(t *testing.T) {
 	}
 }
 
+func TestParse_EdgeCases(t *testing.T) {
+	t.Run("empty string", func(t *testing.T) {
+		got := Parse("")
+		if len(got) != 0 {
+			t.Errorf("expected empty list, got %d entries", len(got))
+		}
+	})
+
+	t.Run("only comments", func(t *testing.T) {
+		got := Parse("# Comment\n# Another")
+		if len(got) != 0 {
+			t.Errorf("expected empty list, got %d entries", len(got))
+		}
+	})
+
+	t.Run("only whitespace", func(t *testing.T) {
+		got := Parse("   \n\t\n  ")
+		if len(got) != 0 {
+			t.Errorf("expected empty list, got %d entries", len(got))
+		}
+	})
+
+	t.Run("various formats", func(t *testing.T) {
+		got := Parse("AS 100\nas200\nAS300\n400")
+		if len(got) != 4 {
+			t.Fatalf("expected 4 entries, got %d", len(got))
+		}
+		expected := []uint{100, 200, 300, 400}
+		for i, as := range got {
+			if as.Number != expected[i] {
+				t.Errorf("entry %d: expected AS%d, got AS%d", i, expected[i], as.Number)
+			}
+		}
+	})
+}
+
+func TestSynthesize_EdgeCases(t *testing.T) {
+	t.Run("empty list", func(t *testing.T) {
+		res := Synthesize([]AS{})
+		if len(res.NewList) != 0 {
+			t.Errorf("expected empty NewList, got %d", len(res.NewList))
+		}
+		if len(res.RemovedEntries) != 0 {
+			t.Errorf("expected empty RemovedEntries, got %d", len(res.RemovedEntries))
+		}
+	})
+
+	t.Run("no duplicates", func(t *testing.T) {
+		list := []AS{{Number: 1}, {Number: 2}, {Number: 3}}
+		res := Synthesize(list)
+		if len(res.NewList) != 3 {
+			t.Errorf("expected 3 entries in NewList, got %d", len(res.NewList))
+		}
+		if len(res.RemovedEntries) != 0 {
+			t.Errorf("expected no removed entries, got %d", len(res.RemovedEntries))
+		}
+	})
+
+	t.Run("all duplicates", func(t *testing.T) {
+		list := []AS{{Number: 1}, {Number: 1}, {Number: 1}}
+		res := Synthesize(list)
+		if len(res.NewList) != 1 {
+			t.Errorf("expected 1 entry in NewList, got %d", len(res.NewList))
+		}
+		if len(res.RemovedEntries) != 2 {
+			t.Errorf("expected 2 removed entries, got %d", len(res.RemovedEntries))
+		}
+	})
+}
+
+func TestFormat_EdgeCases(t *testing.T) {
+	t.Run("empty list", func(t *testing.T) {
+		got := Format([]AS{})
+		if got != "" {
+			t.Errorf("expected empty string, got %q", got)
+		}
+	})
+
+	t.Run("single entry", func(t *testing.T) {
+		list := []AS{{Number: 100, Comment: ""}}
+		want := "AS 100"
+		if got := Format(list); got != want {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+	})
+}
+
 // compareLists asserts two ASN slices are identical for tests.
 func compareLists(t *testing.T, got, want []AS) {
 	t.Helper()
