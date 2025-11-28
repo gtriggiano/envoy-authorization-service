@@ -1,0 +1,9 @@
+# Known attack sources
+185.220.100.0/24
+185.220.101.0/24
+
+# Compromised partner endpoint
+203.0.113.123/32
+
+# Bot network
+198.51.100.100/30

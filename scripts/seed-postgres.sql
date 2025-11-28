@@ -1,0 +1,20 @@
+DROP TABLE IF EXISTS trusted_ips;
+DROP TABLE IF EXISTS scrapers;
+
+CREATE TABLE IF NOT EXISTS trusted_ips (
+  ip inet PRIMARY KEY
+);
+
+CREATE TABLE IF NOT EXISTS scrapers (
+  ip inet PRIMARY KEY
+);
+
+INSERT INTO trusted_ips (ip) VALUES
+  ('203.0.113.10'),
+  ('198.51.100.5')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO scrapers (ip) VALUES
+  ('211.0.27.6'),
+  ('122.30.70.8')
+ON CONFLICT DO NOTHING;

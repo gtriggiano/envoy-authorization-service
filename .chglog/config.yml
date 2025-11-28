@@ -1,0 +1,36 @@
+style: github
+template: CHANGELOG.tpl.md
+info:
+  title: Changelog
+  repository_url: https://github.com/gtriggiano/envoy-authorization-service
+options:
+  conventional_commits: true
+  tag_filter_pattern: '^v\d+\.\d+\.\d+$'
+  commits:
+    filters:
+      Type:
+        - feat
+        - fix
+        - chore
+        - docs
+        - refactor
+        - perf
+        - test
+  commit_groups:
+    title_maps:
+      feat: Features
+      fix: Bug Fixes
+      chore: Chores
+      docs: Documentation
+      refactor: Refactoring
+      perf: Performance
+      test: Tests
+  header:
+    pattern: "^(\\w*)(?:\\((.*)\\))?: (.*)$"
+    pattern_maps:
+      - Type
+      - Scope
+      - Subject
+  notes:
+    keywords:
+      - BREAKING CHANGE
