@@ -35,3 +35,9 @@ go.work.sum
 bin/
 config/.maxmind-tmp/
 config/*.tar.gz
+
+# Documentation
+docs/node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+docs/package-lock.json
