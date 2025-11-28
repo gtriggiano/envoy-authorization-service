@@ -99,7 +99,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Install git-chglog
-        run: go install github.com/git-chglog/git-chglog/cmd/git-chglog@v0.17.1
+        run: go install github.com/git-chglog/git-chglog/cmd/git-chglog@latest
 
       - name: Resolve image tags
         id: rel_vars
