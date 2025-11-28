@@ -108,6 +108,4 @@ cache:
 ## Next Steps
 
 - [Combined Policies](/examples/combined-policy)
-- [Production Deployment](/guides/production)
 - [Observability Guide](/guides/observability)
-- [IP Match Database Reference](https://github.com/gtriggiano/envoy-authorization-service/blob/main/pkg/authorization/ip_match_database/Readme.md)
