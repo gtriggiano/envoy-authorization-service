@@ -46,7 +46,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Fetch MaxMind DB
-        run: /scripts/fetch-maxmind.sh
+        run: ./scripts/fetch-maxmind.sh
 
       - name: Run all tests
         run: |
