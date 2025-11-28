@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from "vitepress-plugin-mermaid"
+import { version } from './version'
 
 const defaultConfiguration = defineConfig({
   title: "Envoy Authorization Service",
@@ -20,7 +21,7 @@ const defaultConfiguration = defineConfig({
       { text: "Examples", link: "/examples/" },
       { text: "Reference", link: "/reference/cli" },
       {
-        text: "v1.0.3",
+        text: `v${version}`,
         items: [
           {
             text: "Changelog",
@@ -129,6 +130,12 @@ const defaultConfiguration = defineConfig({
       dark: "github-dark",
     },
     lineNumbers: true,
+    config: (md) => {
+      // Replace {{VERSION}} with actual version in all markdown content
+      md.core.ruler.before('normalize', 'replace-version', (state) => {
+        state.src = state.src.replace(/\{\{VERSION\}\}/g, version)
+      })
+    },
   },
 });
 

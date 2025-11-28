@@ -7,7 +7,7 @@ Deploy the Envoy Authorization Service using Docker and Docker Compose.
 ### Pull Image
 
 ```bash
-docker pull ghcr.io/gtriggiano/envoy-authorization-service:latest
+docker pull ghcr.io/gtriggiano/envoy-authorization-service:{{VERSION}}
 ```
 
 ### Run Container
@@ -18,7 +18,7 @@ docker run -d \
   -p 9001:9001 \
   -p 9090:9090 \
   -v $(pwd)/config.yaml:/config.yaml \
-  ghcr.io/gtriggiano/envoy-authorization-service:latest \
+  ghcr.io/gtriggiano/envoy-authorization-service:{{VERSION}} \
   start --config /config.yaml
 ```
 
@@ -29,7 +29,7 @@ Create `docker-compose.yaml`:
 ```yaml
 services:
   authz-service:
-    image: ghcr.io/gtriggiano/envoy-authorization-service:1.0.3
+    image: ghcr.io/gtriggiano/envoy-authorization-service:{{VERSION}}
     container_name: envoy-authz-service
     ports:
       - "9001:9001"  # gRPC
@@ -58,7 +58,7 @@ Complete setup with Envoy Proxy:
 ```yaml
 services:
   authz-service:
-    image: ghcr.io/gtriggiano/envoy-authorization-service:1.0.3
+    image: ghcr.io/gtriggiano/envoy-authorization-service:{{VERSION}}
     container_name: envoy-authz-service
     volumes:
       - ./config.yaml:/config.yaml:ro
@@ -163,7 +163,7 @@ Add Redis for dynamic IP control:
 ```yaml
 services:
   authz-service:
-    image: ghcr.io/gtriggiano/envoy-authorization-service:1.0.3
+    image: ghcr.io/gtriggiano/envoy-authorization-service:{{VERSION}}
     volumes:
       - ./config.yaml:/config.yaml:ro
     command: start --config /config.yaml
