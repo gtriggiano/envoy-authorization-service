@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envoy-authorization-service
+spec:
+  selector:
+    matchLabels:
+      app: envoy-authorization-service
+  template:
+    metadata:
+      labels:
+        app: envoy-authorization-service
+    spec:
+      containers:
+        - name: envoy-authorization-service
+          image: gtriggiano/envoy-authorization-service:latest
+          args:
+            - start
+            - --config=/config.yaml
+          ports:
+          - name: grpc
+            containerPort: 9001
+          - name: metrics
+            containerPort: 9090
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9090
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 9090
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          volumeMounts:
+          - name: config
+            mountPath: /config
+          - name: maxmind-dbs
+            mountPath: /maxmind
+      initContainers:
+        - name: maxmind-db-downloader
+          image: curlimages/curl:latest
+          command:
+            - sh
+            - -c
+            - |
+              curl -L -o /maxmind/GeoLite2-ASN.mmdb https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-ASN.mmdb
+              curl -L -o /maxmind/GeoLite2-City.mmdb https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb
+          volumeMounts:
+          - name: maxmind-dbs
+            mountPath: /maxmind
+      volumes:
+        - name: config
+          configMap:
+            name: envoy-authorization-service-config
+        - name: maxmind-dbs
+          emptyDir: {}
+          

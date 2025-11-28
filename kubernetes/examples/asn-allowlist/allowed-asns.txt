@@ -1,0 +1,17 @@
+# Google
+AS15169
+
+# Amazon AWS
+AS16509
+
+# Microsoft Azure
+AS8075
+
+# Cloudflare
+AS13335
+
+# DigitalOcean
+AS14061
+
+# Hetzner
+AS24940

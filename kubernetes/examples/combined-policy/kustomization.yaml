@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../bases
+
+configMapGenerator:
+  - name: envoy-authorization-service-config
+    options:
+      disableNameSuffixHash: true
+    files:
+      - config.yaml
+      - blocked-networks-ips.txt
+      - cloud-provider-asns.txt
+      - trusted-partners-ips.txt
