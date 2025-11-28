@@ -340,7 +340,7 @@ func TestDeriveVerdict_ReasonFormat(t *testing.T) {
 			asn:            13335,
 			asnOrg:         "Cloudflare, Inc.",
 			action:         "allow",
-			expectedReason: "AS 13335 Cloudflare, Inc. (Cloudflare CDN) matched allow list",
+			expectedReason: "AS 13335 Cloudflare, Inc. [Cloudflare CDN] matched allow-list",
 		},
 		{
 			name:           "Allow without comment",
@@ -348,7 +348,7 @@ func TestDeriveVerdict_ReasonFormat(t *testing.T) {
 			asn:            13335,
 			asnOrg:         "Cloudflare, Inc.",
 			action:         "allow",
-			expectedReason: "AS 13335 Cloudflare, Inc. matched allow list",
+			expectedReason: "AS 13335 Cloudflare, Inc. matched allow-list",
 		},
 		{
 			name:           "Deny with comment",
@@ -356,7 +356,7 @@ func TestDeriveVerdict_ReasonFormat(t *testing.T) {
 			asn:            13335,
 			asnOrg:         "Cloudflare, Inc.",
 			action:         "deny",
-			expectedReason: "AS 13335 Cloudflare, Inc. (Blocked network) matched deny list",
+			expectedReason: "AS 13335 Cloudflare, Inc. [Blocked network] matched black-list",
 		},
 		{
 			name:           "Deny without comment",
@@ -364,7 +364,7 @@ func TestDeriveVerdict_ReasonFormat(t *testing.T) {
 			asn:            13335,
 			asnOrg:         "Cloudflare, Inc.",
 			action:         "deny",
-			expectedReason: "AS 13335 Cloudflare, Inc. matched deny list",
+			expectedReason: "AS 13335 Cloudflare, Inc. matched black-list",
 		},
 		{
 			name:           "Not in allowed list",
@@ -372,7 +372,7 @@ func TestDeriveVerdict_ReasonFormat(t *testing.T) {
 			asn:            15169,
 			asnOrg:         "Google LLC",
 			action:         "allow",
-			expectedReason: "AS 15169 Google LLC did not match allow list",
+			expectedReason: "AS 15169 Google LLC did not match allow-list",
 		},
 		{
 			name:           "Not in denied list",
@@ -380,7 +380,7 @@ func TestDeriveVerdict_ReasonFormat(t *testing.T) {
 			asn:            15169,
 			asnOrg:         "Google LLC",
 			action:         "deny",
-			expectedReason: "AS 15169 Google LLC did not match deny list",
+			expectedReason: "AS 15169 Google LLC did not match black-list",
 		},
 	}
 
@@ -475,7 +475,7 @@ func TestDeriveVerdict_AllowAndDenyLogic(t *testing.T) {
 			asnInList:      true,
 			expectedCode:   codes.OK,
 			asnNum:         13335,
-			reasonContains: "matched allow list",
+			reasonContains: "matched allow-list",
 		},
 		{
 			name:           "Allow action, ASN not in list",
@@ -483,7 +483,7 @@ func TestDeriveVerdict_AllowAndDenyLogic(t *testing.T) {
 			asnInList:      false,
 			expectedCode:   codes.PermissionDenied,
 			asnNum:         99999,
-			reasonContains: "did not match allow list",
+			reasonContains: "did not match allow-list",
 		},
 		{
 			name:           "Deny action, ASN in list",
@@ -491,7 +491,7 @@ func TestDeriveVerdict_AllowAndDenyLogic(t *testing.T) {
 			asnInList:      true,
 			expectedCode:   codes.PermissionDenied,
 			asnNum:         13335,
-			reasonContains: "matched deny list",
+			reasonContains: "matched black-list",
 		},
 		{
 			name:           "Deny action, ASN not in list",
@@ -499,7 +499,7 @@ func TestDeriveVerdict_AllowAndDenyLogic(t *testing.T) {
 			asnInList:      false,
 			expectedCode:   codes.OK,
 			asnNum:         99999,
-			reasonContains: "did not match deny list",
+			reasonContains: "did not match black-list",
 		},
 	}
 

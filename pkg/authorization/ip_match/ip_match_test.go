@@ -311,7 +311,7 @@ func TestComputeVerdict_ReasonFormat(t *testing.T) {
 			cidrList:       "# Office\n192.168.1.0/24",
 			ipAddress:      "192.168.1.50",
 			action:         "allow",
-			expectedReason: "IP 192.168.1.50 matched allowed CIDR 192.168.1.0/24 (Office)",
+			expectedReason: "IP 192.168.1.50 matched allowed CIDR 192.168.1.0/24 [Office]",
 		},
 		{
 			name:           "Allow without comment",
@@ -325,28 +325,28 @@ func TestComputeVerdict_ReasonFormat(t *testing.T) {
 			cidrList:       "# Malicious\n192.168.1.0/24",
 			ipAddress:      "192.168.1.50",
 			action:         "deny",
-			expectedReason: "IP 192.168.1.50 matched denied CIDR 192.168.1.0/24 (Malicious)",
+			expectedReason: "IP 192.168.1.50 matched black-listed CIDR 192.168.1.0/24 [Malicious]",
 		},
 		{
 			name:           "Deny without comment",
 			cidrList:       "192.168.1.0/24",
 			ipAddress:      "192.168.1.50",
 			action:         "deny",
-			expectedReason: "IP 192.168.1.50 matched denied CIDR 192.168.1.0/24",
+			expectedReason: "IP 192.168.1.50 matched black-listed CIDR 192.168.1.0/24",
 		},
 		{
 			name:           "Not in allowed list",
 			cidrList:       "192.168.1.0/24",
 			ipAddress:      "10.0.0.1",
 			action:         "allow",
-			expectedReason: "IP 10.0.0.1 not in allowed list",
+			expectedReason: "IP 10.0.0.1 not allowed",
 		},
 		{
 			name:           "Not in denied list",
 			cidrList:       "192.168.1.0/24",
 			ipAddress:      "10.0.0.1",
 			action:         "deny",
-			expectedReason: "IP 10.0.0.1 not in denied list",
+			expectedReason: "IP 10.0.0.1 is not black-listed",
 		},
 	}
 
