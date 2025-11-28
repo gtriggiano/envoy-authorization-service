@@ -40,6 +40,19 @@ test-e2e: fetch-maxmind
 	$(DOCKER) info >/dev/null
 	GOCACHE=$(PWD)/.cache/go-build GOTMPDIR=$(PWD)/.cache/go-tmp $(GO) test -cover -tags=e2e ./...
 
+test-all: fetch-maxmind
+	@mkdir -p .cache/go-build .cache/go-tmp
+	$(DOCKER) info >/dev/null
+	@echo "Running all tests (non-e2e + e2e) with coverage..."
+	@which gocovmerge > /dev/null || $(GO) install github.com/wadey/gocovmerge@latest
+	@GOCACHE=$(PWD)/.cache/go-build GOTMPDIR=$(PWD)/.cache/go-tmp $(GO) test -covermode=atomic -coverprofile=coverage-e2e.out -tags=e2e ./... 2>&1 | grep -v "no test files" || true
+	@GOCACHE=$(PWD)/.cache/go-build GOTMPDIR=$(PWD)/.cache/go-tmp $(GO) test -covermode=atomic -coverprofile=coverage-regular.out ./... 2>&1 | grep -v "no test files" || true
+	@gocovmerge coverage-e2e.out coverage-regular.out > coverage.out
+	@$(GO) tool cover -func=coverage.out | tee coverage.txt
+	@rm -f coverage-e2e.out coverage-regular.out
+	@echo ""
+	@echo "Total coverage: $$(awk '/^total:/{print $$3}' coverage.txt)"
+
 tidy:
 	$(GO) mod tidy
 
