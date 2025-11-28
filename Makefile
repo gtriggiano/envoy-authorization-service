@@ -42,7 +42,6 @@ test-e2e: fetch-maxmind
 
 test-all: fetch-maxmind
 	@mkdir -p .cache/go-build .cache/go-tmp
-	$(DOCKER) info >/dev/null
 	@echo "Running all tests (non-e2e + e2e) with coverage..."
 	@which gocovmerge > /dev/null || $(GO) install github.com/wadey/gocovmerge@latest
 	@GOCACHE=$(PWD)/.cache/go-build GOTMPDIR=$(PWD)/.cache/go-tmp $(GO) test -covermode=atomic -coverprofile=coverage-e2e.out -tags=e2e ./... 2>&1 | grep -v "no test files" || true

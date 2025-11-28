@@ -60,8 +60,8 @@ func TestManagerWithRedisController(t *testing.T) {
 		t.Fatalf("expected allow for IP not in redis block key")
 	}
 
-	deny := runManagerCheck(t, ctx, authControllers, policyExpr, "203.0.113.10")
-	if deny {
+	allow = runManagerCheck(t, ctx, authControllers, policyExpr, "203.0.113.10")
+	if allow {
 		t.Fatalf("expected deny for redis-blocked IP")
 	}
 }

@@ -117,8 +117,8 @@ func TestIpMatchDatabaseController_InPolicy(t *testing.T) {
 	}{
 		{"allow policy with OK", "allow", codes.OK, true},
 		{"allow policy with deny", "allow", codes.PermissionDenied, false},
-		{"deny policy with OK", "deny", codes.OK, false},
-		{"deny policy with deny", "deny", codes.PermissionDenied, true},
+		{"deny policy with OK", "deny", codes.OK, true},
+		{"deny policy with deny", "deny", codes.PermissionDenied, false},
 	}
 
 	for _, tt := range tests {

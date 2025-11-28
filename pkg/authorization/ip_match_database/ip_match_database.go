@@ -203,10 +203,8 @@ func (c *ipMatchDatabaseAuthorizationController) createVerdict(code codes.Code, 
 }
 
 func (c *ipMatchDatabaseAuthorizationController) inPolicy(code codes.Code) bool {
-	if code == codes.OK {
-		return c.action == "allow"
-	}
-	return c.action == "deny"
+	// Policy evaluation expects "true" to mean the controller allows the request.
+	return code == codes.OK
 }
 
 // newIpMatchDatabaseAuthorizationController constructs a controller from configuration
