@@ -44,20 +44,22 @@ Total number of authorization requests processed.
 
 | Label Name | Example Value | Description |
 |------------|---------------|-------------|
+| `authority` | `api.service.com` | HTTP host value of the downstream request (or `-` when absent) |
 | `verdict` | `ALLOW` | Authorization decision. Possible values: `ALLOW` (request was allowed), `DENY` (request was denied) |
-
-**Type**: Counter
 
 **Example:**
 ```promql
 # Total allow decisions
-envoy_authz_requests_total{verdict="ALLOW"}
+envoy_authz_requests_total{verdict="ALLOW"} by (authority)
 
-# Total deny decisions  
-envoy_authz_requests_total{verdict="DENY"}
+# Total deny decisions
+envoy_authz_requests_total{verdict="DENY"} by (authority)
 
 # Request rate over 5 minutes
-rate(envoy_authz_requests_total[5m])
+sum(rate(envoy_authz_requests_total[5m])) by (authority)
+
+# Deny rate by authority
+rate(envoy_authz_requests_total{verdict="DENY"}[5m]) by (authority)
 ```
 
 ---
@@ -69,6 +71,7 @@ End-to-end authorization request latency in seconds.
 | Label Name | Example Value | Description |
 |------------|---------------|-------------|
 | `verdict` | `ALLOW` | Authorization decision. Possible values: `ALLOW` (request was allowed), `DENY` (request was denied) |
+| `authority` | `api.service.local` | HTTP host/:authority value of the downstream request (or `-` when absent) |
 
 **Type**: Histogram  
 **Buckets**: `[.00005, .0001, .0005, .001, .002, .005, .01, .025, .05, .1, .25, .5]`
@@ -76,11 +79,16 @@ End-to-end authorization request latency in seconds.
 **Example:**
 ```promql
 # 99th percentile latency for all requests
-histogram_quantile(0.99, rate(envoy_authz_request_duration_seconds_bucket[5m]))
+histogram_quantile(0.99, rate(envoy_authz_request_duration_seconds_bucket[5m])) by (authority)
 
 # Average latency for denied requests
 rate(envoy_authz_request_duration_seconds_sum{verdict="DENY"}[5m]) /
 rate(envoy_authz_request_duration_seconds_count{verdict="DENY"}[5m])
+
+# p95 latency by authority
+histogram_quantile(0.95,
+  rate(envoy_authz_request_duration_seconds_bucket[5m])
+) by (authority)
 ```
 
 ---
@@ -145,6 +153,7 @@ Total authorization requests processed by this controller.
 
 | Label Name | Example Value | Description |
 |------------|---------------|-------------|
+| `authority` | `api.service.local` | HTTP host/:authority value of the downstream request (or `-` when absent) |
 | `controller_name` | `scraper-blocker` | Controller instance name |
 | `database` | `redis` | Database type. Possible values: `redis`, `postgres` |
 | `result` | `allow` | Authorization result. Possible values: `allow` (request was allowed), `deny` (request was denied), `error` (processing error occurred) |
@@ -155,6 +164,7 @@ Total authorization requests processed by this controller.
 ```promql
 # Deny rate for scraper blocker
 rate(envoy_authz_ip_match_database_requests_total{
+  authority="api.service.local",
   controller_name="scraper-blocker",
   result="deny"
 }[5m])
@@ -168,6 +178,7 @@ Total database queries executed.
 
 | Label Name | Example Value | Description |
 |------------|---------------|-------------|
+| `authority` | `api.service.local` | HTTP host/:authority value of the downstream request (or `-` when absent) |
 | `controller_name` | `scraper-blocker` | Controller instance name |
 | `database` | `redis` | Database type. Possible values: `redis`, `postgres` |
 | `result` | `found` | Query outcome. Possible values: `found` (IP address matched in database), `not_found` (IP address not found in database), `error` (query failed) |
@@ -177,16 +188,16 @@ Total database queries executed.
 **Example:**
 ```promql
 # Database query error rate
-rate(envoy_authz_ip_match_database_queries_total{result="error"}[5m])
+rate(envoy_authz_ip_match_database_queries_total{result="error"}[5m]) by (authority, database)
 
 # Redis hit rate
-rate(envoy_authz_ip_match_database_queries_total{
+sum(rate(envoy_authz_ip_match_database_queries_total{
   database="redis",
   result="found"
-}[5m]) /
-rate(envoy_authz_ip_match_database_queries_total{
+}[5m])) by (authority) /
+sum(rate(envoy_authz_ip_match_database_queries_total{
   database="redis"
-}[5m])
+}[5m])) by (authority)
 ```
 
 ---
@@ -197,6 +208,7 @@ Database query duration in seconds.
 
 | Label Name | Example Value | Description |
 |------------|---------------|-------------|
+| `authority` | `api.service.local` | HTTP host/:authority value of the downstream request (or `-` when absent) |
 | `controller_name` | `scraper-blocker` | Controller instance name |
 | `database` | `redis` | Database type. Possible values: `redis`, `postgres` |
 
@@ -208,7 +220,7 @@ Database query duration in seconds.
 # 99th percentile database query latency
 histogram_quantile(0.99,
   rate(envoy_authz_ip_match_database_query_duration_seconds_bucket[5m])
-)
+) by (authority, database)
 
 # PostgreSQL vs Redis latency comparison
 histogram_quantile(0.50,
@@ -232,25 +244,23 @@ Total cache lookup requests.
 
 | Label Name | Example Value | Description |
 |------------|---------------|-------------|
+| `authority` | `api.service.local` | HTTP host/:authority value of the downstream request (or `-` when absent) |
 | `controller_name` | `scraper-blocker` | Controller instance name |
 | `result` | `hit` | Cache outcome. Possible values: `hit` (entry found in cache), `miss` (entry not in cache, database query required) |
-| `result` | `hit` | Entry found in cache |
-| `result` | `miss` | Entry not in cache, database query required |
 
 **Type**: Counter
 
 **Example:**
 ```promql
 # Cache hit rate
-rate(envoy_authz_ip_match_database_cache_requests_total{
-  result="hit"
-}[5m]) /
-rate(envoy_authz_ip_match_database_cache_requests_total[5m])
+sum(rate(envoy_authz_ip_match_database_cache_requests_total{result="hit"}[5m])) by (authority)
+/
+sum(rate(envoy_authz_ip_match_database_cache_requests_total[5m])) by (authority)
 
 # Cache miss rate by controller
 rate(envoy_authz_ip_match_database_cache_requests_total{
   result="miss"
-}[5m])
+}[5m]) by (authority, controller_name)
 ```
 
 ---
@@ -261,6 +271,7 @@ Current number of entries in the cache.
 
 | Label Name | Example Value | Description |
 |------------|---------------|-------------|
+| `authority` | `api.service.local` | HTTP host/:authority value of the downstream request (or `-` when absent) |
 | `controller_name` | `scraper-blocker` | Controller instance name |
 
 **Type**: Gauge
@@ -268,7 +279,7 @@ Current number of entries in the cache.
 **Example:**
 ```promql
 # Current cache size
-envoy_authz_ip_match_database_cache_entries
+envoy_authz_ip_match_database_cache_entries by (authority, controller_name)
 
 # Cache growth rate over 1 hour
 delta(envoy_authz_ip_match_database_cache_entries[1h])
@@ -282,6 +293,7 @@ Total database unavailability events (connection failures, timeouts, etc.).
 
 | Label Name | Example Value | Description |
 |------------|---------------|-------------|
+| `authority` | `api.service.local` | HTTP host/:authority value of the downstream request (or `-` when absent) |
 | `controller_name` | `scraper-blocker` | Controller instance name |
 | `database` | `redis` | Database type. Possible values: `redis`, `postgres` |
 
@@ -290,10 +302,10 @@ Total database unavailability events (connection failures, timeouts, etc.).
 **Example:**
 ```promql
 # Database unavailability rate
-rate(envoy_authz_ip_match_database_unavailable_total[5m])
+rate(envoy_authz_ip_match_database_unavailable_total[5m]) by (authority, database)
 
 # Total unavailability events in last hour
-increase(envoy_authz_ip_match_database_unavailable_total[1h])
+increase(envoy_authz_ip_match_database_unavailable_total[1h]) by (authority, controller_name, database)
 ```
 
 ---
@@ -326,25 +338,25 @@ process_resident_memory_bytes    # Resident memory size
 
 ```promql
 # Request rate (requests per second)
-rate(envoy_authz_requests_total[1m])
+sum(rate(envoy_authz_requests_total[1m])) by (authority)
 
 # Denial rate percentage
-100 * rate(envoy_authz_requests_total{verdict="DENY"}[5m]) /
-rate(envoy_authz_requests_total[5m])
+100 * sum(rate(envoy_authz_requests_total{verdict="DENY"}[5m])) by (authority) /
+sum(rate(envoy_authz_requests_total[5m])) by (authority)
 
 # P99 latency
-histogram_quantile(0.99, rate(envoy_authz_request_duration_seconds_bucket[5m]))
+histogram_quantile(0.99, rate(envoy_authz_request_duration_seconds_bucket[5m])) by (authority)
 
 # Error rate from controller failures
-rate(envoy_authz_controller_phase_duration_seconds_count{result="error"}[5m])
+rate(envoy_authz_controller_phase_duration_seconds_count{result="error"}[5m]) by (controller_name, controller_kind)
 ```
 
 ### Database Controller Performance
 
 ```promql
 # Cache effectiveness
-100 * rate(envoy_authz_ip_match_database_cache_requests_total{result="hit"}[5m]) /
-rate(envoy_authz_ip_match_database_cache_requests_total[5m])
+100 * sum(rate(envoy_authz_ip_match_database_cache_requests_total{result="hit"}[5m])) by (authority) /
+sum(rate(envoy_authz_ip_match_database_cache_requests_total[5m])) by (authority)
 
 # Database query load (queries per second)
 rate(envoy_authz_ip_match_database_queries_total[1m])
