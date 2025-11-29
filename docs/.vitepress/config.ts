@@ -19,7 +19,14 @@ const defaultConfiguration = defineConfig({
       { text: "Intro", link: "/getting-started" },
       { text: "Configuration", link: "/configuration/" },
       { text: "Examples", link: "/examples/" },
-      { text: "Reference", link: "/reference/cli" },
+      {
+        text: "Reference",
+        items: [
+          { text: "CLI Commands", link: "/reference/cli" },
+          { text: "Headers", link: "/reference/headers" },
+          { text: "Metrics", link: "/reference/metrics" },
+        ],
+      },
       {
         text: `v${version}`,
         items: [
