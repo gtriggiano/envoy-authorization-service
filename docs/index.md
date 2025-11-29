@@ -3,10 +3,9 @@ layout: home
 
 hero:
   name: Envoy Authorization Service
-  text: Policy-driven authorization for Envoy Proxy
-  tagline: Flexible, extensible access control with full observability built-in
+  tagline: Policy-driven, flexible and extensible access control with full observability built-in
   image:
-    src: /hero-image.svg
+    src: /logo.drawio.svg
     alt: Envoy Authorization Service
   actions:
     - theme: brand

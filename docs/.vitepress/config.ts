@@ -13,7 +13,7 @@ const defaultConfiguration = defineConfig({
   ],
 
   themeConfig: {
-    logo: "/logo.svg",
+    logo: "/logo.drawio.svg",
 
     nav: [
       { text: "Intro", link: "/getting-started" },
