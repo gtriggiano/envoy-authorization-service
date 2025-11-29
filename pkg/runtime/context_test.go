@@ -14,6 +14,11 @@ func TestNewRequestContextInitializesFields(t *testing.T) {
 	ip := "203.0.113.10"
 	req := &authv3.CheckRequest{
 		Attributes: &authv3.AttributeContext{
+			Request: &authv3.AttributeContext_Request{
+				Http: &authv3.AttributeContext_HttpRequest{
+					Host: "example.com",
+				},
+			},
 			Source: &authv3.AttributeContext_Peer{
 				Address: &corev3.Address{
 					Address: &corev3.Address_SocketAddress{
@@ -29,6 +34,9 @@ func TestNewRequestContextInitializesFields(t *testing.T) {
 	if ctx.Request != req {
 		t.Fatalf("request should be preserved on context")
 	}
+	if ctx.Authority != "example.com" {
+		t.Fatalf("expected authority to be populated, got %q", ctx.Authority)
+	}
 	if ctx.ReceivedAt.IsZero() {
 		t.Fatalf("expected ReceivedAt to be set")
 	}
@@ -40,11 +48,14 @@ func TestNewRequestContextInitializesFields(t *testing.T) {
 	}
 
 	fields := ctx.LogFields()
-	if len(fields) != 1 {
-		t.Fatalf("expected 1 log field, got %d", len(fields))
+	if len(fields) != 2 {
+		t.Fatalf("expected 2 log fields, got %d", len(fields))
 	}
-	if fields[0].Key != "ip" || fields[0].String != ip {
-		t.Fatalf("expected ip log field, got %+v", fields[0])
+	want := map[string]string{"authority": "example.com", "ip": ip}
+	for _, f := range fields {
+		if want[f.Key] != f.String {
+			t.Fatalf("unexpected log field %q -> %q", f.Key, f.String)
+		}
 	}
 }
 
@@ -65,16 +76,16 @@ func TestAddLogFieldsSkipsIPAndCopies(t *testing.T) {
 	ctx.AddLogFields(zap.String("user", "alice"), zap.String("ip", "ignored"))
 
 	fields := ctx.LogFields()
-	if len(fields) != 2 {
-		t.Fatalf("expected 2 log fields, got %d", len(fields))
+	if len(fields) != 3 {
+		t.Fatalf("expected 3 log fields, got %d", len(fields))
 	}
-	if fields[1].Key != "user" || fields[1].String != "alice" {
-		t.Fatalf("unexpected user field: %+v", fields[1])
+	if fields[2].Key != "user" || fields[2].String != "alice" {
+		t.Fatalf("unexpected user field: %+v", fields[2])
 	}
 
 	// Mutating the returned slice must not affect internal storage.
 	fields[0].Key = "mutated"
-	if ctx.LogFields()[0].Key != "ip" {
+	if ctx.LogFields()[0].Key != "authority" {
 		t.Fatalf("log fields slice was not copied")
 	}
 }
@@ -137,6 +148,63 @@ func TestRequestIpAddressExtraction(t *testing.T) {
 			got := requestIpAddress(tt.req)
 			if got != tt.want {
 				t.Fatalf("expected %v, got %v", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestRequestAuthorityExtraction(t *testing.T) {
+	tests := []struct {
+		name string
+		req  *authv3.CheckRequest
+		want string
+	}{
+		{name: "nil request", want: "-"},
+		{name: "missing attributes", req: &authv3.CheckRequest{}, want: "-"},
+		{
+			name: "host field preferred",
+			req: &authv3.CheckRequest{
+				Attributes: &authv3.AttributeContext{
+					Request: &authv3.AttributeContext_Request{
+						Http: &authv3.AttributeContext_HttpRequest{
+							Host:    "api.service.local",
+							Headers: map[string]string{"host": "should-not-be-used"},
+						},
+					},
+				},
+			},
+			want: "api.service.local",
+		},
+		{
+			name: "host header fallback",
+			req: &authv3.CheckRequest{
+				Attributes: &authv3.AttributeContext{
+					Request: &authv3.AttributeContext_Request{
+						Http: &authv3.AttributeContext_HttpRequest{
+							Headers: map[string]string{"HOST": "header.local"},
+						},
+					},
+				},
+			},
+			want: "header.local",
+		},
+		{
+			name: "missing authority and host",
+			req: &authv3.CheckRequest{
+				Attributes: &authv3.AttributeContext{
+					Request: &authv3.AttributeContext_Request{
+						Http: &authv3.AttributeContext_HttpRequest{},
+					},
+				},
+			},
+			want: "-",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := requestAuthority(tt.req); got != tt.want {
+				t.Fatalf("expected %q, got %q", tt.want, got)
 			}
 		})
 	}

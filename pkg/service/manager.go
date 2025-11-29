@@ -56,14 +56,14 @@ func NewManager(
 func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.CheckResponse, error) {
 	reqCtx := runtime.NewRequestContext(req)
 	start := time.Now()
-	m.instrumentation.InFlight(1)
-	defer m.instrumentation.InFlight(-1)
+	m.instrumentation.InFlight(reqCtx.Authority, 1)
+	defer m.instrumentation.InFlight(reqCtx.Authority, -1)
 
 	// Run analysis phase
 	analysisReports, err := m.runAnalysis(ctx, reqCtx)
 	if err != nil {
 		m.logger.Error("analysis phase failed", append(reqCtx.LogFields(), zap.Error(err))...)
-		m.instrumentation.ObserveDenyDecision(time.Since(start))
+		m.instrumentation.ObserveDenyDecision(reqCtx.Authority, time.Since(start))
 		return m.denyResponse(codes.PermissionDenied, err.Error(), nil), nil
 	}
 
@@ -71,7 +71,7 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 	authorizationVerdicts, err := m.runAuthorization(ctx, reqCtx, analysisReports)
 	if err != nil {
 		m.logger.Warn("authorization phase failed", append(reqCtx.LogFields(), zap.Error(err))...)
-		m.instrumentation.ObserveDenyDecision(time.Since(start))
+		m.instrumentation.ObserveDenyDecision(reqCtx.Authority, time.Since(start))
 		return m.denyResponse(codes.PermissionDenied, err.Error(), nil), nil
 	}
 
@@ -106,7 +106,7 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 
 	if finalVerdict.IsDeny() && !m.policyBypass {
 		// Deny the request
-		m.instrumentation.ObserveDenyDecision(time.Since(start))
+		m.instrumentation.ObserveDenyDecision(reqCtx.Authority, time.Since(start))
 		return m.denyResponse(
 			finalVerdict.Code,
 			finalVerdict.Reason,
@@ -125,7 +125,7 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 		}
 	}
 
-	m.instrumentation.ObserveAllowDecision(time.Since(start))
+	m.instrumentation.ObserveAllowDecision(reqCtx.Authority, time.Since(start))
 	return m.okResponse(upstreamHeaders), nil
 }
 
@@ -146,7 +146,7 @@ func (m *Manager) runAnalysis(ctx context.Context, req *runtime.RequestContext) 
 			phaseStart := time.Now()
 			report, err := analysisController.Analyze(ctx, req)
 			result := phaseResult(err)
-			m.instrumentation.ObservePhase(analysisController.Name(), analysisController.Kind(), "analysis", result, time.Since(phaseStart))
+			m.instrumentation.ObservePhase(req.Authority, analysisController.Name(), analysisController.Kind(), "analysis", result, time.Since(phaseStart))
 			if err != nil {
 				return fmt.Errorf("analysis controller '%s' of type '%s' failed: %w", analysisController.Name(), analysisController.Kind(), err)
 			}
@@ -185,7 +185,7 @@ func (m *Manager) runAuthorization(ctx context.Context, req *runtime.RequestCont
 			phaseStart := time.Now()
 			verdict, err := authorizationController.Authorize(ctx, req, reports)
 			result := phaseResult(err)
-			m.instrumentation.ObservePhase(authorizationController.Name(), authorizationController.Kind(), "authorization", result, time.Since(phaseStart))
+			m.instrumentation.ObservePhase(req.Authority, authorizationController.Name(), authorizationController.Kind(), "authorization", result, time.Since(phaseStart))
 			if err != nil {
 				return fmt.Errorf("authorization controller '%s' of type '%s' failed: %w", authorizationController.Name(), authorizationController.Kind(), err)
 			}

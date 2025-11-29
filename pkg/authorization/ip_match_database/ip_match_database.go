@@ -37,7 +37,7 @@ func (c *ipMatchDatabaseAuthorizationController) Authorize(ctx context.Context, 
 	// Validate IP address
 	if !req.IpAddress.IsValid() {
 		code := c.deriveCodeForInvalidIP()
-		c.observeRequest(codeToMetricsResult(code))
+		c.observeRequest(req.Authority, codeToMetricsResult(code))
 		return c.createVerdict(
 			code,
 			"unable to determine source IP address",
@@ -52,31 +52,31 @@ func (c *ipMatchDatabaseAuthorizationController) Authorize(ctx context.Context, 
 
 	if c.cache != nil {
 		if cachedMatch, found := c.cache.Get(ipAddress); found {
-			c.observeCacheHit()
+			c.observeCacheHit(req.Authority)
 			c.logger.Debug("cache hit", zap.String("ip", ipAddress), zap.Bool("matched", cachedMatch))
 			matched = cachedMatch
 		} else {
-			c.observeCacheMiss()
+			c.observeCacheMiss(req.Authority)
 			c.logger.Debug("cache miss", zap.String("ip", ipAddress))
-			matched, dbError = c.queryDatabase(ctx, ipAddress)
+			matched, dbError = c.queryDatabase(ctx, req.Authority, ipAddress)
 
 			// Cache the result if query was successful
 			if dbError == nil {
 				c.cache.Set(ipAddress, matched)
-				c.updateCacheSize()
+				c.observeCacheSize(req.Authority)
 			}
 		}
 	} else {
 		// No cache, query database directly
-		matched, dbError = c.queryDatabase(ctx, ipAddress)
+		matched, dbError = c.queryDatabase(ctx, req.Authority, ipAddress)
 	}
 
 	// Handle database errors
 	if dbError != nil {
-		c.observeUnavailable(c.dbType)
+		c.observeUnavailable(req.Authority, c.dbType)
 		c.logger.Warn("database query failed", zap.String("ip", ipAddress), zap.Error(dbError))
 		code := c.deriveCodeForDatabaseError()
-		c.observeRequest(codeToMetricsResult(code))
+		c.observeRequest(req.Authority, codeToMetricsResult(code))
 		return c.createVerdict(
 			code,
 			fmt.Sprintf("database unavailable: %v", dbError),
@@ -85,7 +85,7 @@ func (c *ipMatchDatabaseAuthorizationController) Authorize(ctx context.Context, 
 
 	// Derive verdict from match result and action
 	code, reason := c.deriveVerdict(ipAddress, matched)
-	c.observeRequest(codeToMetricsResult(code))
+	c.observeRequest(req.Authority, codeToMetricsResult(code))
 	return c.createVerdict(code, reason), nil
 }
 
@@ -105,7 +105,7 @@ func (c *ipMatchDatabaseAuthorizationController) HealthCheck(ctx context.Context
 }
 
 // queryDatabase queries the data source with timeout
-func (c *ipMatchDatabaseAuthorizationController) queryDatabase(ctx context.Context, ipAddress string) (bool, error) {
+func (c *ipMatchDatabaseAuthorizationController) queryDatabase(ctx context.Context, authority, ipAddress string) (bool, error) {
 	start := time.Now()
 	matched, err := c.dataSource.Contains(ctx, ipAddress)
 	duration := time.Since(start)
@@ -118,13 +118,13 @@ func (c *ipMatchDatabaseAuthorizationController) queryDatabase(ctx context.Conte
 
 	if err != nil {
 		logFields = append(logFields, zap.Error(err))
-		c.observeQuery(c.dbType, "error", duration)
+		c.observeQuery(authority, c.dbType, "error", duration)
 	} else if matched {
 		logFields = append(logFields, zap.Bool("matched", true))
-		c.observeQuery(c.dbType, "found", duration)
+		c.observeQuery(authority, c.dbType, "found", duration)
 	} else {
 		logFields = append(logFields, zap.Bool("matched", false))
-		c.observeQuery(c.dbType, "not_found", duration)
+		c.observeQuery(authority, c.dbType, "not_found", duration)
 	}
 
 	c.logger.Debug("database query", logFields...)

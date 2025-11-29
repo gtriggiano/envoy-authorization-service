@@ -5,6 +5,7 @@ package runtime
 
 import (
 	"net/netip"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +21,8 @@ type RequestContext struct {
 	Request *authv3.CheckRequest
 	// ReceivedAt records the timestamp when the request was first processed.
 	ReceivedAt time.Time
+	// Authority is the Host/:authority value extracted from the incoming request.
+	Authority string
 	// IpAddress contains the parsed downstream client IP address extracted from the request.
 	IpAddress netip.Addr
 
@@ -31,14 +34,18 @@ type RequestContext struct {
 
 // NewRequestContext constructs a RequestContext with the provided values.
 func NewRequestContext(req *authv3.CheckRequest) *RequestContext {
+	authority := requestAuthority(req)
 	ipAddress := requestIpAddress(req)
-	logFields := make([]zap.Field, 0, 1)
 
 	return &RequestContext{
 		Request:    req,
 		ReceivedAt: time.Now(),
+		Authority:  authority,
 		IpAddress:  ipAddress,
-		logFields:  append(logFields, zap.String("ip", ipAddress.String())),
+		logFields: []zap.Field{
+			zap.String("authority", authority),
+			zap.String("ip", ipAddress.String()),
+		},
 	}
 }
 
@@ -50,7 +57,7 @@ func (r *RequestContext) AddLogFields(fields ...zap.Field) {
 
 	sanitizedFields := make([]zap.Field, 0, len(fields))
 	for _, f := range fields {
-		if f.Key == "ip" {
+		if f.Key == "ip" || f.Key == "authority" {
 			continue
 		}
 		// Here you could add logic to sanitize fields if necessary.
@@ -102,4 +109,43 @@ func requestIpAddress(req *authv3.CheckRequest) netip.Addr {
 	ip, _ := netip.ParseAddr(socketAddr.Address)
 
 	return ip
+}
+
+// requestAuthority extracts the :authority/Host value from the CheckRequest.
+// It first tries the dedicated Authority field and falls back to the Host
+// header, returning "unknown" when no value is present.
+func requestAuthority(req *authv3.CheckRequest) string {
+	if req == nil {
+		return "-"
+	}
+	attr := req.GetAttributes()
+	if attr == nil {
+		return "-"
+	}
+
+	httpReq := attr.GetRequest()
+	if httpReq == nil {
+		return "-"
+	}
+
+	http := httpReq.GetHttp()
+	if http == nil {
+		return "-"
+	}
+
+	authority := http.GetHost()
+	if authority == "" {
+		for k, v := range http.GetHeaders() {
+			if strings.ToLower(k) == "host" {
+				authority = v
+				break
+			}
+		}
+	}
+
+	if authority == "" {
+		return "-"
+	}
+
+	return authority
 }

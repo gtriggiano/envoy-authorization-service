@@ -229,26 +229,26 @@ Example latency impact:
 
 ## Metrics
 
-The controller exposes Prometheus metrics:
+The controller exposes Prometheus metrics (all include the downstream request `authority` label, with `-` used when the value is missing):
 
 ```
 # Authorization requests by result
-envoy_authorization_service_ip_match_database_requests_total{controller="name", result="allow|deny|error"}
+envoy_authz_ip_match_database_requests_total{authority="example.com", controller_name="name", database="redis|postgres", result="allow|deny|error"}
 
 # Database queries by result
-envoy_authorization_service_ip_match_database_queries_total{controller="name", database="redis|postgres", result="found|not_found|error"}
+envoy_authz_ip_match_database_queries_total{authority="example.com", controller_name="name", database="redis|postgres", result="found|not_found|error"}
 
 # Database query duration
-envoy_authorization_service_ip_match_database_query_duration_seconds{controller="name", database="redis|postgres"}
+envoy_authz_ip_match_database_query_duration_seconds{authority="example.com", controller_name="name", database="redis|postgres"}
 
 # Cache operations
-envoy_authorization_service_ip_match_database_cache_requests_total{controller="name", result="hit|miss"}
+envoy_authz_ip_match_database_cache_requests_total{authority="example.com", controller_name="name", result="hit|miss"}
 
 # Current cache size
-envoy_authorization_service_ip_match_database_cache_entries{controller="name"}
+envoy_authz_ip_match_database_cache_entries{authority="example.com", controller_name="name"}
 
 # Database unavailability events
-envoy_authorization_service_ip_match_database_unavailable_total{controller="name", database="redis|postgres"}
+envoy_authz_ip_match_database_unavailable_total{authority="example.com", controller_name="name", database="redis|postgres"}
 ```
 
 ## Error Handling on Database Unavailability
