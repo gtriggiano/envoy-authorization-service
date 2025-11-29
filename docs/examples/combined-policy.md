@@ -274,7 +274,7 @@ EXISTS scraper:1.2.3.4
 
 ## Next Steps
 
-- [IP Allow/Deny Lists](/examples/ip-allowlist-denylist)
-- [ASN Filtering](/examples/asn-filtering)
-- [Database Integration](/examples/database-integration)
+- [IP Match](/examples/ip-match)
+- [ASN Match](/examples/asn-match)
+- [IP Match - Redis](/examples/ip-match-redis)
 - [Policy DSL Reference](/configuration/policy-dsl)

@@ -73,12 +73,12 @@ const defaultConfiguration = defineConfig({
           text: "Examples",
           items: [
             { text: "Overview", link: "/examples/" },
-            { text: "IP Allow/Deny", link: "/examples/ip-allowlist-denylist" },
+            { text: "IP Match", link: "/examples/ip-match" },
             {
-              text: "IP Allow/Deny Redis Lookup",
-              link: "/examples/database-integration",
+              text: "IP Match - Redis",
+              link: "/examples/ip-match-redis",
             },
-            { text: "ASN Filtering", link: "/examples/asn-filtering" },
+            { text: "ASN Match", link: "/examples/asn-match" },
             { text: "Combined Policies", link: "/examples/combined-policy" },
           ],
         },
@@ -132,9 +132,9 @@ const defaultConfiguration = defineConfig({
     lineNumbers: true,
     config: (md) => {
       // Replace {{VERSION}} with actual version in all markdown content
-      md.core.ruler.before('normalize', 'replace-version', (state) => {
-        state.src = state.src.replace(/\{\{VERSION\}\}/g, version)
-      })
+      md.core.ruler.before("normalize", "replace-version", (state) => {
+        state.src = state.src.replace(/\{\{VERSION\}\}/g, version);
+      });
     },
   },
 });

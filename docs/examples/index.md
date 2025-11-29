@@ -2,7 +2,7 @@
 
 Practical configuration examples for common authorization scenarios.
 
-## [IP Allow/Deny Lists](/examples/ip-allowlist-denylist)
+## [IP Match](/examples/ip-match)
 Learn how to configure IP-based access control with allowlists and denylists.
 
 **Use cases**:
@@ -10,7 +10,7 @@ Learn how to configure IP-based access control with allowlists and denylists.
 - Partner IP whitelisting
 - Threat mitigation
 
-## [ASN Filtering](/examples/asn-filtering)
+## [ASN Match](/examples/asn-match)
 Control access based on Autonomous System Numbers.
 
 **Use cases**:
@@ -26,7 +26,7 @@ Complex policies combining multiple authorization methods.
 - Multiple allowlist sources
 - Allowlist with denylist overrides
 
-## [Database Integration](/examples/database-integration)
+## [IP Match - Redis](/examples/ip-match-redis)
 Dynamic IP control using Redis or PostgreSQL.
 
 **Use cases**:
@@ -37,8 +37,8 @@ Dynamic IP control using Redis or PostgreSQL.
 ## Next Steps
 
 Browse the detailed examples:
-- [IP Allow/Deny Lists](/examples/ip-allowlist-denylist)
-- [ASN Filtering](/examples/asn-filtering)
-- [Database Integration](/examples/database-integration)
+- [IP Match](/examples/ip-match)
+- [ASN Match](/examples/asn-match)
+- [IP Match - Redis](/examples/ip-match-redis)
 - [Combined Policies](/examples/combined-policy)
 - [Policy DSL Reference](/configuration/policy-dsl)

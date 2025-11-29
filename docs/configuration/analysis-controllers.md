@@ -1,10 +1,12 @@
 # Analysis Controllers
 
-Analysis controllers run during the **first phase** of request processing to extract and enrich request metadata. They execute concurrently and cannot block requests directly.
+Analysis controllers run during the **first phase** of request processing to extract and enrich request metadata.
 
-## MaxMind ASN (`maxmind-asn`)
+They execute concurrently and cannot block requests directly.
 
-Performs IP-to-ASN lookups to identify the Autonomous System Number and organization.
+## ASN
+
+The `maxmind-asn` controller performs IP-to-ASN lookups to identify the Autonomous System Number and organization.
 
 ::: warning Note
 You need [MaxMind databases](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data/) to run this example.
@@ -33,11 +35,9 @@ analysisControllers:
 - [MaxMind GeoLite2 ASN Database](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data)
 - Weekly database updates recommended
 
----
+## GeoIP
 
-## MaxMind GeoIP (`maxmind-geoip`)
-
-Performs IP-to-location lookups to identify geographic information.
+The `maxmind-geoip` controller performs IP-to-location lookups to identify geographic information.
 
 ::: warning Note
 You need [MaxMind databases](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data/) to run this example.
@@ -75,9 +75,9 @@ analysisControllers:
 
 ---
 
-## User Agent Detection (`ua-detect`)
+## User Agent
 
-Parses HTTP `User-Agent` headers to identify browser, OS, device type, and bots.
+The `ua-detect` controller parses the HTTP `User-Agent` header to identify browser, OS, device type, and bots.
 
 **Configuration**:
 ```yaml
@@ -123,7 +123,7 @@ analysisControllers:
 
 **Requirements**: None (no external dependencies)
 
-## Complete Analysis Setup Example
+## Complete Analysis Setup
 
 ```yaml
 analysisControllers:
@@ -152,14 +152,14 @@ Analysis controllers never block requests on errors:
 - Authorization controllers handle missing analysis data
 - Metrics track error rates
 
-## MaxMind Database Management
+## Get MaxMind Databases
 
-###  Databases
-
-**Download**:
+**Quick Download**:
 ```bash
 # Using the provided script
 ./scripts/fetch-maxmind.sh
+
+# Will download databases to config/
 ```
 
 **Manual Download**:

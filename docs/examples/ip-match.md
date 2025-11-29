@@ -1,4 +1,4 @@
-# IP Allow/Deny
+# IP Match
 
 Configure IP-based access control using allowlists (whitelists) and denylists (blacklists).
 
@@ -200,7 +200,7 @@ authorizationPolicy: "(corporate-network || partner-networks) && !blocked-threat
 
 ## Next Steps
 
-- [ASN Filtering](/examples/asn-filtering)
-- [Database Integration](/examples/database-integration)
+- [ASN Match](/examples/asn-match)
+- [IP Match - Redis](/examples/ip-match-redis)
 - [Combined Policies](/examples/combined-policy)
 - [Policy DSL Reference](/configuration/policy-dsl)

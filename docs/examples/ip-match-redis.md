@@ -1,4 +1,4 @@
-# IP Allow/Deny Redis Lookup
+# IP Match - Redis
 
 Use Redis for dynamic IP control based on behavioral analysis, threat intelligence, or partner management.
 

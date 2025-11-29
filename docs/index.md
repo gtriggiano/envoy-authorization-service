@@ -50,8 +50,8 @@ features:
     details: Built-in MaxMind integration for IP geolocation and ASN lookups.
   
   - icon: 🗄️
-    title: Database Integration
-    details: Redis and PostgreSQL support for dynamic IP control based on behavioral analysis or threat intelligence.
+    title: External datasources
+    details: Integrates Redis and PostgreSQL support for dynamic match based on behavioral analysis or threat intelligence.
 ---
 
 ## Quick Start

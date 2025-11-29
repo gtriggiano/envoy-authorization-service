@@ -2,9 +2,9 @@
 
 Authorization controllers run during the **second phase** of request processing to make allow/deny decisions. They execute concurrently and can access analysis reports from the first phase.
 
-## IP Match (`ip-match`)
+## IP Match
 
-Make authorization decisions based on IP address matching against CIDR lists.
+The `ip-match` controller matches the request IP address in relation to a CIDR list.
 
 **Configuration**:
 ```yaml
@@ -47,9 +47,9 @@ authorizationControllers:
 
 ---
 
-## ASN Match (`asn-match`)
+## ASN Match
 
-Make authorization decisions based on Autonomous System Number.
+The `asn-match` controller matches request IP Autonomous System Number in relation to a list of AS numbers.
 
 **Requirements**: Requires `maxmind-asn` analysis controller
 
@@ -104,9 +104,9 @@ authorizationControllers:
 
 ---
 
-## IP Match Database (`ip-match-database`)
+## IP Match Database
 
-Make authorization decisions based on IP lookups in external databases (Redis or PostgreSQL).
+The `ip-match-database` controller matches the request IP in relation to a lookup to an external database (Redis or PostgreSQL).
 
 **Configuration (Redis)**:
 ```yaml
@@ -228,16 +228,14 @@ cache:
 
 ### Optimize CIDR Lists
 
-Remove redundant entries:
 ```bash
 envoy-authorization-service synthesize-cidr-list \
   --file blocked-ips.txt \
   --overwrite
 ```
 
-### Optimize ASN Lists
+### Deduplicate ASN Lists
 
-Remove duplicates:
 ```bash
 envoy-authorization-service synthesize-asn-list \
   --file allowed-asns.txt \

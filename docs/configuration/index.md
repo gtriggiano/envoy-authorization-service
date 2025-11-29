@@ -9,6 +9,16 @@ The Envoy Authorization Service uses YAML configuration files to define server s
 logging:
   level: info  # debug, info, warn, error. Optional, defaults to info
 
+# Policy expression combining authorization controllers (Optional. If absent all requests will be allowed)
+authorizationPolicy: "controller1 && (controller2 || !controller3)"
+
+# Optional: bypass policy for testing. Logs what would have been blocked but allows everything
+authorizationPolicyBypass: false
+
+# Optional: graceful shutdown timeout
+shutdown:
+  timeout: 25s  # Default: 20s
+
 # gRPC server configuration
 server:
   address: ":9001" # Optional: listen address
@@ -28,10 +38,6 @@ metrics:
     - process_
     - promhttp_
 
-# Optional: graceful shutdown timeout
-shutdown:
-  timeout: 25s  # Default: 20s
-
 # Analysis controllers (optional)
 analysisControllers:
   - name: controller-name
@@ -45,12 +51,6 @@ authorizationControllers:
     type: controller-type
     settings:
       # Controller-specific settings
-
-# Policy expression combining authorization controllers (Optional. If absent all requests will be allowed)
-authorizationPolicy: "controller1 && (controller2 || !controller3)"
-
-# Optional: bypass policy for testing. Logs what would have been blocked but allows everything
-authorizationPolicyBypass: false
 ```
 
 ### Minimal Configuration

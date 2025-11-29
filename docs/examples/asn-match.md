@@ -1,4 +1,4 @@
-# ASN Filtering
+# ASN Match
 
 Control access based on Autonomous System Numbers (ASN) to allow or block traffic from specific networks.
 
@@ -228,7 +228,7 @@ authorizationPolicy: "cdn-networks || cloud-providers"
 
 ## Next Steps
 
-- [IP Allow/Deny Lists](/examples/ip-allowlist-denylist)
-- [Database Integration](/examples/database-integration)
+- [IP Match](/examples/ip-match)
+- [IP Match - Redis](/examples/ip-match-redis)
 - [Combined Policies](/examples/combined-policy)
 - [Policy DSL Reference](/configuration/policy-dsl)
