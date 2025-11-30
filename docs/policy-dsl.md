@@ -387,7 +387,7 @@ Use `authorizationPolicyBypass` in test environments to verify controller behavi
 
 ## Next Steps
 
-- [Configure Analysis Controllers](/configuration/analysis-controllers)
-- [Configure Match Controllers](/configuration/match-controllers)
-- [Configure Server & Metrics](/configuration/server-metrics)
+- [Configure Analysis Controllers](/analysis-controllers/)
+- [Configure Match Controllers](/match-controllers/)
+- [Configure Server & Metrics](/configuration)
 - [View Configuration Examples](/examples/)

@@ -1,63 +1,8 @@
 # Getting Started
 
-This guide will help you set up and run the Envoy Authorization Service in under 10 minutes.
+## Configuration
 
-## Prerequisites
-
-- **Envoy Proxy** configured with the External Authorization filter
-- **Go 1.25+** (if building from source)
-- **MaxMind GeoIP databases** (optional, for GeoIP/ASN features)
-
-## Installation
-
-### Docker
-
-```bash
-docker pull ghcr.io/gtriggiano/envoy-authorization-service:{{VERSION}}
-```
-
-### Binary Download
-
-::: code-group
-
-```bash [Linux AMD64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-linux-amd64
-chmod +x envoy-authorization-service-linux-amd64
-mv envoy-authorization-service-linux-amd64 /usr/local/bin/envoy-authorization-service
-```
-
-```bash [Linux ARM64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-linux-arm64
-chmod +x envoy-authorization-service-linux-arm64
-mv envoy-authorization-service-linux-arm64 /usr/local/bin/envoy-authorization-service
-```
-
-```bash [macOS AMD64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-darwin-amd64
-chmod +x envoy-authorization-service-darwin-amd64
-mv envoy-authorization-service-darwin-amd64 /usr/local/bin/envoy-authorization-service
-```
-
-```bash [macOS ARM64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-darwin-arm64
-chmod +x envoy-authorization-service-darwin-arm64
-mv envoy-authorization-service-darwin-arm64 /usr/local/bin/envoy-authorization-service
-```
-
-:::
-
-### Build from Source
-
-```bash
-git clone https://github.com/gtriggiano/envoy-authorization-service.git
-cd envoy-authorization-service
-make build
-mv bin/envoy-authorization-service /usr/local/bin/envoy-authorization-service
-```
-
-## Basic Configuration
-
-Create a `config.yaml` file:
+Create a `config.yaml` [configuration file](/configuration).
 
 ```yaml
 # Match controllers
@@ -108,13 +53,37 @@ services:
 
 ### Binary
 
+::: code-group
+
+```bash [Linux AMD64]
+curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-linux-amd64
+chmod +x envoy-authorization-service-linux-amd64
+mv envoy-authorization-service-linux-amd64 /usr/local/bin/envoy-authorization-service
+```
+
+```bash [Linux ARM64]
+curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-linux-arm64
+chmod +x envoy-authorization-service-linux-arm64
+mv envoy-authorization-service-linux-arm64 /usr/local/bin/envoy-authorization-service
+```
+
+```bash [macOS AMD64]
+curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-darwin-amd64
+chmod +x envoy-authorization-service-darwin-amd64
+mv envoy-authorization-service-darwin-amd64 /usr/local/bin/envoy-authorization-service
+```
+
+```bash [macOS ARM64]
+curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-darwin-arm64
+chmod +x envoy-authorization-service-darwin-arm64
+mv envoy-authorization-service-darwin-arm64 /usr/local/bin/envoy-authorization-service
+```
+
+:::
+
 ```bash
 envoy-authorization-service start --config config.yaml
 ```
-
-
-
-
 
 ## Verify Installation
 
@@ -181,6 +150,6 @@ The authorization service will:
 ## Next Steps
 
 - [Learn about the architecture](/architecture)
-- [Configure analysis controllers](/configuration/analysis-controllers)
-- [Set up match controllers](/configuration/match-controllers)
-- [Write policy expressions](/configuration/policy-dsl)
+- [Configure analysis controllers](/analysis-controllers/)
+- [Set up match controllers](/match-controllers/)
+- [Write policy expressions](/policy-dsl)

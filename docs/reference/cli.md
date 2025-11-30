@@ -1,4 +1,4 @@
-# CLI Commands
+# CLI Reference
 
 Command-line interface reference for the Envoy Authorization Service.
 

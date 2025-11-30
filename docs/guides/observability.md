@@ -56,4 +56,4 @@ curl http://localhost:9090/metrics
 
 - [Metrics Reference](/reference/metrics)
 - [CLI Commands](/reference/cli)
-- [Server & Metrics Configuration](/configuration/server-metrics)
+- [Server & Metrics Configuration](/configuration)

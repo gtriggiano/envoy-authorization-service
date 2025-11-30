@@ -16,13 +16,14 @@ const defaultConfiguration = defineConfig({
     logo: "/logo.drawio.svg",
 
     nav: [
-      { text: "Intro", link: "/getting-started" },
-      { text: "Configuration", link: "/configuration/" },
+      { text: "Get Started", link: "/get-started" },
+      { text: "Analysis Controllers", link: "/analysis-controllers/" },
+      { text: "Match Controllers", link: "/match-controllers/" },
       { text: "Examples", link: "/examples/" },
       {
         text: "Reference",
         items: [
-          { text: "CLI Commands", link: "/reference/cli" },
+          { text: "CLI", link: "/reference/cli" },
           { text: "Headers", link: "/reference/headers" },
           { text: "Metrics", link: "/reference/metrics" },
         ],
@@ -48,27 +49,44 @@ const defaultConfiguration = defineConfig({
           text: "Introduction",
           items: [
             { text: "What is it?", link: "/index" },
-            { text: "Getting Started", link: "/getting-started" },
+            { text: "Get Started", link: "/get-started" },
+            { text: "Configuration", link: "/configuration" },
+            {
+              text: "Authorization Policy DSL",
+              link: "/policy-dsl",
+            },
             { text: "Architecture", link: "/architecture" },
           ],
         },
         {
-          text: "Configuration",
+          text: "Analysis Controllers",
           items: [
-            { text: "Overview", link: "/configuration/" },
+            { text: "Overview", link: "/analysis-controllers/" },
+            { text: "MaxMind ASN", link: "/analysis-controllers/maxmind-asn" },
             {
-              text: "Analysis Controllers",
-              link: "/configuration/analysis-controllers",
+              text: "MaxMind GeoIP",
+              link: "/analysis-controllers/maxmind-geoip",
             },
             {
-              text: "Match Controllers",
-              link: "/configuration/match-controllers",
+              text: "User-Agent Detection",
+              link: "/analysis-controllers/ua-detect",
             },
+          ],
+        },
+        {
+          text: "Match Controllers",
+          items: [
+            { text: "Overview", link: "/match-controllers/" },
+            { text: "IP Match", link: "/match-controllers/ip-match" },
             {
-              text: "Authorization Policy DSL",
-              link: "/configuration/policy-dsl",
+              text: "IP Match Database",
+              link: "/match-controllers/ip-match-database",
             },
-            { text: "Server & Metrics", link: "/configuration/server-metrics" },
+            { text: "ASN Match", link: "/match-controllers/asn-match" },
+            {
+              text: "ASN Match Database",
+              link: "/match-controllers/asn-match-database",
+            },
           ],
         },
         {
@@ -95,7 +113,7 @@ const defaultConfiguration = defineConfig({
         {
           text: "Reference",
           items: [
-            { text: "CLI Commands", link: "/reference/cli" },
+            { text: "CLI", link: "/reference/cli" },
             { text: "Headers", link: "/reference/headers" },
             { text: "Metrics", link: "/reference/metrics" },
           ],

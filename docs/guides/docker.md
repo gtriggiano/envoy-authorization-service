@@ -205,8 +205,8 @@ networks:
 
 ## Next Steps
 
-- [Configure Match Controllers](/configuration/match-controllers)
-- [Write Policy Expressions](/configuration/policy-dsl)
+- [Configure Match Controllers](/match-controllers/)
+- [Write Policy Expressions](/policy-dsl)
 - [Kubernetes Deployment](/guides/kubernetes)
 - [Configuration Guide](/configuration/)
 - [View Configuration Examples](/examples/)

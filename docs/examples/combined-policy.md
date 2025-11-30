@@ -264,4 +264,4 @@ EXISTS scraper:1.2.3.4
 - [IP Match](/examples/ip-match)
 - [ASN Match](/examples/asn-match)
 - [IP Match - Redis](/examples/ip-match-redis)
-- [Policy DSL Reference](/configuration/policy-dsl)
+- [Policy DSL Reference](/policy-dsl)

@@ -224,4 +224,4 @@ matchControllers:
 - [IP Match](/examples/ip-match)
 - [IP Match - Redis](/examples/ip-match-redis)
 - [Combined Policies](/examples/combined-policy)
-- [Policy DSL Reference](/configuration/policy-dsl)
+- [Policy DSL Reference](/policy-dsl)

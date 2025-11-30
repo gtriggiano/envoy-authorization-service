@@ -10,7 +10,7 @@ hero:
   actions:
     - theme: brand
       text: Get Started
-      link: /getting-started
+      link: /get-started
     - theme: alt
       text: View on GitHub
       link: https://github.com/gtriggiano/envoy-authorization-service

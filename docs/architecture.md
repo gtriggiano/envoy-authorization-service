@@ -55,9 +55,9 @@ sequenceDiagram
     end
 ```
 
-### Phase 1: Analysis
+## Analysis Phase
 
-**Purpose**: Extract and enrich request metadata without blocking the request.
+Extract and enrich request metadata without blocking the request.
 
 **Characteristics**:
 - All analysis **controllers run concurrently**
@@ -74,14 +74,13 @@ sequenceDiagram
 - Analysis reports for match controllers to consume
 - HTTP headers to inject into upstream requests
 
-### Phase 2: Match
+## Match Phase
 
-**Purpose**: Identify matches based on analysis reports, request data, configuration and possibly I/O with external datasources.
+Identify matches based on analysis reports, request data, configuration and possibly I/O with external datasources.
 
 **Characteristics**:
 - All match **controllers run concurrently** and they are **provided with the reports** generated in the analysis phase
 - Controllers return **match verdicts**
-- Each verdict has an `IsMatch` boolean flag stating how that controller should be evaluated when referenced in the authorization policy
 - Can inject headers for both allowed and denied requests
 
 **Example Match Controllers**:
@@ -90,15 +89,11 @@ sequenceDiagram
 - `ip-match-database`: Looks up IP address in external data sources
 - `asn-match-database`: Looks up the client ASN in external data sources
 
-### Phase 3: Authorization Policy Evaluation
+## Authorization Phase
 
-**Purpose**: Combine match verdicts using boolean logic to reach the final authorization decision.
+Combine match controllers verdicts using boolean logic to reach the final authorization decision.
 
-**Characteristics**:
-- Evaluates a boolean expression (the "authorization policy")
-- References match controllers by name
-- Uses each controller's `verdict.IsMatch` value as its boolean result
-- Determines final allow/deny decision
+In Authorization Policy match controllers are referenced by name.
 
 **Example Policies**:
 ```yaml
@@ -112,44 +107,9 @@ authorizationPolicy: "ip-allowlist && trusted-asn"
 authorizationPolicy: "(ip-allowlist || partner-ips) && !ip-blocklist"
 ```
 
-## `verdict.InPolicy` Semantics
-
-The `verdict.InPolicy` boolean determines how a controller's verdict affects policy evaluation:
-
-### Allow-Mode Controllers
-When `action: allow`:
-- `InPolicy = true` → Request matches the allowlist
-- `InPolicy = false` → Request not in allowlist
-- Status code is always `OK` (doesn't block)
-
-### Deny-Mode Controllers
-When `action: deny`:
-- `InPolicy = true` → Request matches the denylist
-- `InPolicy = false` → Request not in denylist
-- Status code is `PermissionDenied` when `InPolicy = true`
-
-### Policy Expression Behavior
-
-Given policy: `"allowlist || !denylist"`
-
-**Scenario 1**: IP in allowlist, not in denylist
-- `allowlist.InPolicy = true`
-- `denylist.InPolicy = false`
-- Expression: `true || !false` = `true || true` = **ALLOW**
-
-**Scenario 2**: IP not in allowlist, not in denylist
-- `allowlist.InPolicy = false`
-- `denylist.InPolicy = false`
-- Expression: `false || !false` = `false || true` = **ALLOW**
-
-**Scenario 3**: IP not in allowlist, in denylist
-- `allowlist.InPolicy = false`
-- `denylist.InPolicy = true`
-- Expression: `false || !true` = `false || false` = **DENY**
-
 ## Header Injection
 
-Controllers can inject headers at multiple points:
+Controllers can inject both [upstream and downstream headers](/reference/headers).
 
 ### Upstream Headers
 Added to requests forwarded to upstream services:
@@ -171,15 +131,14 @@ X-Blocked-Reason: IP in denylist
 
 ## Error Handling
 
-### Analysis Errors
+### Analysis Controllers Errors
 - Logged but don't block request
 - Missing reports handled by match controllers
 - Metrics updated for monitoring
 
-### Authorization Errors
-- Treated according to fail-open/fail-closed setting
-- Logged with full context
-- Policy evaluation continues with available verdicts
+### Match Controllers Errors
+- Logged but don't block request
+- A Match Controller is however required to return a match verdict
 
 ### Policy Errors
 - Caught at startup (validation)

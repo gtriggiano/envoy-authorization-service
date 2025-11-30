@@ -1,10 +1,10 @@
 :root {
     --vp-home-hero-name-color: #e13eaf;
 
-    --vp-c-custom-1: #e13eaf;
-    --vp-c-custom-2: #f063c6;
-    --vp-c-custom-3: #cb2b9b;
-    --vp-c-custom-soft: rgba(159, 122, 234, 0.16);
+    --vp-c-custom-1: #d758b1;
+    --vp-c-custom-2: rgb(238, 80, 191);
+    --vp-c-custom-3: #26a67c;
+    --vp-c-custom-soft: rgba(159, 122, 234, 0.2);
 
     --vp-c-brand-1: var(--vp-c-custom-1);
     --vp-c-brand-2: var(--vp-c-custom-2);
