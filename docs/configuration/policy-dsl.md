@@ -79,6 +79,7 @@ Examples:
 - `ip-match` → `IsMatch=true` when the IP is inside the configured CIDR list.
 - `asn-match` → `IsMatch=true` when the ASN is in the configured list.
 - `ip-match-database` → `IsMatch=true` when the IP exists in the external data source.
+- `asn-match-database` → `IsMatch=true` when the ASN exists in the external data source.
 
 Use `!` in the policy to invert meaning for blocklists, e.g. `authorizationPolicy: "!blocked_ips"`.
 

@@ -88,6 +88,7 @@ sequenceDiagram
 - `ip-match`: Checks request IP address against configured CIDRs
 - `asn-match`: Checks request ASN against configured list
 - `ip-match-database`: Looks up IP address in external data sources
+- `asn-match-database`: Looks up the client ASN in external data sources
 
 ### Phase 3: Authorization Policy Evaluation
 

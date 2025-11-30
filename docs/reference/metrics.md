@@ -91,7 +91,7 @@ Controller phase execution time in seconds.
 |------------|---------------|-------------|
 | `authority` | `api.service.com` | HTTP host/:authority value of the downstream request (or `-` when absent) |
 | `controller_name` | `maxmind-asn-lookup` | Unique name of the controller instance (from configuration) |
-| `controller_kind` | `maxmind-asn` | Type of controller. Possible values: `maxmind-asn`, `maxmind-geoip`, `ua-detect` (analysis controllers), `ip-match`, `asn-match`, `ip-match-database` (match controllers) |
+| `controller_kind` | `maxmind-asn` | Type of controller. Possible values: `maxmind-asn`, `maxmind-geoip`, `ua-detect` (analysis controllers), `ip-match`, `asn-match`, `ip-match-database`, `asn-match-database` (match controllers) |
 | `phase` | `analysis` | Execution phase. Possible values: `analysis` (analysis controller execution), `match` (match controller execution) |
 | `result` | `ok` | Execution outcome. Possible values: `ok` (successful execution), `error` (execution failed) |
 
@@ -319,6 +319,74 @@ by (authority, controller_name, database)
 # Alert on any unavailability event
 rate(envoy_authz_ip_match_database_unavailable_total[1m]) > 0
 ```
+
+## ASN Match Database Metrics
+
+These metrics mirror the IP database metrics but are emitted by the `asn-match-database`
+controller and use the `envoy_authz_asn_match_database` subsystem.
+
+### envoy_authz_asn_match_database_requests_total `Counter`
+
+Total requests processed by the asn-match-database controller.
+
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `authority` | `api.service.com` | HTTP host/:authority value of the downstream request (or `-` when absent) |
+| `controller_name` | `asn-blocklist` | Name of the controller instance (from configuration) |
+| `database` | `redis` | Database type. Possible values: `redis`, `postgres` |
+| `result` | `deny` | Authorization result. Possible values: `allow`, `deny`, `error` |
+
+### envoy_authz_asn_match_database_queries_total `Counter`
+
+Total database queries executed by the asn-match-database controller.
+
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `authority` | `api.service.com` | HTTP host/:authority value of the downstream request (or `-` when absent) |
+| `controller_name` | `asn-blocklist` | Name of the controller instance (from configuration) |
+| `database` | `redis` | Database type. Possible values: `redis`, `postgres` |
+| `result` | `found` | Query outcome. Possible values: `found` (ASN was found), `not_found` (ASN was not found), `error` (query failed) |
+
+### envoy_authz_asn_match_database_query_duration_seconds `Histogram`
+
+Database query duration in seconds.
+
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `authority` | `api.service.com` | HTTP host/:authority value of the downstream request (or `-` when absent) |
+| `controller_name` | `asn-blocklist` | Name of the controller instance (from configuration) |
+| `database` | `redis` | Database type. Possible values: `redis`, `postgres` |
+
+**Buckets**: `[.001, .002, .005, .01, .025, .05, .1, .25, .5, 1]`
+
+### envoy_authz_asn_match_database_cache_requests_total `Counter`
+
+Total cache lookup requests.
+
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `authority` | `api.service.com` | HTTP host/:authority value of the downstream request (or `-` when absent) |
+| `controller_name` | `asn-blocklist` | Name of the controller instance (from configuration) |
+| `result` | `hit` | Cache outcome. Possible values: `hit`, `miss` |
+
+### envoy_authz_asn_match_database_cache_entries `Gauge`
+
+Current number of entries in the ASN cache.
+
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `authority` | `api.service.com` | HTTP host/:authority value of the downstream request (or `-` when absent) |
+| `controller_name` | `asn-blocklist` | Name of the controller instance (from configuration) |
+
+### envoy_authz_asn_match_database_unavailable_total `Counter`
+
+Total database unavailability events (connection failures, timeouts, etc.).
+
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `authority` | `api.service.com` | HTTP host/:authority value of the downstream request (or `-` when absent) |
+| `controller_name` | `asn-blocklist` | Name of the controller instance (from configuration) |
+| `database` | `redis` | Database type. Possible values: `redis`, `postgres` |
 
 ## Alerting
 
