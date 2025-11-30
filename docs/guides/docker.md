@@ -208,5 +208,5 @@ networks:
 - [Configure Match Controllers](/match-controllers/)
 - [Write Policy Expressions](/policy-dsl)
 - [Kubernetes Deployment](/guides/kubernetes)
-- [Configuration Guide](/configuration/)
+- [Configuration Guide](/configuration)
 - [View Configuration Examples](/examples/)

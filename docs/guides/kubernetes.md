@@ -155,5 +155,5 @@ kubectl logs -l app=envoy-authorization-service
 
 - [Configure Match Controllers](/match-controllers/)
 - [Write Policy Expressions](/policy-dsl)
-- [Configuration Guide](/configuration/)
+- [Configuration Guide](/configuration)
 - [View Configuration Examples](/examples/)
