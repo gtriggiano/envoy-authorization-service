@@ -1,0 +1,47 @@
+logging:
+  level: info
+
+shutdown:
+  timeout: 25s
+
+server:
+  address: ":9001"
+
+metrics:
+  address: ":9090"
+
+analysisControllers:
+  - name: asn-detect
+    type: maxmind-asn
+    settings:
+      databasePath: /maxmind/GeoLite2-ASN.mmdb
+  - name: geoip-detect
+    type: maxmind-geoip
+    settings:
+      databasePath: /maxmind/GeoLite2-City.mmdb
+
+matchControllers:
+  - name: trusted-partners
+    type: ip-match
+    settings:
+      action: allow
+      cidrList: /config/trusted-partners-ips.txt
+
+  - name: blocked-networks
+    type: ip-match
+    settings:
+      action: deny
+      cidrList: /config/blocked-networks-ips.txt
+
+  - name: cloud-providers
+    type: asn-match
+    settings:
+      action: allow
+      asList: /config/cloud-provider-asns.txt
+
+# Complex policy:
+# 1. Allow if from trusted partner network AND not in blocked list
+# 2. OR allow if from cloud provider ASN AND not in blocked list
+# This demonstrates layered security with multiple authorization strategies
+authorizationPolicy: "(trusted-partners && !blocked-networks) || (cloud-providers && !blocked-networks)"
+authorizationPolicyBypass: false

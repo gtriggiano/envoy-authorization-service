@@ -1,0 +1,6 @@
+# Known malicious IPs within allowed ranges
+192.168.100.50/32
+192.168.100.51/32
+
+# Compromised partner endpoint
+203.0.113.123/32

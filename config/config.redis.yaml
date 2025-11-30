@@ -1,0 +1,28 @@
+logging:
+  level: debug
+
+authorizationPolicy: "!scraper"
+
+analysisControllers:
+  - name: asn-detect
+    type: maxmind-asn
+    settings:
+      databasePath: config/GeoLite2-ASN.mmdb
+  - name: geoip-detect
+    type: maxmind-geoip
+    settings:
+      databasePath: config/GeoLite2-City.mmdb
+
+matchControllers:  
+  - name: scraper
+    type: ip-match-database
+    settings:
+      action: deny
+      cache:
+        ttl: 5m
+      database:
+        type: redis
+        redis:
+          keyPrefix: "scraper:"
+          host: localhost
+          port: 6379

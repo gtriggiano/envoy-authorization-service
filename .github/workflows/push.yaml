@@ -1,0 +1,46 @@
+name: Push
+
+on:
+  push: {}
+    
+jobs:
+  fmt-tests:
+    name: Check format and run tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Check formatting (gofmt)
+        run: |
+          set -euo pipefail
+          files="$(gofmt -l .)"
+          if [ -n "$files" ]; then
+            echo "The following files are not gofmt'd:"
+            echo "$files"
+            exit 1
+          fi
+
+      - name: Fetch MaxMind DB
+        run: ./scripts/fetch-maxmind.sh
+
+      - name: Verify docker is available
+        run: docker info
+
+      - name: Run unit tests
+        run: go test -cover ./...
+
+      - name: Run e2e tests (docker + testcontainers)
+        env:
+          GOCACHE: ${{ runner.temp }}/go-build
+          GOTMPDIR: ${{ runner.temp }}/go-tmp
+        run: |
+          set -euo pipefail
+          mkdir -p "$GOCACHE" "$GOTMPDIR"
+          go test -cover -tags=e2e ./...

@@ -1,0 +1,27 @@
+logging:
+  level: info
+
+shutdown:
+  timeout: 25s
+
+server:
+  address: ":9001"
+
+metrics:
+  address: ":9090"
+
+matchControllers:
+  - name: allowed-ips
+    type: ip-match
+    settings:
+      action: allow
+      cidrList: /config/allowed-ips.txt
+  - name: blocked-ips
+    type: ip-match
+    settings:
+      action: deny
+      cidrList: /config/blocked-ips.txt
+
+# Allow only IPs in the allowlist that are NOT in the blocklist
+authorizationPolicy: "allowed-ips && !blocked-ips"
+authorizationPolicyBypass: false

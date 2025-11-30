@@ -1,0 +1,28 @@
+logging:
+  level: info
+
+shutdown:
+  timeout: 25s
+
+server:
+  address: ":9001"
+
+metrics:
+  address: ":9090"
+
+analysisControllers:
+  - name: asn-detect
+    type: maxmind-asn
+    settings:
+      databasePath: /maxmind/GeoLite2-ASN.mmdb
+
+matchControllers:
+  - name: allowed-asn
+    type: asn-match
+    settings:
+      action: allow
+      asList: /config/allowed-asns.txt
+
+# Allow only ASNs in the allowlist that are NOT in the blocklist
+authorizationPolicy: allowed-asn
+authorizationPolicyBypass: false

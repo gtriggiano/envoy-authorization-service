@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: envoy-authorization-service
+spec:
+  type: ClusterIP
+  selector:
+    app: envoy-authorization-service
+  ports:
+    - port: 9001
+      targetPort: grpc
+    - port: 9090
+      targetPort: metrics

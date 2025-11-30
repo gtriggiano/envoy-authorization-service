@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug (IP Match)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}",
+      "args": ["start", "--config", "config/config.ip-match.yaml"],
+      "env": {
+        "GODEBUG": "madvdontneed=1"
+      }
+    },
+    {
+      "name": "Debug (IP Match Redis)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}",
+      "args": ["start", "--config", "config/config.redis.yaml"],
+      "env": {
+        "GODEBUG": "madvdontneed=1"
+      }
+    },
+    {
+      "name": "Debug (IP Match Postgres)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}",
+      "args": ["start", "--config", "config/config.postgres.yaml"],
+      "env": {
+        "GODEBUG": "madvdontneed=1",
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_PASSWORD": "postgres"
+      }
+    }
+  ]
+}

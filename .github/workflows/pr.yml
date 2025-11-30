@@ -1,0 +1,121 @@
+name: Pull Request
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Check formatting (gofmt)
+        run: |
+          set -euo pipefail
+          files="$(gofmt -l .)"
+          if [ -n "$files" ]; then
+            echo "The following files are not gofmt'd:"
+            echo "$files"
+            exit 1
+          fi
+
+  test:
+    name: Test & Comment Coverage
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Fetch MaxMind DB
+        run: ./scripts/fetch-maxmind.sh
+
+      - name: Run all tests
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/go-build .cache/go-tmp
+          go install github.com/wadey/gocovmerge@latest
+          GOCACHE=$(pwd)/.cache/go-build GOTMPDIR=$(pwd)/.cache/go-tmp go test -covermode=atomic -coverprofile=coverage-e2e.out -tags=e2e ./... 2>&1 | grep -v "no test files" || true
+          GOCACHE=$(pwd)/.cache/go-build GOTMPDIR=$(pwd)/.cache/go-tmp go test -covermode=atomic -coverprofile=coverage-regular.out ./... 2>&1 | grep -v "no test files" || true
+          gocovmerge coverage-e2e.out coverage-regular.out > coverage.out
+          rm -f coverage-e2e.out coverage-regular.out
+          go tool cover -func=coverage.out | tee coverage.txt
+          total="$(awk '/^total:/{print $3}' coverage.txt)"
+          {
+            echo "## Test Coverage"
+            echo ""
+            echo "- Total: ${total}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "coverage=${total}" >> "$GITHUB_OUTPUT"
+        id: coverage
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            coverage.out
+            coverage.txt
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const coverage = process.env.coverage;
+            if (!coverage) {
+              core.setFailed('Missing coverage value');
+              return;
+            }
+            const {owner, repo} = context.repo;
+            const issue_number = context.issue.number;
+            const body = `🚦 Test coverage for this change: **${coverage}**`;
+
+            // Try to update an existing bot comment, otherwise create one
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const marker = '🚦 Test coverage for this change:';
+            const existing = comments.find(c => c.user.type === 'Bot' && c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
+        env:
+          coverage: ${{ steps.coverage.outputs.coverage }}

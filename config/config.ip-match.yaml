@@ -1,0 +1,27 @@
+logging:
+  level: debug
+
+authorizationPolicy: "trusted || !scraper"
+
+analysisControllers:
+  - name: asn-detect
+    type: maxmind-asn
+    settings:
+      databasePath: config/GeoLite2-ASN.mmdb
+  - name: geoip-detect
+    type: maxmind-geoip
+    settings:
+      databasePath: config/GeoLite2-City.mmdb
+
+matchControllers:
+  - name: trusted
+    type: ip-match
+    settings:
+      action: deny
+      cidrList: config/whitelisted-cidrs.txt
+
+  - name: scraper
+    type: ip-match
+    settings:
+      action: deny
+      cidrList: config/scrapers-cidrs.txt

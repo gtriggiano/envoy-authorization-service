@@ -1,0 +1,32 @@
+logging:
+  level: info
+
+authorizationPolicy: "trusted"
+
+analysisControllers:
+  - name: asn-detect
+    type: maxmind-asn
+    settings:
+      databasePath: config/GeoLite2-ASN.mmdb
+  - name: geoip-detect
+    type: maxmind-geoip
+    settings:
+      databasePath: config/GeoLite2-City.mmdb
+
+matchControllers:
+  - name: trusted
+    type: ip-match-database
+    settings:
+      action: allow
+      cache:
+        ttl: 5m
+      database:
+        type: postgres
+        postgres:
+          query: "SELECT 1 FROM trusted_ips WHERE ip = $1 LIMIT 1"
+          host: localhost
+          port: 5432
+          databaseName: security
+          usernameEnv: POSTGRES_USER
+          passwordEnv: POSTGRES_PASSWORD
+
