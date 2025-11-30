@@ -1,6 +1,6 @@
 # Configuration Overview
 
-The Envoy Authorization Service uses YAML configuration files to define server settings, analysis controllers, authorization controllers, and policy expressions.
+The Envoy Authorization Service uses YAML configuration files to define server settings, analysis controllers, match controllers, and policy expressions.
 
 ## Configuration File Structure
 
@@ -9,7 +9,7 @@ The Envoy Authorization Service uses YAML configuration files to define server s
 logging:
   level: info  # debug, info, warn, error. Optional, defaults to info
 
-# Policy expression combining authorization controllers (Optional. If absent all requests will be allowed)
+# Policy expression combining match controllers (Optional. If absent all requests will be allowed)
 authorizationPolicy: "controller1 && (controller2 || !controller3)"
 
 # Optional: bypass policy for testing. Logs what would have been blocked but allows everything
@@ -45,8 +45,8 @@ analysisControllers:
     settings:
       # Controller-specific settings
 
-# Authorization controllers (optional)
-authorizationControllers:
+# Match controllers (optional)
+matchControllers:
   - name: controller-name
     type: controller-type
     settings:
@@ -96,7 +96,7 @@ Configuration is validated at startup:
 ## Next Steps
 
 - [Configure Analysis Controllers](/configuration/analysis-controllers)
-- [Configure Authorization Controllers](/configuration/authorization-controllers)
+- [Configure Match Controllers](/configuration/match-controllers)
 - [Write Policy Expressions](/configuration/policy-dsl)
 - [Configure Server & Metrics](/configuration/server-metrics)
 - [View Configuration Examples](/examples/)

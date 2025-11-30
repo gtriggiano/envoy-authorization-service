@@ -61,10 +61,13 @@ const defaultConfiguration = defineConfig({
               link: "/configuration/analysis-controllers",
             },
             {
-              text: "Authorization Controllers",
-              link: "/configuration/authorization-controllers",
+              text: "Match Controllers",
+              link: "/configuration/match-controllers",
             },
-            { text: "Policy DSL", link: "/configuration/policy-dsl" },
+            {
+              text: "Authorization Policy DSL",
+              link: "/configuration/policy-dsl",
+            },
             { text: "Server & Metrics", link: "/configuration/server-metrics" },
           ],
         },

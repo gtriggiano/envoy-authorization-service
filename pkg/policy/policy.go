@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Policy represents a parsed boolean expression referencing authorization controller
+// Policy represents a parsed boolean expression referencing match controller
 // names. The AST is intentionally simple to keep evaluation predictable and fast.
 type Policy struct {
 	root node

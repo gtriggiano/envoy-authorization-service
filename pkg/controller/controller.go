@@ -24,27 +24,19 @@ type AnalysisReport struct {
 // AnalysisReports is the collection of analysis reports indexed by controller name.
 type AnalysisReports map[string]*AnalysisReport
 
-// AuthorizationVerdict represents the outcome of an authorization controller.
-type AuthorizationVerdict struct {
-	Controller        string
-	ControllerKind    string
-	Code              codes.Code
-	Reason            string
-	InPolicy          bool
-	DownstreamHeaders map[string]string
-	UpstreamHeaders   map[string]string
+// MatchVerdict represents the outcome of a match controller.
+type MatchVerdict struct {
+	Controller            string
+	ControllerKind        string
+	DenyCode              codes.Code
+	Description           string
+	IsMatch               bool
+	DenyDownstreamHeaders map[string]string
+	AllowUpstreamHeaders  map[string]string
 }
 
-func (av *AuthorizationVerdict) IsAllow() bool {
-	return av.Code == codes.OK
-}
-
-func (av *AuthorizationVerdict) IsDeny() bool {
-	return av.Code != codes.OK
-}
-
-// AuthorizationVerdicts collects verdicts indexed by controller name.
-type AuthorizationVerdicts map[string]*AuthorizationVerdict
+// MatchVerdicts collects verdicts indexed by controller name.
+type MatchVerdicts map[string]*MatchVerdict
 
 // AnalysisController defines analysis behavior prior to authorization.
 type AnalysisController interface {
@@ -54,19 +46,19 @@ type AnalysisController interface {
 	HealthCheck(ctx context.Context) error
 }
 
-// AuthorizationController defines how a controller makes authorization decisions.
-type AuthorizationController interface {
+// MatchController defines how a controller evaluates request matches.
+type MatchController interface {
 	Name() string
 	Kind() string
-	Authorize(ctx context.Context, req *runtime.RequestContext, reports AnalysisReports) (*AuthorizationVerdict, error)
+	Match(ctx context.Context, req *runtime.RequestContext, reports AnalysisReports) (*MatchVerdict, error)
 	HealthCheck(ctx context.Context) error
 }
 
-// AnalysisFactory builds an analysis controller instance from configuration.
-type AnalysisFactory func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (AnalysisController, error)
+// AnalysisContollerFactory builds an analysis controller instance from configuration.
+type AnalysisContollerFactory func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (AnalysisController, error)
 
-// AuthorizationFactory builds an authorization controller from configuration.
-type AuthorizationFactory func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (AuthorizationController, error)
+// MatchContollerFactory builds a match controller from configuration.
+type MatchContollerFactory func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (MatchController, error)
 
 type registry[T any] struct {
 	mu        sync.RWMutex
@@ -74,8 +66,8 @@ type registry[T any] struct {
 }
 
 var (
-	analysisRegistry      = newRegistry[AnalysisFactory]()
-	authorizationRegistry = newRegistry[AuthorizationFactory]()
+	analysisContollersRegistry = newRegistry[AnalysisContollerFactory]()
+	matchContollersRegistry    = newRegistry[MatchContollerFactory]()
 )
 
 // newRegistry initializes a typed controller factory registry.
@@ -83,16 +75,16 @@ func newRegistry[T any]() *registry[T] {
 	return &registry[T]{factories: make(map[string]T)}
 }
 
-// RegisterAnalysis associates an analysis controller type with a factory.
-func RegisterAnalysis(kind string, factory AnalysisFactory) {
-	if err := register(analysisRegistry, kind, factory); err != nil {
+// RegisterAnalysisContollerFactory associates an analysis controller type with a factory.
+func RegisterAnalysisContollerFactory(kind string, factory AnalysisContollerFactory) {
+	if err := register(analysisContollersRegistry, kind, factory); err != nil {
 		panic(err)
 	}
 }
 
-// RegisterAuthorization associates an authorization controller type with a factory.
-func RegisterAuthorization(kind string, factory AuthorizationFactory) {
-	if err := register(authorizationRegistry, kind, factory); err != nil {
+// RegisterMatchContollerFactory associates a match controller type with a factory.
+func RegisterMatchContollerFactory(kind string, factory MatchContollerFactory) {
+	if err := register(matchContollersRegistry, kind, factory); err != nil {
 		panic(err)
 	}
 }
@@ -127,7 +119,7 @@ func BuildAnalysisControllers(ctx context.Context, logger *zap.Logger, configura
 			continue
 		}
 
-		factory, ok := getFactory(analysisRegistry, configuration.Type)
+		factory, ok := getFactory(analysisContollersRegistry, configuration.Type)
 		if !ok {
 			return nil, fmt.Errorf("analysis controller '%s' is of unknown type '%s'", configuration.Name, configuration.Type)
 		}
@@ -141,22 +133,22 @@ func BuildAnalysisControllers(ctx context.Context, logger *zap.Logger, configura
 	return controllers, nil
 }
 
-// BuildAuthorizationControllers creates authorization controller instances from configuration definitions.
-func BuildAuthorizationControllers(ctx context.Context, logger *zap.Logger, configurations []config.ControllerConfig) ([]AuthorizationController, error) {
-	controllers := make([]AuthorizationController, 0, len(configurations))
+// BuildMatchControllers creates match controller instances from configuration definitions.
+func BuildMatchControllers(ctx context.Context, logger *zap.Logger, configurations []config.ControllerConfig) ([]MatchController, error) {
+	controllers := make([]MatchController, 0, len(configurations))
 	for _, configuration := range configurations {
 		if !configuration.IsEnabled() {
 			continue
 		}
 
-		factory, ok := getFactory(authorizationRegistry, configuration.Type)
+		factory, ok := getFactory(matchContollersRegistry, configuration.Type)
 		if !ok {
-			return nil, fmt.Errorf("authorization controller '%s' is of unknown type '%s'", configuration.Name, configuration.Type)
+			return nil, fmt.Errorf("match controller '%s' is of unknown type '%s'", configuration.Name, configuration.Type)
 		}
 
 		controller, err := factory(ctx, logger.With(zap.String("controller_name", configuration.Name), zap.String("controller_type", configuration.Type)), configuration)
 		if err != nil {
-			return nil, fmt.Errorf("could not build authorization controller '%s' of type '%s': %w", configuration.Name, configuration.Type, err)
+			return nil, fmt.Errorf("could not build match controller '%s' of type '%s': %w", configuration.Name, configuration.Type, err)
 		}
 		controllers = append(controllers, controller)
 	}

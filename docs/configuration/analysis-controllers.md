@@ -149,7 +149,7 @@ analysisControllers:
 Analysis controllers never block requests on errors:
 - Database read errors logged as warnings
 - Missing data returns empty reports
-- Authorization controllers handle missing analysis data
+- Match controllers handle missing analysis data
 - Metrics track error rates
 
 ## Get MaxMind Databases
@@ -175,7 +175,7 @@ Analysis controllers never block requests on errors:
 
 ## Integration with Authorization
 
-Analysis results flow to authorization controllers:
+Analysis results flow to match controllers:
 
 ```yaml
 # Analysis phase
@@ -186,7 +186,7 @@ analysisControllers:
       databasePath: GeoLite2-ASN.mmdb
 
 # Authorization phase (uses ASN from analysis)
-authorizationControllers:
+matchControllers:
   - name: cloud-providers
     type: asn-match
     settings:
@@ -200,7 +200,7 @@ The `asn-match` controller accesses ASN data from the `asn-detect` analysis cont
 
 ## Next Steps
 
-- [Configure Authorization Controllers](/configuration/authorization-controllers)
+- [Configure Match Controllers](/configuration/match-controllers)
 - [Write Policy Expressions](/configuration/policy-dsl)
 - [Configure Server & Metrics](/configuration/server-metrics)
 - [View Configuration Examples](/examples/)

@@ -78,12 +78,12 @@ analysisControllers:
     enabled: true
     settings:
       databasePath: /path/to/db
-authorizationControllers:
+matchControllers:
   - name: test-auth
     type: ip-match
     enabled: false
     settings:
-      action: deny
+      cidrList: /tmp/cidrs
 authorizationPolicy: "test-auth"
 authorizationPolicyBypass: true
 shutdown:
@@ -118,8 +118,8 @@ shutdown:
 		if len(cfg.AnalysisControllers) != 1 {
 			t.Fatalf("expected 1 analysis controller, got %d", len(cfg.AnalysisControllers))
 		}
-		if len(cfg.AuthorizationControllers) != 1 {
-			t.Fatalf("expected 1 authorization controller, got %d", len(cfg.AuthorizationControllers))
+		if len(cfg.MatchControllers) != 1 {
+			t.Fatalf("expected 1 match controller, got %d", len(cfg.MatchControllers))
 		}
 	})
 }
@@ -179,17 +179,17 @@ func TestConfigValidate(t *testing.T) {
 		}
 	})
 
-	t.Run("duplicate authorization controller names return error", func(t *testing.T) {
+	t.Run("duplicate match controller names return error", func(t *testing.T) {
 		cfg := &Config{
 			Server:  ServerConfig{Address: ":9001"},
 			Metrics: MetricsConfig{Address: ":9090"},
-			AuthorizationControllers: []ControllerConfig{
+			MatchControllers: []ControllerConfig{
 				{Name: "duplicate", Type: "type1"},
 				{Name: "duplicate", Type: "type2"},
 			},
 		}
 		err := cfg.Validate()
-		if err == nil || !strings.Contains(err.Error(), "duplicate authorization controller name") {
+		if err == nil || !strings.Contains(err.Error(), "duplicate match controller name") {
 			t.Fatalf("expected duplicate name error, got %v", err)
 		}
 	})
@@ -212,7 +212,7 @@ func TestConfigValidate(t *testing.T) {
 		cfg := &Config{
 			Server:  ServerConfig{Address: ":9001"},
 			Metrics: MetricsConfig{Address: ":9090"},
-			AuthorizationControllers: []ControllerConfig{
+			MatchControllers: []ControllerConfig{
 				{Name: "test"},
 			},
 		}
@@ -500,11 +500,11 @@ func TestResolveTLSPaths(t *testing.T) {
 	})
 }
 
-// TestEnabledAuthorizationControllerNames returns only enabled controller names.
-func TestEnabledAuthorizationControllerNames(t *testing.T) {
+// TestEnabledMatchControllerNames returns only enabled controller names.
+func TestEnabledMatchControllerNames(t *testing.T) {
 	t.Run("returns empty list for no controllers", func(t *testing.T) {
 		cfg := &Config{}
-		names := cfg.EnabledAuthorizationControllerNames()
+		names := cfg.EnabledMatchControllerNames()
 		if len(names) != 0 {
 			t.Errorf("expected empty list, got %v", names)
 		}
@@ -514,13 +514,13 @@ func TestEnabledAuthorizationControllerNames(t *testing.T) {
 		enabled := true
 		disabled := false
 		cfg := &Config{
-			AuthorizationControllers: []ControllerConfig{
+			MatchControllers: []ControllerConfig{
 				{Name: "enabled1", Type: "type1", Enabled: &enabled},
 				{Name: "disabled", Type: "type2", Enabled: &disabled},
 				{Name: "enabled2", Type: "type3"}, // defaults to enabled
 			},
 		}
-		names := cfg.EnabledAuthorizationControllerNames()
+		names := cfg.EnabledMatchControllerNames()
 		if len(names) != 2 {
 			t.Fatalf("expected 2 enabled controllers, got %d: %v", len(names), names)
 		}
@@ -534,12 +534,12 @@ func TestEnabledAuthorizationControllerNames(t *testing.T) {
 
 	t.Run("skips controllers with empty names", func(t *testing.T) {
 		cfg := &Config{
-			AuthorizationControllers: []ControllerConfig{
+			MatchControllers: []ControllerConfig{
 				{Name: "", Type: "type1"},
 				{Name: "valid", Type: "type2"},
 			},
 		}
-		names := cfg.EnabledAuthorizationControllerNames()
+		names := cfg.EnabledMatchControllerNames()
 		if len(names) != 1 {
 			t.Fatalf("expected 1 controller, got %d: %v", len(names), names)
 		}

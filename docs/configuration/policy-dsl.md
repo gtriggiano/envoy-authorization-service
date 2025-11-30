@@ -1,22 +1,28 @@
-# Policy DSL
+# Authorization Policy DSL
 
-The Policy DSL (Domain-Specific Language) is a boolean expression language that combines authorization controller verdicts to make final allow/deny decisions.
+The Authorization Policy DSL (Domain-Specific Language) is a boolean expression language that combines match controller verdicts to make final allow/deny decisions.
 
 ## Overview
 
-Each authorization controller returns a verdict with an `InPolicy` boolean. The policy expression evaluates these booleans to determine whether to allow or deny the request.
+Each match controller is conceivable as a boolean which tells if it matches or not the processing request.
+
+The policy expression evaluates these booleans to decide whether to allow or deny the request.
+
+::: warning
+Not setting a policy or setting it as `""` means `no policy`, aka every request will be allowed.
+:::
 
 **Key Principles**:
 - **Simple boolean logic**: Only `&&`, `||`, `!`, and parentheses
-- **Controller awareness**: Every identifier must reference a configured authorization controller
+- **Controllers references**: Every identifier must reference a configured match controller
 - **Deterministic evaluation**: Short-circuit evaluation with predictable behavior
-- **Validation at startup**: Syntax and controller reference errors caught early
+- **Validated at startup**: Syntax and controller reference errors caught early
 
 ## Syntax
 
 ### Identifiers
 
-Reference authorization controllers by name:
+Reference match controllers by name:
 ```yaml
 authorizationPolicy: "corporate-network"
 ```
@@ -65,56 +71,16 @@ authorizationPolicy: "a && b || c"
 authorizationPolicy: "a  &&  b  ||  c"
 ```
 
-## `verdict.InPolicy` Semantics
+## `verdict.IsMatch` Semantics
 
-The authorization controllers `verdict.InPolicy` field determines each controller's boolean value in the policy expression.
+`IsMatch` is `true` when the controller’s matching rule is satisfied, `false` otherwise.
 
-### Allow-Mode Controllers (`action: allow`)
+Examples:
+- `ip-match` → `IsMatch=true` when the IP is inside the configured CIDR list.
+- `asn-match` → `IsMatch=true` when the ASN is in the configured list.
+- `ip-match-database` → `IsMatch=true` when the IP exists in the external data source.
 
-When a controller is configured with `action: allow`:
-- `verdict.InPolicy = true` → Request **matches** the allowlist
-- `verdict.InPolicy = false` → Request **does not match** the allowlist
-
-**Example**:
-```yaml
-- name: corporate-ips
-  type: ip-match
-  settings:
-    action: allow
-    cidrList: corporate-ips.txt
-```
-
-| Client IP | In List? | InPolicy Value |
-|-----------|----------|----------|
-| 10.0.0.5 | Yes | `true` |
-| 8.8.8.8 | No | `false` |
-
-### Deny-Mode Controllers (`action: deny`)
-
-When a controller is configured with `action: deny`:
-- `verdict.InPolicy = true` → Request **matches** the denylist
-- `verdict.InPolicy = false` → Request **does not match** the denylist
-
-**Example**:
-```yaml
-- name: blocked-ips
-  type: ip-match
-  settings:
-    action: deny
-    cidrList: blocked-ips.txt
-```
-
-| Client IP | In List? | InPolicy Value |
-|-----------|----------|----------|
-| 1.2.3.4 | Yes | `true` |
-| 8.8.8.8 | No | `false` |
-
-### Why InPolicy?
-
-This design ensures policy expressions represent **semantic intent**:
-- `corporate-ips` evaluates to `true` when IP is corporate (regardless of action)
-- `blocked-ips` evaluates to `true` when IP is blocked (regardless of action)
-- Policies read naturally: `"corporate-ips || !blocked-ips"`
+Use `!` in the policy to invert meaning for blocklists, e.g. `authorizationPolicy: "!blocked_ips"`.
 
 ## Common Patterns
 
@@ -122,100 +88,90 @@ This design ensures policy expressions represent **semantic intent**:
 
 Permit only specific IPs/ASNs:
 ```yaml
-authorizationControllers:
-  - name: allowed-ips
+authorizationPolicy: "trusted-partners"
+
+matchControllers:
+  - name: trusted-partners
     type: ip-match
     settings:
-      action: allow
-      cidrList: allowed-ips.txt
-
-authorizationPolicy: "allowed-ips"
+      cidrList: trusted-partners-cidr.txt
 ```
 
 ### Denylist Only
 
 Block specific IPs/ASNs:
 ```yaml
-authorizationControllers:
-  - name: blocked-ips
+authorizationPolicy: "!rogue-subnets"
+
+matchControllers:
+  - name: rogue-subnets
     type: ip-match
     settings:
-      action: deny
-      cidrList: blocked-ips.txt
-
-authorizationPolicy: "!blocked-ips"
+      cidrList: rogue-subnets-cidr.txt
 ```
 
 ### Allowlist with Exceptions
 
 Allow specific IPs unless explicitly blocked:
 ```yaml
-authorizationControllers:
-  - name: corporate-ips
+authorizationPolicy: "trusted-subnets && !blocked-ips"
+
+matchControllers:
+  - name: trusted-subnets
     type: ip-match
     settings:
-      action: allow
-      cidrList: corporate-ips.txt
+      cidrList: trusted-subnets-cidrs.txt
   
   - name: blocked-ips
     type: ip-match
     settings:
-      action: deny
-      cidrList: blocked-ips.txt
-
-authorizationPolicy: "corporate-ips && !blocked-ips"
+      cidrList: blocked-ips-list.txt
 ```
 
 ### Multiple Allowlists
 
 Allow from any of several sources:
 ```yaml
-authorizationControllers:
+authorizationPolicy: "corporate-network || partner-ips || vpn-users"
+
+matchControllers:
   - name: corporate-network
     type: ip-match
     settings:
-      action: allow
-      cidrList: corporate-ips.txt
+      cidrList: corporate-network-cidrs.txt
   
   - name: partner-ips
     type: ip-match-database
     settings:
-      action: allow
       database: # ...
   
   - name: vpn-users
     type: ip-match
     settings:
-      action: allow
-      cidrList: vpn-ips.txt
-
-authorizationPolicy: "corporate-network || partner-ips || vpn-users"
+      cidrList: vpn-ips-cidrs.txt
 ```
 
 ### Layered Security
 
 Combine multiple security controls:
 ```yaml
-authorizationControllers:
-  - name: ip-allowlist
+authorizationPolicy: "(allowed-ips || trusted-asns) && !blocked-ips"
+
+matchControllers:
+  - name: allowed-ips
     type: ip-match
     settings:
-      action: allow
-      cidrList: allowed-ips.txt
+      cidrList: allowed-ips-cidrs.txt
   
   - name: trusted-asns
     type: asn-match
     settings:
-      action: allow
-      asList: trusted-asns.txt
+      asnList: trusted-asns.txt
   
   - name: blocked-ips
     type: ip-match
     settings:
-      action: deny
       cidrList: blocked-ips.txt
-
-authorizationPolicy: "(ip-allowlist || trusted-asns) && !blocked-ips"
 ```
 
 ### Complex Policy
@@ -245,11 +201,11 @@ graph TD
     OR --> PN["partners controller"]
     NOT --> BL["blocklist controller"]
     
-    AL --> |InPolicy| OR_Result[Combine with ||]
-    PN --> |InPolicy| OR_Result
+    AL --> |IsMatch| OR_Result[Combine with ||]
+    PN --> |IsMatch| OR_Result
     OR_Result --> AND_Left["Left side of &&"]
     
-    BL --> |InPolicy| NOT_Result["Invert with !"]
+    BL --> |IsMatch| NOT_Result["Invert with !"]
     NOT_Result --> AND_Right["Right side of &&"]
     
     AND_Left --> Final["Combine with &&"]
@@ -280,7 +236,7 @@ If `expensive-db-check` returns `true`, `cached-allowlist` is never evaluated (p
 
 **Configuration**:
 ```yaml
-authorizationControllers:
+matchControllers:
   - name: corporate
     type: ip-match
     settings:
@@ -308,7 +264,7 @@ authorizationPolicy: "corporate || partners"
 
 **Configuration**:
 ```yaml
-authorizationControllers:
+matchControllers:
   - name: allowlist
     type: ip-match
     settings:
@@ -431,6 +387,6 @@ Use `authorizationPolicyBypass` in test environments to verify controller behavi
 ## Next Steps
 
 - [Configure Analysis Controllers](/configuration/analysis-controllers)
-- [Configure Authorization Controllers](/configuration/authorization-controllers)
+- [Configure Match Controllers](/configuration/match-controllers)
 - [Configure Server & Metrics](/configuration/server-metrics)
 - [View Configuration Examples](/examples/)

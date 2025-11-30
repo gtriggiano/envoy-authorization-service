@@ -30,13 +30,13 @@ Block IPs that exceeded rate limits.
 
 **config.yaml**:
 ```yaml
-authorizationPolicy: "!scraper-blocker"
+authorizationPolicy: "!scraper"
 
-authorizationControllers:
-  - name: scraper-blocker
+matchControllers:
+  - name: scraper
     type: ip-match-database
     settings:
-      action: deny
+      matchesOnFailure: false
       cache:
         ttl: 10m
       database:
@@ -64,37 +64,71 @@ EXISTS scraper:1.2.3.4
 KEYS scraper:*
 ```
 
-## Error Handling
+## Configuration Options
 
-### Default Behavior
+### matchesOnFailure
 
-**For `action: deny` (blocklist)**:
-- Database available, IP found → DENY
-- Database available, IP not found → ALLOW
-- Database unavailable → ALLOW (fail-open)
-
-**For `action: allow` (allowlist)**:
-- Database available, IP found → ALLOW
-- Database available, IP not found → DENY
-- Database unavailable → DENY (fail-closed)
-
-### Override: Always Deny on DB Failure
+Controls the `IsMatch` value when database queries fail (connection timeout, network error, etc.):
 
 ```yaml
-settings:
-  action: allow
-  alwaysDenyOnDbUnavailable: true  # Fail-closed regardless of action
+matchesOnFailure: false  # Default: IsMatch=false on DB failure
+matchesOnFailure: true   # IsMatch=true on DB failure
 ```
 
-## Caching Strategy
+The resulting behavior (allow vs deny) depends on your authorization policy:
 
-### Why Cache?
+**Example 1 - Deny List (Scraper Blocking)**
+
+```yaml
+authorizationPolicy: "!scraper"  # Allow if NOT a scraper
+
+matchControllers:
+  - name: scraper
+    type: ip-match-database
+    settings:
+      matchesOnFailure: false  # Fail-open: allow traffic if Redis is down
+      database:
+        type: redis
+        redis:
+          keyPrefix: "scraper:"
+```
+
+When Redis is unavailable:
+- `matchesOnFailure: false` → IsMatch=false → `!scraper` = `!false` = `true` → **ALLOW** (fail-open)
+- `matchesOnFailure: true` → IsMatch=true → `!scraper` = `!true` = `false` → **DENY** (fail-closed)
+
+**Example 2 - Allow List (Trusted Partners)**
+
+```yaml
+authorizationPolicy: "trusted-partner"  # Allow if IS a trusted partner
+
+matchControllers:
+  - name: trusted-partner
+    type: ip-match-database
+    settings:
+      matchesOnFailure: true  # Fail-open: allow traffic if DB is down
+      database:
+        type: postgres
+```
+
+When PostgreSQL is unavailable:
+- `matchesOnFailure: false` → IsMatch=false → `trusted-partner` = `false` → **DENY** (fail-closed)
+- `matchesOnFailure: true` → IsMatch=true → `trusted-partner` = `true` → **ALLOW** (fail-open)
+
+**Guidelines**:
+- **Deny lists**: Use `matchesOnFailure: false` for fail-open (prefer availability)
+- **Allow lists**: Use `matchesOnFailure: true` for fail-open (prefer availability)
+- Adjust based on whether you prioritize availability or security during outages
+
+### Caching Strategy
+
+**Why Cache?**
 
 - Reduce database load
 - Improve latency (0.1ms vs 1-10ms)
 - Handle database outages gracefully
 
-### Cache Behavior
+**Cache Behavior**:
 
 ```yaml
 cache:

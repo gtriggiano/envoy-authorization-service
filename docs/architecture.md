@@ -29,7 +29,7 @@ sequenceDiagram
     Analysis-->>AuthService: Reports + Headers
     
     Note over AuthService,Policy: Phase 2: Authorization (Concurrent)
-    AuthService->>AuthZ: Run configured authorization controllers
+    AuthService->>AuthZ: Run configured match controllers
     par Authorization Controller 1
         AuthZ->>AuthZ: Evaluate request + analysis reports
     and Authorization Controller 2
@@ -63,7 +63,7 @@ sequenceDiagram
 - All analysis **controllers run concurrently**
 - Controllers produce **reports** and, optionally, **headers** to inject into the upstream request in case of request being allowed
 - Cannot directly deny requests
-- The analysis reports will be available to authorization controllers
+- The analysis reports will be available to match controllers
 
 **Example Analysis Controllers**:
 - `maxmind-asn`: Lookup ASN from IP address
@@ -71,32 +71,32 @@ sequenceDiagram
 - `ua-detect`: Parse User-Agent header
 
 **Output**:
-- Analysis reports for authorization controllers to consume
+- Analysis reports for match controllers to consume
 - HTTP headers to inject into upstream requests
 
-### Phase 2: Authorization
+### Phase 2: Match
 
-**Purpose**: Make allow/deny decisions based on analysis reports, request data, configuration and possibily I/O with external datasources.
+**Purpose**: Identify matches based on analysis reports, request data, configuration and possibly I/O with external datasources.
 
 **Characteristics**:
-- All authorization **controllers run concurrently** and they are **provided with the reports** generated in the analysis phase
-- Controllers return **verdicts**
-- Each verdict has an `InPolicy` boolean flag stating how that controller should be evaluated when referenced in authorization policy
+- All match **controllers run concurrently** and they are **provided with the reports** generated in the analysis phase
+- Controllers return **match verdicts**
+- Each verdict has an `IsMatch` boolean flag stating how that controller should be evaluated when referenced in the authorization policy
 - Can inject headers for both allowed and denied requests
 
-**Example Authorization Controllers**:
-- `ip-match`: Allow/deny based on request IP address and configuration
-- `asn-match`: Allow/deny based on request ASN and configuration
-- `ip-match-database`: Allow/deny based on IP address and database lookup
+**Example Match Controllers**:
+- `ip-match`: Checks request IP address against configured CIDRs
+- `asn-match`: Checks request ASN against configured list
+- `ip-match-database`: Looks up IP address in external data sources
 
 ### Phase 3: Authorization Policy Evaluation
 
-**Purpose**: Combine authorization verdicts using boolean logic.
+**Purpose**: Combine match verdicts using boolean logic to reach the final authorization decision.
 
 **Characteristics**:
 - Evaluates a boolean expression (the "authorization policy")
-- References authorization controllers by name
-- Uses each controller's `verdict.InPolicy` value as its boolean result
+- References match controllers by name
+- Uses each controller's `verdict.IsMatch` value as its boolean result
 - Determines final allow/deny decision
 
 **Example Policies**:
@@ -172,7 +172,7 @@ X-Blocked-Reason: IP in denylist
 
 ### Analysis Errors
 - Logged but don't block request
-- Missing reports handled by authorization controllers
+- Missing reports handled by match controllers
 - Metrics updated for monitoring
 
 ### Authorization Errors
@@ -184,4 +184,3 @@ X-Blocked-Reason: IP in denylist
 - Caught at startup (validation)
 - Runtime errors deny request (fail-closed)
 - Detailed error messages in logs
-

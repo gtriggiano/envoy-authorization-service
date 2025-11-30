@@ -205,7 +205,7 @@ networks:
 
 ## Next Steps
 
-- [Configure Authorization Controllers](/configuration/authorization-controllers)
+- [Configure Match Controllers](/configuration/match-controllers)
 - [Write Policy Expressions](/configuration/policy-dsl)
 - [Kubernetes Deployment](/guides/kubernetes)
 - [Configuration Guide](/configuration/)

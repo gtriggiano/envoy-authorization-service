@@ -22,15 +22,15 @@ features:
   
   - icon: 🔌
     title: Extensible Architecture
-    details: Plugin-based system for analysis and authorization controllers. Compose authorization logic with ease.
+    details: Plugin-based system for analysis and match controllers.
   
   - icon: 📜
-    title: Policy DSL
-    details: Express authorization requirements using validated boolean expressions that combine controller verdicts.
+    title: Authz Policy DSL
+    details: Compose authorization logic with ease. Express authorization requirements using validated boolean expressions that combine match controller verdicts.
   
   - icon: 🏷️
     title: Header Injection
-    details: Dynamically add headers to upstream and downstream requests based on analysis and authorization results.
+    details: Dynamically add headers to upstream and downstream requests based on analysis and match results.
   
   - icon: 📊
     title: Full Observability
@@ -53,32 +53,52 @@ features:
     details: Integrates Redis and PostgreSQL support for dynamic match based on behavioral analysis or threat intelligence.
 ---
 
+## How it works?
+
+The Envoy Authorization Service implements the [Envoy gRPC External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/ext_authz_filter) with a three-phase pipeline:
+
+1. **Analysis Phase**: Extract and enrich request metadata (GeoIP, ASN, User Agent, etc...)
+2. **Match Phase**: Execute multiple match controllers concurrently
+3. **Policy Evaluation**: Combine match verdicts using boolean expressions (eg. `(corporate-network || partner-ip) && !evil-network`)
+
+This architecture enables composable authorization patterns while maintaining high performance and observability.
+
+
 ## Quick Start
 
-Install and run the authorization service:
+**Docker:**
+
+```bash
+docker pull ghcr.io/gtriggiano/envoy-authorization-service:{{VERSION}}
+docker run -v $(pwd)/config.yaml:/config.yaml ghcr.io/gtriggiano/envoy-authorization-service:{{VERSION}} start --config /config.yaml
+```
+
+**Binary:**
+
+Download the build for your arch:
 
 ::: code-group
 
 ```bash [Linux AMD64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/latest/download/envoy-authorization-service-linux-amd64
+curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-linux-amd64
 chmod +x envoy-authorization-service-linux-amd64
 mv envoy-authorization-service-linux-amd64 /usr/local/bin/envoy-authorization-service
 ```
 
 ```bash [Linux ARM64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/latest/download/envoy-authorization-service-linux-arm64
+curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-linux-arm64
 chmod +x envoy-authorization-service-linux-arm64
 mv envoy-authorization-service-linux-arm64 /usr/local/bin/envoy-authorization-service
 ```
 
 ```bash [macOS AMD64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/latest/download/envoy-authorization-service-darwin-amd64
+curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-darwin-amd64
 chmod +x envoy-authorization-service-darwin-amd64
 mv envoy-authorization-service-darwin-amd64 /usr/local/bin/envoy-authorization-service
 ```
 
 ```bash [macOS ARM64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/latest/download/envoy-authorization-service-darwin-arm64
+curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-darwin-arm64
 chmod +x envoy-authorization-service-darwin-arm64
 mv envoy-authorization-service-darwin-arm64 /usr/local/bin/envoy-authorization-service
 ```
@@ -91,12 +111,7 @@ Then
 envoy-authorization-service start --config config.yaml
 ```
 
-Or use Docker:
 
-```bash
-docker pull ghcr.io/gtriggiano/envoy-authorization-service:latest
-docker run -v $(pwd)/config.yaml:/config.yaml ghcr.io/gtriggiano/envoy-authorization-service:latest start --config /config.yaml
-```
 
 ## Example Configuration
 
@@ -115,13 +130,3 @@ analysisControllers:
     settings:
       databasePath: GeoLite2-ASN.mmdb
 ```
-
-## How it works?
-
-The Envoy Authorization Service implements the [Envoy gRPC External Authorization API](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/ext_authz_filter) with a three-phase pipeline:
-
-1. **Analysis Phase**: Extract and enrich request metadata (GeoIP, ASN, User Agent, etc...)
-2. **Authorization Phase**: Execute multiple authorization controllers concurrently
-3. **Policy Evaluation**: Combine verdicts using boolean expressions (eg. `(corporate-network || partner-ip) && !evil-network`)
-
-This architecture enables composable authorization patterns while maintaining high performance and observability.

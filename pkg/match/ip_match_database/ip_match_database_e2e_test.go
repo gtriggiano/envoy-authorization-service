@@ -20,7 +20,6 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
-	"google.golang.org/grpc/codes"
 
 	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/controller"
@@ -67,18 +66,18 @@ func TestRedisIpMatchDatabase(t *testing.T) {
 		IpAddress:  netip.MustParseAddr("203.0.113.10"),
 	}
 
-	verdict, err := ctrl.Authorize(ctx, request, nil)
+	verdict, err := ctrl.Match(ctx, request, nil)
 	requireNoErr(t, err)
-	if verdict.Code != codes.PermissionDenied {
-		t.Fatalf("expected deny for matching IP, got %v (%s)", verdict.Code, verdict.Reason)
+	if !verdict.IsMatch {
+		t.Fatalf("expected to match IP, got: %s", verdict.Description)
 	}
 
 	request.IpAddress = netip.MustParseAddr("198.51.100.42")
 	request.Request = minimalCheckRequest("198.51.100.42")
-	verdict, err = ctrl.Authorize(ctx, request, nil)
+	verdict, err = ctrl.Match(ctx, request, nil)
 	requireNoErr(t, err)
-	if verdict.Code != codes.OK {
-		t.Fatalf("expected allow for missing IP, got %v (%s)", verdict.Code, verdict.Reason)
+	if verdict.IsMatch {
+		t.Fatalf("expected to miss IP, got: %s", verdict.Description)
 	}
 }
 
@@ -134,19 +133,19 @@ func TestPostgresIpMatchDatabase(t *testing.T) {
 		IpAddress:  netip.MustParseAddr("203.0.113.10"),
 	}
 
-	verdict, err := ctrl.Authorize(ctx, request, nil)
+	verdict, err := ctrl.Match(ctx, request, nil)
 	requireNoErr(t, err)
-	if verdict.Code != codes.OK {
-		t.Fatalf("expected allow for trusted IP, got %v (%s)", verdict.Code, verdict.Reason)
+	if !verdict.IsMatch {
+		t.Fatalf("expected to match IP, got: %s", verdict.Description)
 	}
 
 	request.IpAddress = netip.MustParseAddr("198.51.100.42")
 	request.Request = minimalCheckRequest("198.51.100.42")
 
-	verdict, err = ctrl.Authorize(ctx, request, nil)
+	verdict, err = ctrl.Match(ctx, request, nil)
 	requireNoErr(t, err)
-	if verdict.Code != codes.PermissionDenied {
-		t.Fatalf("expected deny for unknown IP, got %v (%s)", verdict.Code, verdict.Reason)
+	if verdict.IsMatch {
+		t.Fatalf("expected to miss IP, got: %s", verdict.Description)
 	}
 }
 
@@ -224,10 +223,10 @@ func minimalCheckRequest(ip string) *authv3.CheckRequest {
 	}
 }
 
-func buildController(t *testing.T, ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) controller.AuthorizationController {
+func buildController(t *testing.T, ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) controller.MatchController {
 	t.Helper()
 
-	controllers, err := controller.BuildAuthorizationControllers(ctx, logger.Named("controller"), []config.ControllerConfig{cfg})
+	controllers, err := controller.BuildMatchControllers(ctx, logger.Named("controller"), []config.ControllerConfig{cfg})
 	requireNoErr(t, err)
 	if len(controllers) != 1 {
 		t.Fatalf("expected 1 controller, got %d", len(controllers))

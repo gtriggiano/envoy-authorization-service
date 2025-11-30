@@ -13,7 +13,7 @@ analysisControllers:
     settings:
       databasePath: config/GeoLite2-City.mmdb
 
-authorizationControllers:  
+matchControllers:  
   - name: scraper
     type: ip-match-database
     settings:

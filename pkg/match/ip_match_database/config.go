@@ -18,10 +18,9 @@ const (
 
 // IpMatchDatabaseConfig represents the complete configuration for the ip-match-database controller
 type IpMatchDatabaseConfig struct {
-	Action                    string         `yaml:"action"`
-	AlwaysDenyOnDbUnavailable bool           `yaml:"alwaysDenyOnDbUnavailable"`
-	Cache                     *CacheConfig   `yaml:"cache"`
-	Database                  DatabaseConfig `yaml:"database"`
+	MatchesOnFailure bool           `yaml:"matchesOnFailure"`
+	Cache            *CacheConfig   `yaml:"cache"`
+	Database         DatabaseConfig `yaml:"database"`
 }
 
 // CacheConfig represents the caching configuration
@@ -45,14 +44,6 @@ func (c *IpMatchDatabaseConfig) ApplyDefaults() {
 
 // Validate checks the configuration for completeness and correctness
 func (c *IpMatchDatabaseConfig) Validate() error {
-	// Validate action
-	switch c.Action {
-	case "allow", "deny":
-		// valid
-	default:
-		return fmt.Errorf("action must be 'allow' or 'deny', got '%s'", c.Action)
-	}
-
 	// Validate cache configuration if present
 	if c.Cache != nil {
 		if c.Cache.TTL == "" {

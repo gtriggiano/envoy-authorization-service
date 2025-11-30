@@ -16,7 +16,7 @@ analysisControllers:
     settings:
       databasePath: /maxmind/GeoLite2-ASN.mmdb
 
-authorizationControllers:
+matchControllers:
   - name: allowed-asn
     type: asn-match
     settings:

@@ -47,11 +47,10 @@ server:
 metrics:
   address: ":9090"
 
-authorizationControllers:
+matchControllers:
   - name: corporate-network
     type: ip-match
     settings:
-      action: allow
       cidrList: allowed-ips.txt
 
 authorizationPolicy: "corporate-network"
@@ -85,11 +84,10 @@ server:
 metrics:
   address: ":9090"
 
-authorizationControllers:
+matchControllers:
   - name: blocked-ips
     type: ip-match
     settings:
-      action: deny
       cidrList: blocked-ips.txt
 
 authorizationPolicy: "!blocked-ips"
@@ -123,17 +121,15 @@ server:
 metrics:
   address: ":9090"
 
-authorizationControllers:
+matchControllers:
   - name: allowed-ips
     type: ip-match
     settings:
-      action: allow
       cidrList: allowed-ips.txt
   
   - name: blocked-ips
     type: ip-match
     settings:
-      action: deny
       cidrList: blocked-ips.txt
 
 authorizationPolicy: "allowed-ips && !blocked-ips"
@@ -172,23 +168,20 @@ server:
 metrics:
   address: ":9090"
 
-authorizationControllers:
+matchControllers:
   - name: corporate-network
     type: ip-match
     settings:
-      action: allow
       cidrList: corporate-ips.txt
   
   - name: partner-networks
     type: ip-match
     settings:
-      action: allow
       cidrList: partner-ips.txt
   
   - name: blocked-threats
     type: ip-match
     settings:
-      action: deny
       cidrList: threats.txt
 
 authorizationPolicy: "(corporate-network || partner-networks) && !blocked-threats"

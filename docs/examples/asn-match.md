@@ -66,20 +66,19 @@ Restrict access to major cloud providers:
 
 **config.yaml**:
 ```yaml
+authorizationPolicy: "cloud-providers"
+
 analysisControllers:
   - name: asn-detect
     type: maxmind-asn
     settings:
       databasePath: GeoLite2-ASN.mmdb
 
-authorizationControllers:
+matchControllers:
   - name: cloud-providers
     type: asn-match
     settings:
-      action: allow
       asList: cloud-asns.txt
-
-authorizationPolicy: "cloud-providers"
 ```
 
 **cloud-asns.txt**:
@@ -115,20 +114,19 @@ Block cheap hosting providers known for spam/abuse:
 
 **config.yaml**:
 ```yaml
+authorizationPolicy: "!blocked-hosting"
+
 analysisControllers:
   - name: asn-detect
     type: maxmind-asn
     settings:
       databasePath: GeoLite2-ASN.mmdb
 
-authorizationControllers:
+matchControllers:
   - name: blocked-hosting
     type: asn-match
     settings:
-      action: deny
       asList: blocked-asns.txt
-
-authorizationPolicy: "!blocked-hosting"
 ```
 
 **blocked-asns.txt**:
@@ -149,32 +147,29 @@ Combine ASN filtering with IP allowlisting:
 
 **config.yaml**:
 ```yaml
+authorizationPolicy: "(corporate-ips || cloud-providers) && !blocked-asns"
+
 analysisControllers:
   - name: asn-detect
     type: maxmind-asn
     settings:
       databasePath: GeoLite2-ASN.mmdb
 
-authorizationControllers:
+matchControllers:
   - name: corporate-ips
     type: ip-match
     settings:
-      action: allow
       cidrList: corporate-ips.txt
   
   - name: cloud-providers
     type: asn-match
     settings:
-      action: allow
       asList: cloud-asns.txt
   
   - name: blocked-asns
     type: asn-match
     settings:
-      action: deny
       asList: blocked-asns.txt
-
-authorizationPolicy: "(corporate-ips || cloud-providers) && !blocked-asns"
 ```
 
 **Behavior**:
@@ -187,26 +182,24 @@ Allow only CDN and cloud traffic:
 
 **config.yaml**:
 ```yaml
+authorizationPolicy: "cdn-networks || cloud-providers"
+
 analysisControllers:
   - name: asn-detect
     type: maxmind-asn
     settings:
       databasePath: GeoLite2-ASN.mmdb
 
-authorizationControllers:
+matchControllers:
   - name: cdn-networks
     type: asn-match
     settings:
-      action: allow
       asList: cdn-asns.txt
   
   - name: cloud-providers
     type: asn-match
     settings:
-      action: allow
       asList: cloud-asns.txt
-
-authorizationPolicy: "cdn-networks || cloud-providers"
 ```
 
 **cdn-asns.txt**:

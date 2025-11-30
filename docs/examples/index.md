@@ -10,6 +10,15 @@ Learn how to configure IP-based access control with allowlists and denylists.
 - Partner IP whitelisting
 - Threat mitigation
 
+## [IP Match - Redis](/examples/ip-match-redis)
+Dynamic IP control using Redis or PostgreSQL.
+
+**Use cases**:
+- Scraper detection
+- Dynamic partner management
+- Behavioral analysis integration
+
+
 ## [ASN Match](/examples/asn-match)
 Control access based on Autonomous System Numbers.
 
@@ -25,20 +34,3 @@ Complex policies combining multiple authorization methods.
 - Layered security
 - Multiple allowlist sources
 - Allowlist with denylist overrides
-
-## [IP Match - Redis](/examples/ip-match-redis)
-Dynamic IP control using Redis or PostgreSQL.
-
-**Use cases**:
-- Scraper detection
-- Dynamic partner management
-- Behavioral analysis integration
-
-## Next Steps
-
-Browse the detailed examples:
-- [IP Match](/examples/ip-match)
-- [ASN Match](/examples/asn-match)
-- [IP Match - Redis](/examples/ip-match-redis)
-- [Combined Policies](/examples/combined-policy)
-- [Policy DSL Reference](/configuration/policy-dsl)

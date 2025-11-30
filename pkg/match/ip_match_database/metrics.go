@@ -14,14 +14,14 @@ var (
 		Subsystem: "ip_match_database",
 		Name:      "requests_total",
 		Help:      "Total authorization requests processed by controller",
-	}, []string{"controller_name", "database", "result"})
+	}, []string{"authority", "controller_name", "database", "result"})
 
 	queriesTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "envoy_authz",
 		Subsystem: "ip_match_database",
 		Name:      "queries_total",
 		Help:      "Total database queries executed",
-	}, []string{"controller_name", "database", "result"})
+	}, []string{"authority", "controller_name", "database", "result"})
 
 	queryDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "envoy_authz",
@@ -29,59 +29,59 @@ var (
 		Name:      "query_duration_seconds",
 		Help:      "Database query duration in seconds",
 		Buckets:   []float64{.001, .002, .005, .01, .025, .05, .1, .25, .5, 1},
-	}, []string{"controller_name", "database"})
+	}, []string{"authority", "controller_name", "database"})
 
 	cacheRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "envoy_authz",
 		Subsystem: "ip_match_database",
 		Name:      "cache_requests_total",
 		Help:      "Total cache lookup requests",
-	}, []string{"controller_name", "result"})
+	}, []string{"authority", "controller_name", "result"})
 
 	cacheEntries = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: "envoy_authz",
 		Subsystem: "ip_match_database",
 		Name:      "cache_entries",
 		Help:      "Current number of entries in cache",
-	}, []string{"controller_name"})
+	}, []string{"authority", "controller_name"})
 
 	unavailableTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "envoy_authz",
 		Subsystem: "ip_match_database",
 		Name:      "unavailable_total",
 		Help:      "Total database unavailability events",
-	}, []string{"controller_name", "database"})
+	}, []string{"authority", "controller_name", "database"})
 )
 
-// observeRequest records an authorization request result
-func (c *ipMatchDatabaseAuthorizationController) observeRequest(result string) {
-	requestsTotal.WithLabelValues(c.name, c.dbType, result).Inc()
+// observeRequest records a match request result
+func (c *ipMatchDatabaseController) observeRequest(authority, result string) {
+	requestsTotal.WithLabelValues(authority, c.name, c.dbType, result).Inc()
 }
 
 // observeQuery records a database query
-func (c *ipMatchDatabaseAuthorizationController) observeQuery(dbType, result string, duration time.Duration) {
-	queriesTotal.WithLabelValues(c.name, dbType, result).Inc()
-	queryDuration.WithLabelValues(c.name, dbType).Observe(duration.Seconds())
+func (c *ipMatchDatabaseController) observeQuery(authority, dbType, result string, duration time.Duration) {
+	queriesTotal.WithLabelValues(authority, c.name, dbType, result).Inc()
+	queryDuration.WithLabelValues(authority, c.name, dbType).Observe(duration.Seconds())
 }
 
 // observeCacheHit records a cache hit
-func (c *ipMatchDatabaseAuthorizationController) observeCacheHit() {
-	cacheRequestsTotal.WithLabelValues(c.name, "hit").Inc()
+func (c *ipMatchDatabaseController) observeCacheHit(authority string) {
+	cacheRequestsTotal.WithLabelValues(authority, c.name, "hit").Inc()
 }
 
 // observeCacheMiss records a cache miss
-func (c *ipMatchDatabaseAuthorizationController) observeCacheMiss() {
-	cacheRequestsTotal.WithLabelValues(c.name, "miss").Inc()
+func (c *ipMatchDatabaseController) observeCacheMiss(authority string) {
+	cacheRequestsTotal.WithLabelValues(authority, c.name, "miss").Inc()
 }
 
-// updateCacheSize updates the cache size gauge
-func (c *ipMatchDatabaseAuthorizationController) updateCacheSize() {
+// observeCacheSize updates the cache size gauge
+func (c *ipMatchDatabaseController) observeCacheSize(authority string) {
 	if c.cache != nil {
-		cacheEntries.WithLabelValues(c.name).Set(float64(c.cache.Size()))
+		cacheEntries.WithLabelValues(authority, c.name).Set(float64(c.cache.Size()))
 	}
 }
 
 // observeUnavailable records a database unavailability event
-func (c *ipMatchDatabaseAuthorizationController) observeUnavailable(dbType string) {
-	unavailableTotal.WithLabelValues(c.name, dbType).Inc()
+func (c *ipMatchDatabaseController) observeUnavailable(authority, dbType string) {
+	unavailableTotal.WithLabelValues(authority, c.name, dbType).Inc()
 }

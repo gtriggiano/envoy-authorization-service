@@ -25,46 +25,41 @@ authorizationPolicyBypass: true
 
 **config.yaml**:
 ```yaml
+authorizationPolicy: "(corporate-network || partner-networks || cloud-providers) && !blocked-ips && !malicious-asns"
+
 analysisControllers:
   - name: asn-detect
     type: maxmind-asn
     settings:
       databasePath: GeoLite2-ASN.mmdb
 
-authorizationControllers:
+matchControllers:
   # Allowlist sources
   - name: corporate-network
     type: ip-match
     settings:
-      action: allow
       cidrList: corporate-ips.txt
   
   - name: partner-networks
     type: ip-match
     settings:
-      action: allow
       cidrList: partner-ips.txt
   
   - name: cloud-providers
     type: asn-match
     settings:
-      action: allow
       asList: cloud-asns.txt
   
   # Denylist sources
   - name: blocked-ips
     type: ip-match
     settings:
-      action: deny
       cidrList: blocked-ips.txt
   
   - name: malicious-asns
     type: asn-match
     settings:
-      action: deny
       asList: malicious-asns.txt
-
-authorizationPolicy: "(corporate-network || partner-networks || cloud-providers) && !blocked-ips && !malicious-asns"
 ```
 
 **Policy Breakdown**:
@@ -93,23 +88,24 @@ authorizationPolicy: "(corporate-network || partner-networks || cloud-providers)
 
 **config.yaml**:
 ```yaml
+authorizationPolicy: "((corporate-network || partner-database) || trusted-cloud-asns) && !blocked-threats"
+
 analysisControllers:
   - name: asn-detect
     type: maxmind-asn
     settings:
       databasePath: GeoLite2-ASN.mmdb
 
-authorizationControllers:
+matchControllers:
   - name: corporate-network
     type: ip-match
     settings:
-      action: allow
       cidrList: corporate-ips.txt
   
   - name: partner-database
     type: ip-match-database
     settings:
-      action: allow
+      matchesOnFailure: true  # Fail-open: allow traffic if DB is down (IsMatch=true)
       cache:
         ttl: 15m
       database:
@@ -125,16 +121,12 @@ authorizationControllers:
   - name: blocked-threats
     type: ip-match
     settings:
-      action: deny
       cidrList: threats.txt
   
   - name: trusted-cloud-asns
     type: asn-match
     settings:
-      action: allow
       asList: trusted-asns.txt
-
-authorizationPolicy: "((corporate-network || partner-database) || trusted-cloud-asns) && !blocked-threats"
 ```
 
 **Benefits**:
@@ -149,6 +141,8 @@ authorizationPolicy: "((corporate-network || partner-database) || trusted-cloud-
 
 **config.yaml**:
 ```yaml
+authorizationPolicy: "(corporate-ips || trusted-asns) && !blocked-countries"
+
 analysisControllers:
   - name: asn-detect
     type: maxmind-asn
@@ -160,26 +154,21 @@ analysisControllers:
     settings:
       databasePath: GeoLite2-City.mmdb
 
-authorizationControllers:
+matchControllers:
   - name: corporate-ips
     type: ip-match
     settings:
-      action: allow
       cidrList: corporate-ips.txt
   
   - name: trusted-asns
     type: asn-match
     settings:
-      action: allow
       asList: trusted-asns.txt
   
   - name: blocked-countries
     type: ip-match
     settings:
-      action: deny
       cidrList: blocked-country-ranges.txt
-
-authorizationPolicy: "(corporate-ips || trusted-asns) && !blocked-countries"
 ```
 
 **Use Case**: 
@@ -193,21 +182,22 @@ authorizationPolicy: "(corporate-ips || trusted-asns) && !blocked-countries"
 
 **config.yaml**:
 ```yaml
+authorizationPolicy: "allowlisted-ips || !known-bot-ips"
+
 analysisControllers:
   - name: user-agent
     type: ua-detect
 
-authorizationControllers:
+matchControllers:
   - name: allowlisted-ips
     type: ip-match
     settings:
-      action: allow
       cidrList: allowed-ips.txt
   
   - name: known-bot-ips
     type: ip-match-database
     settings:
-      action: deny
+      matchesOnFailure: false  # Fail-open: don't treat as bot if Redis is down
       cache:
         ttl: 10m
       database:
@@ -216,8 +206,6 @@ authorizationControllers:
           keyPrefix: "bot:"
           host: redis.default.svc.cluster.local
           port: 6379
-
-authorizationPolicy: "allowlisted-ips || !known-bot-ips"
 ```
 
 **Behavior**:
@@ -231,17 +219,18 @@ authorizationPolicy: "allowlisted-ips || !known-bot-ips"
 
 **config.yaml**:
 ```yaml
-authorizationControllers:
+authorizationPolicy: "corporate-network || !scraper-blocker"
+
+matchControllers:
   - name: corporate-network
     type: ip-match
     settings:
-      action: allow
       cidrList: corporate-ips.txt
   
   - name: scraper-blocker
     type: ip-match-database
     settings:
-      action: deny
+      matchesOnFailure: false  # Fail-open: allow traffic if Redis is down
       cache:
         ttl: 5m  # Cache block status
       database:
@@ -251,8 +240,6 @@ authorizationControllers:
           keyPrefix: "scraper:"
           host: redis.default.svc.cluster.local
           port: 6379
-
-authorizationPolicy: "corporate-network || !scraper-blocker"
 ```
 
 **Redis Management**:

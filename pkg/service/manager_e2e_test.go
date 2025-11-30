@@ -22,7 +22,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	// Register controller types under test
-	_ "github.com/gtriggiano/envoy-authorization-service/pkg/authorization/ip_match_database"
+	_ "github.com/gtriggiano/envoy-authorization-service/pkg/match/ip_match_database"
 
 	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/controller"
@@ -42,7 +42,6 @@ func TestManagerWithRedisController(t *testing.T) {
 		Name: "ip-db-redis",
 		Type: "ip-match-database",
 		Settings: map[string]any{
-			"action": "deny",
 			"database": map[string]any{
 				"type": "redis",
 				"redis": map[string]any{
@@ -55,12 +54,12 @@ func TestManagerWithRedisController(t *testing.T) {
 		},
 	})
 
-	allow := runManagerCheck(t, ctx, authControllers, policyExpr, "198.51.100.42")
+	allow := runManagerCheck(t, ctx, authControllers, fmt.Sprintf("!%s", policyExpr), "198.51.100.42")
 	if !allow {
 		t.Fatalf("expected allow for IP not in redis block key")
 	}
 
-	allow = runManagerCheck(t, ctx, authControllers, policyExpr, "203.0.113.10")
+	allow = runManagerCheck(t, ctx, authControllers, fmt.Sprintf("!%s", policyExpr), "203.0.113.10")
 	if allow {
 		t.Fatalf("expected deny for redis-blocked IP")
 	}
@@ -80,7 +79,6 @@ func TestManagerWithPostgresController(t *testing.T) {
 		Name: "ip-db-postgres",
 		Type: "ip-match-database",
 		Settings: map[string]any{
-			"action": "allow",
 			"database": map[string]any{
 				"type":              "postgres",
 				"connectionTimeout": "1s",
@@ -109,10 +107,10 @@ func TestManagerWithPostgresController(t *testing.T) {
 
 // --- helpers ---
 
-func buildIPMatchDatabaseControllers(t *testing.T, ctx context.Context, cfg config.ControllerConfig) ([]controller.AuthorizationController, string) {
+func buildIPMatchDatabaseControllers(t *testing.T, ctx context.Context, cfg config.ControllerConfig) ([]controller.MatchController, string) {
 	t.Helper()
 
-	controllers, err := controller.BuildAuthorizationControllers(ctx, zaptest.NewLogger(t), []config.ControllerConfig{cfg})
+	controllers, err := controller.BuildMatchControllers(ctx, zaptest.NewLogger(t), []config.ControllerConfig{cfg})
 	requireNoErr(t, err)
 	if len(controllers) != 1 {
 		t.Fatalf("expected 1 controller, got %d", len(controllers))
@@ -120,7 +118,7 @@ func buildIPMatchDatabaseControllers(t *testing.T, ctx context.Context, cfg conf
 	return controllers, cfg.Name
 }
 
-func runManagerCheck(t *testing.T, ctx context.Context, authControllers []controller.AuthorizationController, policyExpr, ip string) bool {
+func runManagerCheck(t *testing.T, ctx context.Context, authControllers []controller.MatchController, policyExpr, ip string) bool {
 	t.Helper()
 
 	inst := metrics.NewInstrumentation(prometheus.NewRegistry())

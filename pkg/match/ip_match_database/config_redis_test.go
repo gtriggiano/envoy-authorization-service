@@ -9,7 +9,6 @@ import (
 func TestValidateRedisConfig(t *testing.T) {
 	t.Run("requires redis config when type is redis", func(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "redis",
 			},
@@ -24,7 +23,6 @@ func TestValidateRedisConfig(t *testing.T) {
 		fixtures := createTLSFixtures(t)
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "redis",
 				Redis: &RedisConfig{
@@ -46,7 +44,6 @@ func TestValidateRedisConfig(t *testing.T) {
 
 	t.Run("missing keyPrefix fails", func(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "redis",
 				Redis: &RedisConfig{
@@ -63,7 +60,6 @@ func TestValidateRedisConfig(t *testing.T) {
 
 	t.Run("host is required", func(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "redis",
 				Redis: &RedisConfig{
@@ -80,7 +76,6 @@ func TestValidateRedisConfig(t *testing.T) {
 
 	t.Run("port must be in range", func(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "redis",
 				Redis: &RedisConfig{
@@ -98,7 +93,6 @@ func TestValidateRedisConfig(t *testing.T) {
 
 	t.Run("db number must be non-negative", func(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "redis",
 				Redis: &RedisConfig{
@@ -119,7 +113,6 @@ func TestValidateRedisConfig(t *testing.T) {
 		_ = os.Unsetenv("REDIS_MISSING_USER")
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "redis",
 				Redis: &RedisConfig{
@@ -141,7 +134,6 @@ func TestValidateRedisConfig(t *testing.T) {
 		_ = os.Unsetenv("REDIS_MISSING_PASS")
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "redis",
 				Redis: &RedisConfig{
@@ -163,7 +155,6 @@ func TestValidateRedisConfig(t *testing.T) {
 		fixtures := createTLSFixtures(t)
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "redis",
 				Redis: &RedisConfig{
@@ -186,7 +177,6 @@ func TestValidateRedisConfig(t *testing.T) {
 		fixtures := createTLSFixtures(t)
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "redis",
 				Redis: &RedisConfig{
