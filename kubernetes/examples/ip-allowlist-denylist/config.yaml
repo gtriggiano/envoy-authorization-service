@@ -10,7 +10,7 @@ server:
 metrics:
   address: ":9090"
 
-authorizationControllers:
+matchControllers:
   - name: allowed-ips
     type: ip-match
     settings:

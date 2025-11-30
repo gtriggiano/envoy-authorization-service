@@ -15,10 +15,10 @@ func TestObserveDecisionCounters(t *testing.T) {
 	inst.ObserveAllowDecision("allow.example", 10*time.Millisecond)
 	inst.ObserveDenyDecision("deny.example", 20*time.Millisecond)
 
-	if v := testutil.ToFloat64(inst.requestTotals.WithLabelValues("allow.example", ALLOW_DECISION)); v != 1 {
+	if v := testutil.ToFloat64(inst.requestTotals.WithLabelValues("allow.example", ALLOW)); v != 1 {
 		t.Fatalf("expected 1 allow decision, got %v", v)
 	}
-	if v := testutil.ToFloat64(inst.requestTotals.WithLabelValues("deny.example", DENY_DECISION)); v != 1 {
+	if v := testutil.ToFloat64(inst.requestTotals.WithLabelValues("deny.example", DENY)); v != 1 {
 		t.Fatalf("expected 1 deny decision, got %v", v)
 	}
 
@@ -39,8 +39,8 @@ func TestObservePhaseAndInFlight(t *testing.T) {
 		t.Fatalf("expected inFlight gauge back to zero, got %v", v)
 	}
 
-	inst.ObservePhase("allow.example", "c1", "kind", "analysis", "ok", 5*time.Millisecond)
-	if c := testutil.CollectAndCount(inst.controllerTiming); c != 1 {
+	inst.ObserveAnalysisControllerDuration("allow.example", "c1", "kind", true, 5*time.Millisecond)
+	if c := testutil.CollectAndCount(inst.controllerDuration); c != 1 {
 		t.Fatalf("expected controllerTiming to have one metric family, got %d", c)
 	}
 }

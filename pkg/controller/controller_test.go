@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
 
 	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/runtime"
@@ -27,79 +26,37 @@ func (m *mockAnalysisController) Analyze(ctx context.Context, req *runtime.Reque
 }
 func (m *mockAnalysisController) HealthCheck(ctx context.Context) error { return m.healthErr }
 
-type mockAuthorizationController struct {
-	name         string
-	kind         string
-	verdict      *AuthorizationVerdict
-	healthErr    error
-	authorizeErr error
+type mockMatchController struct {
+	name      string
+	kind      string
+	verdict   *MatchVerdict
+	healthErr error
+	matchErr  error
 }
 
-func (m *mockAuthorizationController) Name() string { return m.name }
-func (m *mockAuthorizationController) Kind() string { return m.kind }
-func (m *mockAuthorizationController) Authorize(ctx context.Context, req *runtime.RequestContext, reports AnalysisReports) (*AuthorizationVerdict, error) {
-	return m.verdict, m.authorizeErr
+func (m *mockMatchController) Name() string { return m.name }
+func (m *mockMatchController) Kind() string { return m.kind }
+func (m *mockMatchController) Match(ctx context.Context, req *runtime.RequestContext, reports AnalysisReports) (*MatchVerdict, error) {
+	return m.verdict, m.matchErr
 }
-func (m *mockAuthorizationController) HealthCheck(ctx context.Context) error { return m.healthErr }
+func (m *mockMatchController) HealthCheck(ctx context.Context) error { return m.healthErr }
 
-func TestAuthorizationVerdict_IsAllow(t *testing.T) {
-	tests := []struct {
-		name     string
-		code     codes.Code
-		expected bool
-	}{
-		{"OK is allow", codes.OK, true},
-		{"PermissionDenied is not allow", codes.PermissionDenied, false},
-		{"Internal is not allow", codes.Internal, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			av := &AuthorizationVerdict{Code: tt.code}
-			if got := av.IsAllow(); got != tt.expected {
-				t.Errorf("IsAllow() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
-}
-
-func TestAuthorizationVerdict_IsDeny(t *testing.T) {
-	tests := []struct {
-		name     string
-		code     codes.Code
-		expected bool
-	}{
-		{"OK is not deny", codes.OK, false},
-		{"PermissionDenied is deny", codes.PermissionDenied, true},
-		{"Internal is deny", codes.Internal, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			av := &AuthorizationVerdict{Code: tt.code}
-			if got := av.IsDeny(); got != tt.expected {
-				t.Errorf("IsDeny() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
-}
-
-func TestRegisterAnalysis(t *testing.T) {
+func TestRegisterAnalysisContollerFactory(t *testing.T) {
 	// Reset registry for test isolation
-	oldReg := analysisRegistry
+	oldReg := analysisContollersRegistry
 	t.Cleanup(func() {
-		analysisRegistry = oldReg
+		analysisContollersRegistry = oldReg
 	})
-	analysisRegistry = newRegistry[AnalysisFactory]()
+	analysisContollersRegistry = newRegistry[AnalysisContollerFactory]()
 
 	factory := func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (AnalysisController, error) {
 		return &mockAnalysisController{name: cfg.Name, kind: "test"}, nil
 	}
 
 	t.Run("successful registration", func(t *testing.T) {
-		RegisterAnalysis("test-type", factory)
+		RegisterAnalysisContollerFactory("test-type", factory)
 
-		f, ok := getFactory(analysisRegistry, "test-type")
+		f, ok := getFactory(analysisContollersRegistry, "test-type")
 		if !ok {
 			t.Error("factory not found after registration")
 		}
@@ -114,7 +71,7 @@ func TestRegisterAnalysis(t *testing.T) {
 				t.Error("expected panic on duplicate registration")
 			}
 		}()
-		RegisterAnalysis("test-type", factory)
+		RegisterAnalysisContollerFactory("test-type", factory)
 	})
 
 	t.Run("panic on empty kind", func(t *testing.T) {
@@ -123,26 +80,26 @@ func TestRegisterAnalysis(t *testing.T) {
 				t.Error("expected panic on empty kind")
 			}
 		}()
-		RegisterAnalysis("", factory)
+		RegisterAnalysisContollerFactory("", factory)
 	})
 }
 
-func TestRegisterAuthorization(t *testing.T) {
+func TestRegisterMatchContollerFactory(t *testing.T) {
 	// Reset registry for test isolation
-	oldReg := authorizationRegistry
+	oldReg := matchContollersRegistry
 	t.Cleanup(func() {
-		authorizationRegistry = oldReg
+		matchContollersRegistry = oldReg
 	})
-	authorizationRegistry = newRegistry[AuthorizationFactory]()
+	matchContollersRegistry = newRegistry[MatchContollerFactory]()
 
-	factory := func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (AuthorizationController, error) {
-		return &mockAuthorizationController{name: cfg.Name, kind: "test"}, nil
+	factory := func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (MatchController, error) {
+		return &mockMatchController{name: cfg.Name, kind: "test"}, nil
 	}
 
 	t.Run("successful registration", func(t *testing.T) {
-		RegisterAuthorization("test-type", factory)
+		RegisterMatchContollerFactory("test-type", factory)
 
-		f, ok := getFactory(authorizationRegistry, "test-type")
+		f, ok := getFactory(matchContollersRegistry, "test-type")
 		if !ok {
 			t.Error("factory not found after registration")
 		}
@@ -157,22 +114,22 @@ func TestRegisterAuthorization(t *testing.T) {
 				t.Error("expected panic on duplicate registration")
 			}
 		}()
-		RegisterAuthorization("test-type", factory)
+		RegisterMatchContollerFactory("test-type", factory)
 	})
 }
 
 func TestBuildAnalysisControllers(t *testing.T) {
 	// Reset registry for test isolation
-	oldReg := analysisRegistry
+	oldReg := analysisContollersRegistry
 	t.Cleanup(func() {
-		analysisRegistry = oldReg
+		analysisContollersRegistry = oldReg
 	})
-	analysisRegistry = newRegistry[AnalysisFactory]()
+	analysisContollersRegistry = newRegistry[AnalysisContollerFactory]()
 
 	factory := func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (AnalysisController, error) {
 		return &mockAnalysisController{name: cfg.Name, kind: cfg.Type}, nil
 	}
-	RegisterAnalysis("mock-type", factory)
+	RegisterAnalysisContollerFactory("mock-type", factory)
 
 	logger, _ := zap.NewDevelopment()
 	ctx := context.Background()
@@ -223,18 +180,18 @@ func TestBuildAnalysisControllers(t *testing.T) {
 	})
 }
 
-func TestBuildAuthorizationControllers(t *testing.T) {
+func TestBuildMatchControllers(t *testing.T) {
 	// Reset registry for test isolation
-	oldReg := authorizationRegistry
+	oldReg := matchContollersRegistry
 	t.Cleanup(func() {
-		authorizationRegistry = oldReg
+		matchContollersRegistry = oldReg
 	})
-	authorizationRegistry = newRegistry[AuthorizationFactory]()
+	matchContollersRegistry = newRegistry[MatchContollerFactory]()
 
-	factory := func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (AuthorizationController, error) {
-		return &mockAuthorizationController{name: cfg.Name, kind: cfg.Type}, nil
+	factory := func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (MatchController, error) {
+		return &mockMatchController{name: cfg.Name, kind: cfg.Type}, nil
 	}
-	RegisterAuthorization("mock-type", factory)
+	RegisterMatchContollerFactory("mock-type", factory)
 
 	logger, _ := zap.NewDevelopment()
 	ctx := context.Background()
@@ -246,7 +203,7 @@ func TestBuildAuthorizationControllers(t *testing.T) {
 			{Name: "controller2", Type: "mock-type", Enabled: &enabled},
 		}
 
-		controllers, err := BuildAuthorizationControllers(ctx, logger, configs)
+		controllers, err := BuildMatchControllers(ctx, logger, configs)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -263,7 +220,7 @@ func TestBuildAuthorizationControllers(t *testing.T) {
 			{Name: "controller2", Type: "mock-type", Enabled: &disabled},
 		}
 
-		controllers, err := BuildAuthorizationControllers(ctx, logger, configs)
+		controllers, err := BuildMatchControllers(ctx, logger, configs)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -278,7 +235,7 @@ func TestBuildAuthorizationControllers(t *testing.T) {
 			{Name: "controller1", Type: "unknown-type", Enabled: &enabled},
 		}
 
-		_, err := BuildAuthorizationControllers(ctx, logger, configs)
+		_, err := BuildMatchControllers(ctx, logger, configs)
 		if err == nil {
 			t.Error("expected error for unknown type")
 		}

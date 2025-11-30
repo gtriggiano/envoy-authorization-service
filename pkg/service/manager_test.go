@@ -45,19 +45,19 @@ func (s stubAnalysisController) Analyze(ctx context.Context, _ *runtime.RequestC
 }
 func (s stubAnalysisController) HealthCheck(context.Context) error { return nil }
 
-type stubAuthorizationController struct {
+type stubMatchController struct {
 	name    string
 	kind    string
-	verdict *controller.AuthorizationVerdict
+	verdict *controller.MatchVerdict
 	err     error
 }
 
-func (s stubAuthorizationController) Name() string { return s.name }
-func (s stubAuthorizationController) Kind() string { return s.kind }
-func (s stubAuthorizationController) Authorize(ctx context.Context, _ *runtime.RequestContext, _ controller.AnalysisReports) (*controller.AuthorizationVerdict, error) {
+func (s stubMatchController) Name() string { return s.name }
+func (s stubMatchController) Kind() string { return s.kind }
+func (s stubMatchController) Match(ctx context.Context, _ *runtime.RequestContext, _ controller.AnalysisReports) (*controller.MatchVerdict, error) {
 	return s.verdict, s.err
 }
-func (s stubAuthorizationController) HealthCheck(context.Context) error { return nil }
+func (s stubMatchController) HealthCheck(context.Context) error { return nil }
 
 func minimalCheckRequestUnit(ip string) *authv3.CheckRequest {
 	return &authv3.CheckRequest{
@@ -116,18 +116,18 @@ func TestRunAnalysisReturnsError(t *testing.T) {
 	}
 }
 
-func TestRunAuthorizationPopulatesVerdicts(t *testing.T) {
+func TestRunMatchPopulatesVerdicts(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
 	mgr := &Manager{
-		authorizationControllers: []controller.AuthorizationController{
-			stubAuthorizationController{
+		matchControllers: []controller.MatchController{
+			stubMatchController{
 				name: "auth",
 				kind: "auth-kind",
-				verdict: &controller.AuthorizationVerdict{
-					Code:     codes.OK,
-					Reason:   "ok",
-					InPolicy: true,
+				verdict: &controller.MatchVerdict{
+					DenyCode:    codes.PermissionDenied,
+					Description: "ok",
+					IsMatch:     true,
 				},
 			},
 		},
@@ -135,9 +135,9 @@ func TestRunAuthorizationPopulatesVerdicts(t *testing.T) {
 		logger:          logger,
 	}
 
-	verdicts, err := mgr.runAuthorization(context.Background(), runtime.NewRequestContext(minimalCheckRequestUnit("203.0.113.3")), nil)
+	verdicts, err := mgr.runMatch(context.Background(), runtime.NewRequestContext(minimalCheckRequestUnit("203.0.113.3")), nil)
 	if err != nil {
-		t.Fatalf("runAuthorization returned error: %v", err)
+		t.Fatalf("runMatch returned error: %v", err)
 	}
 	verdict, ok := verdicts["auth"]
 	if !ok {
@@ -148,18 +148,18 @@ func TestRunAuthorizationPopulatesVerdicts(t *testing.T) {
 	}
 }
 
-func TestRunAuthorizationErrorsOnNilVerdict(t *testing.T) {
+func TestRunMatchErrorsOnNilVerdict(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
 	mgr := &Manager{
-		authorizationControllers: []controller.AuthorizationController{
-			stubAuthorizationController{name: "nilverdict", kind: "auth"},
+		matchControllers: []controller.MatchController{
+			stubMatchController{name: "nilverdict", kind: "auth"},
 		},
 		instrumentation: inst,
 		logger:          logger,
 	}
 
-	_, err := mgr.runAuthorization(context.Background(), runtime.NewRequestContext(minimalCheckRequestUnit("198.51.100.2")), nil)
+	_, err := mgr.runMatch(context.Background(), runtime.NewRequestContext(minimalCheckRequestUnit("198.51.100.2")), nil)
 	if err == nil || !strings.Contains(err.Error(), "returned no verdict") {
 		t.Fatalf("expected error about nil verdict, got %v", err)
 	}
@@ -167,47 +167,47 @@ func TestRunAuthorizationErrorsOnNilVerdict(t *testing.T) {
 
 // --- policy evaluation ------------------------------------------------------
 
-func TestEvaluatePolicyForFinalVerdictNilPolicyAllows(t *testing.T) {
-	mgr := &Manager{policy: nil}
+func TestEvaluatePolicyNilPolicyAllows(t *testing.T) {
+	mgr := &Manager{aouthorizationPolicy: nil}
 
-	verdict := mgr.evaluatePolicyForFinalVerdict(nil)
-	if verdict.Code != codes.OK || verdict.Reason == "" || verdict.IsDeny() {
-		t.Fatalf("expected default allow verdict, got %+v", verdict)
+	allowed, verdict := mgr.evaluatePolicy(nil)
+	if !allowed || verdict == nil || verdict.DenyCode != codes.OK {
+		t.Fatalf("expected default allow verdict, got allowed=%v verdict=%+v", allowed, verdict)
 	}
 }
 
-func TestEvaluatePolicyForFinalVerdictDeniesWithControllerVerdict(t *testing.T) {
+func TestEvaluatePolicyDeniesWithControllerVerdict(t *testing.T) {
 	pol, err := policy.Parse("auth", []string{"auth"})
 	if err != nil {
 		t.Fatalf("policy parse failed: %v", err)
 	}
-	mgr := &Manager{policy: pol}
+	mgr := &Manager{aouthorizationPolicy: pol}
 
-	expected := &controller.AuthorizationVerdict{
-		Controller: "auth",
-		Code:       codes.PermissionDenied,
-		Reason:     "blocked",
-		InPolicy:   false,
+	expected := &controller.MatchVerdict{
+		Controller:  "auth",
+		DenyCode:    codes.PermissionDenied,
+		Description: "blocked",
+		IsMatch:     false,
 	}
-	verdict := mgr.evaluatePolicyForFinalVerdict(controller.AuthorizationVerdicts{
+	allowed, verdict := mgr.evaluatePolicy(controller.MatchVerdicts{
 		"auth": expected,
 	})
 
-	if verdict != expected {
+	if allowed || verdict != expected {
 		t.Fatalf("expected controller verdict to be returned")
 	}
 }
 
-func TestEvaluatePolicyForFinalVerdictMissingController(t *testing.T) {
+func TestEvaluatePolicyMissingController(t *testing.T) {
 	pol, err := policy.Parse("missing", []string{"missing"})
 	if err != nil {
 		t.Fatalf("policy parse failed: %v", err)
 	}
-	mgr := &Manager{policy: pol}
+	mgr := &Manager{aouthorizationPolicy: pol}
 
-	verdict := mgr.evaluatePolicyForFinalVerdict(nil)
+	allowed, verdict := mgr.evaluatePolicy(nil)
 
-	if verdict.Controller != "policy" || verdict.Code != codes.PermissionDenied {
+	if allowed || verdict.Controller != "policy" || verdict.DenyCode != codes.PermissionDenied {
 		t.Fatalf("expected policy fallback verdict, got %+v", verdict)
 	}
 }
@@ -220,7 +220,7 @@ func TestHeaderOptionsFromAnalysisReportsIsDeterministic(t *testing.T) {
 		"a": {UpstreamHeaders: map[string]string{"X-A": "a"}},
 	}
 
-	headers := headerOptionsFromAnalysisReports(reports)
+	headers := upstreamHeadersFromAnalysisReports(reports)
 	if len(headers) != 2 {
 		t.Fatalf("expected 2 headers, got %d", len(headers))
 	}
@@ -230,7 +230,7 @@ func TestHeaderOptionsFromAnalysisReportsIsDeterministic(t *testing.T) {
 }
 
 func TestHeaderOptionsFromMapFiltersUnsafe(t *testing.T) {
-	headers := headerOptionsFromMap(map[string]string{
+	headers := sanitizedHeaders(map[string]string{
 		" Good ":         " value ",
 		"Bad Header":     "x",
 		"X-Evil\nInject": "y",
@@ -258,15 +258,6 @@ func TestCodeToHTTPMapping(t *testing.T) {
 	}
 }
 
-func TestPhaseResult(t *testing.T) {
-	if res := phaseResult(nil); res != "ok" {
-		t.Fatalf("expected ok, got %s", res)
-	}
-	if res := phaseResult(errors.New("boom")); res != "error" {
-		t.Fatalf("expected error, got %s", res)
-	}
-}
-
 // --- Check flow ------------------------------------------------------------
 
 func TestManagerCheckAllowsAndPropagatesHeaders(t *testing.T) {
@@ -280,22 +271,22 @@ func TestManagerCheckAllowsAndPropagatesHeaders(t *testing.T) {
 				report: &controller.AnalysisReport{UpstreamHeaders: map[string]string{"X-From-Analysis": "a"}},
 			},
 		},
-		authorizationControllers: []controller.AuthorizationController{
-			stubAuthorizationController{
+		matchControllers: []controller.MatchController{
+			stubMatchController{
 				name: "auth-one",
 				kind: "auth",
-				verdict: &controller.AuthorizationVerdict{
-					Code:            codes.OK,
-					Reason:          "ok",
-					InPolicy:        true,
-					UpstreamHeaders: map[string]string{"X-From-Auth": "b"},
+				verdict: &controller.MatchVerdict{
+					IsMatch:              true,
+					DenyCode:             codes.PermissionDenied,
+					Description:          "ok",
+					AllowUpstreamHeaders: map[string]string{"X-From-Auth": "b"},
 				},
 			},
 		},
-		instrumentation: inst,
-		policy:          nil,
-		policyBypass:    false,
-		logger:          logger,
+		instrumentation:      inst,
+		aouthorizationPolicy: nil,
+		policyBypass:         false,
+		logger:               logger,
 	}
 
 	resp, err := mgr.Check(context.Background(), minimalCheckRequestUnit("192.0.2.5"))
@@ -321,21 +312,21 @@ func TestManagerCheckDeniesViaPolicy(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
 	mgr := &Manager{
-		authorizationControllers: []controller.AuthorizationController{
-			stubAuthorizationController{
+		matchControllers: []controller.MatchController{
+			stubMatchController{
 				name: "auth-one",
 				kind: "auth",
-				verdict: &controller.AuthorizationVerdict{
-					Code:     codes.PermissionDenied,
-					Reason:   "blocked",
-					InPolicy: false,
+				verdict: &controller.MatchVerdict{
+					DenyCode:    codes.PermissionDenied,
+					Description: "blocked",
+					IsMatch:     false,
 				},
 			},
 		},
-		instrumentation: inst,
-		policy:          pol,
-		policyBypass:    false,
-		logger:          logger,
+		instrumentation:      inst,
+		aouthorizationPolicy: pol,
+		policyBypass:         false,
+		logger:               logger,
 	}
 
 	resp, err := mgr.Check(context.Background(), minimalCheckRequestUnit("198.51.100.99"))
@@ -366,21 +357,21 @@ func TestManagerCheckPolicyBypassReturnsOK(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
 	mgr := &Manager{
-		authorizationControllers: []controller.AuthorizationController{
-			stubAuthorizationController{
+		matchControllers: []controller.MatchController{
+			stubMatchController{
 				name: "auth-one",
 				kind: "auth",
-				verdict: &controller.AuthorizationVerdict{
-					Code:     codes.PermissionDenied,
-					Reason:   "blocked",
-					InPolicy: false,
+				verdict: &controller.MatchVerdict{
+					DenyCode:    codes.PermissionDenied,
+					Description: "blocked",
+					IsMatch:     false,
 				},
 			},
 		},
-		instrumentation: inst,
-		policy:          pol,
-		policyBypass:    true,
-		logger:          logger,
+		instrumentation:      inst,
+		aouthorizationPolicy: pol,
+		policyBypass:         true,
+		logger:               logger,
 	}
 
 	resp, err := mgr.Check(context.Background(), minimalCheckRequestUnit("198.51.100.99"))

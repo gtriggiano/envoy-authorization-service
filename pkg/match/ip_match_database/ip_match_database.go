@@ -17,31 +17,26 @@ const (
 	ControllerKind = "ip-match-database"
 )
 
-// init registers the ip-match-database authorization controller
+// init registers the ip-match-database match controller
 func init() {
-	controller.RegisterAuthorization(ControllerKind, newIpMatchDatabaseAuthorizationController)
+	controller.RegisterMatchContollerFactory(ControllerKind, newIpMatchDatabaseController)
 }
 
-type ipMatchDatabaseAuthorizationController struct {
-	name                      string
-	action                    string
-	alwaysDenyOnDbUnavailable bool
-	dataSource                DataSource
-	cache                     *Cache
-	dbType                    string
-	logger                    *zap.Logger
+type ipMatchDatabaseController struct {
+	name             string
+	matchesOnFailure bool
+	dataSource       DataSource
+	cache            *Cache
+	dbType           string
+	logger           *zap.Logger
 }
 
-// Authorize implements controller.AuthorizationController
-func (c *ipMatchDatabaseAuthorizationController) Authorize(ctx context.Context, req *runtime.RequestContext, reports controller.AnalysisReports) (*controller.AuthorizationVerdict, error) {
+// Match implements controller.MatchController
+func (c *ipMatchDatabaseController) Match(ctx context.Context, req *runtime.RequestContext, reports controller.AnalysisReports) (*controller.MatchVerdict, error) {
 	// Validate IP address
 	if !req.IpAddress.IsValid() {
-		code := c.deriveCodeForInvalidIP()
-		c.observeRequest(req.Authority, codeToMetricsResult(code))
-		return c.createVerdict(
-			code,
-			"unable to determine source IP address",
-		), nil
+		c.observeRequest(req.Authority, codeToMetricsResult(codes.PermissionDenied))
+		return c.createVerdict(c.matchesOnFailure, "unable to determine source IP address"), nil
 	}
 
 	ipAddress := req.IpAddress.String()
@@ -75,37 +70,31 @@ func (c *ipMatchDatabaseAuthorizationController) Authorize(ctx context.Context, 
 	if dbError != nil {
 		c.observeUnavailable(req.Authority, c.dbType)
 		c.logger.Warn("database query failed", zap.String("ip", ipAddress), zap.Error(dbError))
-		code := c.deriveCodeForDatabaseError()
-		c.observeRequest(req.Authority, codeToMetricsResult(code))
-		return c.createVerdict(
-			code,
-			fmt.Sprintf("database unavailable: %v", dbError),
-		), nil
+		c.observeRequest(req.Authority, codeToMetricsResult(codes.Unavailable))
+		return c.createVerdict(c.matchesOnFailure, fmt.Sprintf("database unavailable: %v", dbError)), nil
 	}
 
-	// Derive verdict from match result and action
-	code, reason := c.deriveVerdict(ipAddress, matched)
-	c.observeRequest(req.Authority, codeToMetricsResult(code))
-	return c.createVerdict(code, reason), nil
+	c.observeRequest(req.Authority, codeToMetricsResult(codes.PermissionDenied))
+	return c.createVerdict(matched, c.getVerdictDescription(ipAddress, matched)), nil
 }
 
-// Name implements controller.AuthorizationController
-func (c *ipMatchDatabaseAuthorizationController) Name() string {
+// Name implements controller.MatchController
+func (c *ipMatchDatabaseController) Name() string {
 	return c.name
 }
 
-// Kind implements controller.AuthorizationController
-func (c *ipMatchDatabaseAuthorizationController) Kind() string {
+// Kind implements controller.MatchController
+func (c *ipMatchDatabaseController) Kind() string {
 	return ControllerKind
 }
 
-// HealthCheck implements controller.AuthorizationController
-func (c *ipMatchDatabaseAuthorizationController) HealthCheck(ctx context.Context) error {
+// HealthCheck implements controller.MatchController
+func (c *ipMatchDatabaseController) HealthCheck(ctx context.Context) error {
 	return c.dataSource.HealthCheck(ctx)
 }
 
 // queryDatabase queries the data source with timeout
-func (c *ipMatchDatabaseAuthorizationController) queryDatabase(ctx context.Context, authority, ipAddress string) (bool, error) {
+func (c *ipMatchDatabaseController) queryDatabase(ctx context.Context, authority, ipAddress string) (bool, error) {
 	start := time.Now()
 	matched, err := c.dataSource.Contains(ctx, ipAddress)
 	duration := time.Since(start)
@@ -143,72 +132,27 @@ func codeToMetricsResult(code codes.Code) string {
 	return "error"
 }
 
-// deriveCodeForInvalidIP returns the appropriate status code when IP is invalid
-func (c *ipMatchDatabaseAuthorizationController) deriveCodeForInvalidIP() codes.Code {
-	// Invalid IP is treated similar to "not found"
-	if c.action == "allow" {
-		return codes.PermissionDenied
-	}
-	return codes.OK
-}
-
-// deriveCodeForDatabaseError returns the appropriate status code when database is unavailable
-func (c *ipMatchDatabaseAuthorizationController) deriveCodeForDatabaseError() codes.Code {
-	if c.alwaysDenyOnDbUnavailable {
-		return codes.PermissionDenied
-	}
-
-	// Default behavior: fail-closed for allow, fail-open for deny
-	if c.action == "allow" {
-		return codes.PermissionDenied
-	}
-	return codes.OK
-}
-
-// deriveVerdict maps the action and match result to a status code and reason
-func (c *ipMatchDatabaseAuthorizationController) deriveVerdict(ipAddress string, matched bool) (codes.Code, string) {
-	var code codes.Code
-	var reason string
-
-	if matched {
-		if c.action == "allow" {
-			code = codes.OK
-			reason = fmt.Sprintf("IP %s found in '%s' allow-list", ipAddress, c.dbType)
-		} else {
-			code = codes.PermissionDenied
-			reason = fmt.Sprintf("IP %s found in '%s' black-list", ipAddress, c.dbType)
-		}
-	} else {
-		if c.action == "allow" {
-			code = codes.PermissionDenied
-			reason = fmt.Sprintf("IP %s not found in '%s' allow-list", ipAddress, c.dbType)
-		} else {
-			code = codes.OK
-			reason = fmt.Sprintf("IP %s not found in '%s' black-list", ipAddress, c.dbType)
-		}
-	}
-
-	return code, reason
-}
-
-// createVerdict constructs an AuthorizationVerdict with the given code and reason
-func (c *ipMatchDatabaseAuthorizationController) createVerdict(code codes.Code, reason string) *controller.AuthorizationVerdict {
-	return &controller.AuthorizationVerdict{
+// createVerdict constructs a MatchVerdict with the given details
+func (c *ipMatchDatabaseController) createVerdict(isMatch bool, description string) *controller.MatchVerdict {
+	return &controller.MatchVerdict{
 		Controller:     c.name,
 		ControllerKind: ControllerKind,
-		Code:           code,
-		Reason:         reason,
-		InPolicy:       c.inPolicy(code),
+		DenyCode:       codes.PermissionDenied,
+		Description:    description,
+		IsMatch:        isMatch,
 	}
 }
 
-func (c *ipMatchDatabaseAuthorizationController) inPolicy(code codes.Code) bool {
-	// Policy evaluation expects "true" to mean the controller allows the request.
-	return code == codes.OK
+// getVerdictDescription generates a description for the verdict based on match result
+func (c *ipMatchDatabaseController) getVerdictDescription(ipAddress string, matched bool) string {
+	if matched {
+		return fmt.Sprintf("IP %s found in '%s'", ipAddress, c.dbType)
+	}
+	return fmt.Sprintf("IP %s not found in '%s'", ipAddress, c.dbType)
 }
 
-// newIpMatchDatabaseAuthorizationController constructs a controller from configuration
-func newIpMatchDatabaseAuthorizationController(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (controller.AuthorizationController, error) {
+// newIpMatchDatabaseController constructs a controller from configuration
+func newIpMatchDatabaseController(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (controller.MatchController, error) {
 	// Decode configuration
 	var controllerConfig IpMatchDatabaseConfig
 	if err := controller.DecodeControllerSettings(cfg.Settings, &controllerConfig); err != nil {
@@ -270,9 +214,8 @@ func newIpMatchDatabaseAuthorizationController(ctx context.Context, logger *zap.
 	}
 
 	logger.Info("controller initialized",
-		zap.String("action", controllerConfig.Action),
 		zap.String("db_type", dbType),
-		zap.Bool("alwaysDenyOnDbUnavailable", controllerConfig.AlwaysDenyOnDbUnavailable),
+		zap.Bool("matchesOnFailure", controllerConfig.MatchesOnFailure),
 	)
 
 	// Setup cleanup when context is canceled
@@ -283,13 +226,12 @@ func newIpMatchDatabaseAuthorizationController(ctx context.Context, logger *zap.
 		}
 	}()
 
-	return &ipMatchDatabaseAuthorizationController{
-		name:                      cfg.Name,
-		action:                    controllerConfig.Action,
-		alwaysDenyOnDbUnavailable: controllerConfig.AlwaysDenyOnDbUnavailable,
-		dataSource:                dataSource,
-		cache:                     cache,
-		dbType:                    dbType,
-		logger:                    logger,
+	return &ipMatchDatabaseController{
+		name:             cfg.Name,
+		matchesOnFailure: controllerConfig.MatchesOnFailure,
+		dataSource:       dataSource,
+		cache:            cache,
+		dbType:           dbType,
+		logger:           logger,
 	}, nil
 }

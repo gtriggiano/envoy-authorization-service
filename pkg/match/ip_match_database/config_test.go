@@ -7,27 +7,8 @@ import (
 
 // TestConfigValidation tests configuration validation
 func TestConfigValidation(t *testing.T) {
-	t.Run("invalid action fails", func(t *testing.T) {
-		config := &IpMatchDatabaseConfig{
-			Action: "invalid",
-			Database: DatabaseConfig{
-				Type: "redis",
-				Redis: &RedisConfig{
-					KeyPrefix: "test:",
-					Host:      "localhost",
-					Port:      6379,
-				},
-			},
-		}
-
-		if err := config.Validate(); err == nil {
-			t.Fatal("expected validation error for invalid action")
-		}
-	})
-
 	t.Run("invalid database type fails", func(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "invalid",
 			},
@@ -40,7 +21,6 @@ func TestConfigValidation(t *testing.T) {
 
 	t.Run("invalid cache TTL fails", func(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Cache: &CacheConfig{
 				TTL: "invalid",
 			},
@@ -61,8 +41,7 @@ func TestConfigValidation(t *testing.T) {
 
 	t.Run("missing cache TTL fails when cache is set", func(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
-			Cache:  &CacheConfig{},
+			Cache: &CacheConfig{},
 			Database: DatabaseConfig{
 				Type: "redis",
 				Redis: &RedisConfig{
@@ -80,7 +59,6 @@ func TestConfigValidation(t *testing.T) {
 
 	t.Run("valid cache config passes", func(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Cache: &CacheConfig{
 				TTL: "10m",
 			},

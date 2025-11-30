@@ -32,7 +32,7 @@ metrics:
 - **`/healthz`** - Liveness probe (returns `200 OK` with body `ok`)
 - **`/readyz`** - Readiness probe (returns `200 OK` when service and all controllers are healthy, `503 Service Unavailable` otherwise)
 
-The readiness probe runs health checks against all configured analysis and authorization controllers in parallel with a 5-second timeout.
+The readiness probe runs health checks against all configured analysis and match controllers in parallel with a 5-second timeout.
 
 ## Standard Service Metrics
 
@@ -100,8 +100,8 @@ Individual controller execution time in seconds.
 | Label Name | Example Value | Description |
 |------------|---------------|-------------|
 | `controller_name` | `maxmind-asn-lookup` | Unique controller instance name (from configuration) |
-| `controller_kind` | `maxmind-asn` | Type of controller. Possible values: `maxmind-asn`, `maxmind-geoip`, `ua-detect` (analysis controllers), `ip-match`, `asn-match`, `ip-match-database` (authorization controllers) |
-| `phase` | `analysis` | Execution phase. Possible values: `analysis` (analysis controller execution), `authorization` (authorization controller execution) |
+| `controller_kind` | `maxmind-asn` | Type of controller. Possible values: `maxmind-asn`, `maxmind-geoip`, `ua-detect` (analysis controllers), `ip-match`, `asn-match`, `ip-match-database` (match controllers) |
+| `phase` | `analysis` | Execution phase. Possible values: `analysis` (analysis controller execution), `match` (match controller execution) |
 | `result` | `ok` | Execution outcome. Possible values: `ok` (successful execution), `error` (execution failed) |
 
 **Type**: Histogram  
@@ -116,9 +116,9 @@ histogram_quantile(0.95,
   }[5m])
 )
 
-# Average authorization phase latency across all controllers
-rate(envoy_authz_controller_phase_duration_seconds_sum{phase="authorization"}[5m]) /
-rate(envoy_authz_controller_phase_duration_seconds_count{phase="authorization"}[5m])
+# Average match phase latency across all controllers
+rate(envoy_authz_controller_phase_duration_seconds_sum{phase="match"}[5m]) /
+rate(envoy_authz_controller_phase_duration_seconds_count{phase="match"}[5m])
 ```
 
 ---

@@ -25,37 +25,39 @@ import (
 
 // Manager coordinates controllers through the Envoy authorization lifecycle.
 type Manager struct {
-	analysisControllers      []controller.AnalysisController
-	authorizationControllers []controller.AuthorizationController
-	instrumentation          *metrics.Instrumentation
-	policy                   *policy.Policy
-	policyBypass             bool
-	logger                   *zap.Logger
+	analysisControllers  []controller.AnalysisController
+	matchControllers     []controller.MatchController
+	instrumentation      *metrics.Instrumentation
+	aouthorizationPolicy *policy.Policy
+	policyBypass         bool
+	logger               *zap.Logger
 }
 
 // NewManager instantiates a controller manager.
 func NewManager(
 	analysisControllers []controller.AnalysisController,
-	authorizationControllers []controller.AuthorizationController,
+	matchControllers []controller.MatchController,
 	instrumentation *metrics.Instrumentation,
 	policy *policy.Policy,
 	policyBypass bool,
 	logger *zap.Logger,
 ) *Manager {
 	return &Manager{
-		analysisControllers:      analysisControllers,
-		authorizationControllers: authorizationControllers,
-		instrumentation:          instrumentation,
-		policy:                   policy,
-		policyBypass:             policyBypass,
-		logger:                   logger,
+		analysisControllers:  analysisControllers,
+		matchControllers:     matchControllers,
+		instrumentation:      instrumentation,
+		aouthorizationPolicy: policy,
+		policyBypass:         policyBypass,
+		logger:               logger,
 	}
 }
 
-// Check executes analysis + authorization phases and evaluates the configured policy.
+// Check executes analysis + match phases and evaluates the configured authorization policy.
 func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.CheckResponse, error) {
 	reqCtx := runtime.NewRequestContext(req)
 	start := time.Now()
+
+	// Track in-flight requests
 	m.instrumentation.InFlight(reqCtx.Authority, 1)
 	defer m.instrumentation.InFlight(reqCtx.Authority, -1)
 
@@ -67,27 +69,27 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 		return m.denyResponse(codes.PermissionDenied, err.Error(), nil), nil
 	}
 
-	// Run authorization phase
-	authorizationVerdicts, err := m.runAuthorization(ctx, reqCtx, analysisReports)
+	// Run match phase
+	matchVerdicts, err := m.runMatch(ctx, reqCtx, analysisReports)
 	if err != nil {
-		m.logger.Warn("authorization phase failed", append(reqCtx.LogFields(), zap.Error(err))...)
+		m.logger.Warn("match phase failed", append(reqCtx.LogFields(), zap.Error(err))...)
 		m.instrumentation.ObserveDenyDecision(reqCtx.Authority, time.Since(start))
 		return m.denyResponse(codes.PermissionDenied, err.Error(), nil), nil
 	}
 
 	// Evaluate policy
-	finalVerdict := m.evaluatePolicyForFinalVerdict(authorizationVerdicts)
+	allowed, denyVerdict := m.evaluatePolicy(matchVerdicts)
 
 	logFields := reqCtx.LogFields()
 
-	if finalVerdict.IsDeny() {
-		// Log requests denied by policy
+	if !allowed {
+		// Log requests denied by policy (or bypassed)
 		logFields := append(
 			logFields,
-			zap.String("decision", metrics.DENY_DECISION),
-			zap.String("culprit_controller_name", finalVerdict.Controller),
-			zap.String("culprit_controller_type", finalVerdict.ControllerKind),
-			zap.String("deny_reason", finalVerdict.Reason),
+			zap.String("decision", metrics.DENY),
+			zap.String("culprit_controller_name", denyVerdict.Controller),
+			zap.String("culprit_controller_type", denyVerdict.ControllerKind),
+			zap.String("culprit_description", denyVerdict.Description),
 			zap.Bool("policy_bypass", m.policyBypass),
 		)
 		if m.policyBypass {
@@ -99,30 +101,28 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 		// Log requests allowed by policy
 		logFields := append(
 			logFields,
-			zap.String("decision", metrics.ALLOW_DECISION),
+			zap.String("decision", metrics.ALLOW),
 		)
 		m.logger.Debug("request allowed by policy", logFields...)
 	}
 
-	if finalVerdict.IsDeny() && !m.policyBypass {
+	if !allowed && !m.policyBypass {
 		// Deny the request
 		m.instrumentation.ObserveDenyDecision(reqCtx.Authority, time.Since(start))
 		return m.denyResponse(
-			finalVerdict.Code,
-			finalVerdict.Reason,
-			headerOptionsFromMap(finalVerdict.DownstreamHeaders),
+			denyVerdict.DenyCode,
+			denyVerdict.Description,
+			sanitizedHeaders(denyVerdict.DenyDownstreamHeaders),
 		), nil
 	}
 
-	upstreamHeaders := headerOptionsFromAnalysisReports(analysisReports)
+	upstreamHeaders := upstreamHeadersFromAnalysisReports(analysisReports)
 
-	for _, authorizationVerdict := range authorizationVerdicts {
-		if authorizationVerdict.IsAllow() {
-			upstreamHeaders = append(
-				upstreamHeaders,
-				headerOptionsFromMap(authorizationVerdict.UpstreamHeaders)...,
-			)
-		}
+	for _, matchVerdict := range matchVerdicts {
+		upstreamHeaders = append(
+			upstreamHeaders,
+			sanitizedHeaders(matchVerdict.AllowUpstreamHeaders)...,
+		)
 	}
 
 	m.instrumentation.ObserveAllowDecision(reqCtx.Authority, time.Since(start))
@@ -145,8 +145,13 @@ func (m *Manager) runAnalysis(ctx context.Context, req *runtime.RequestContext) 
 		g.Go(func() error {
 			phaseStart := time.Now()
 			report, err := analysisController.Analyze(ctx, req)
-			result := phaseResult(err)
-			m.instrumentation.ObservePhase(req.Authority, analysisController.Name(), analysisController.Kind(), "analysis", result, time.Since(phaseStart))
+			m.instrumentation.ObserveAnalysisControllerDuration(
+				req.Authority,
+				analysisController.Name(),
+				analysisController.Kind(),
+				err != nil,
+				time.Since(phaseStart),
+			)
 			if err != nil {
 				return fmt.Errorf("analysis controller '%s' of type '%s' failed: %w", analysisController.Name(), analysisController.Kind(), err)
 			}
@@ -168,34 +173,39 @@ func (m *Manager) runAnalysis(ctx context.Context, req *runtime.RequestContext) 
 	return reports, nil
 }
 
-// runAuthorization runs every authorization controller and accumulates their
+// runMatch runs every match controller and accumulates their
 // verdicts for subsequent policy evaluation.
-func (m *Manager) runAuthorization(ctx context.Context, req *runtime.RequestContext, reports controller.AnalysisReports) (controller.AuthorizationVerdicts, error) {
-	verdicts := make(controller.AuthorizationVerdicts)
+func (m *Manager) runMatch(ctx context.Context, req *runtime.RequestContext, reports controller.AnalysisReports) (controller.MatchVerdicts, error) {
+	verdicts := make(controller.MatchVerdicts)
 
-	if len(m.authorizationControllers) == 0 {
+	if len(m.matchControllers) == 0 {
 		return verdicts, nil
 	}
 
 	var mu sync.Mutex
 
 	g, ctx := errgroup.WithContext(ctx)
-	for _, authorizationController := range m.authorizationControllers {
+	for _, matchController := range m.matchControllers {
 		g.Go(func() error {
 			phaseStart := time.Now()
-			verdict, err := authorizationController.Authorize(ctx, req, reports)
-			result := phaseResult(err)
-			m.instrumentation.ObservePhase(req.Authority, authorizationController.Name(), authorizationController.Kind(), "authorization", result, time.Since(phaseStart))
+			verdict, err := matchController.Match(ctx, req, reports)
+			m.instrumentation.ObserveMatchControllerDuration(
+				req.Authority,
+				matchController.Name(),
+				matchController.Kind(),
+				err != nil,
+				time.Since(phaseStart),
+			)
 			if err != nil {
-				return fmt.Errorf("authorization controller '%s' of type '%s' failed: %w", authorizationController.Name(), authorizationController.Kind(), err)
+				return fmt.Errorf("match controller '%s' of type '%s' failed: %w", matchController.Name(), matchController.Kind(), err)
 			}
 			if verdict == nil {
-				return fmt.Errorf("authorization controller '%s' of type '%s' returned no verdict", authorizationController.Name(), authorizationController.Kind())
+				return fmt.Errorf("match controller '%s' of type '%s' returned no verdict", matchController.Name(), matchController.Kind())
 			}
-			verdict.Controller = authorizationController.Name()
-			verdict.ControllerKind = authorizationController.Kind()
+			verdict.Controller = matchController.Name()
+			verdict.ControllerKind = matchController.Kind()
 			mu.Lock()
-			verdicts[authorizationController.Name()] = verdict
+			verdicts[matchController.Name()] = verdict
 			mu.Unlock()
 			return nil
 		})
@@ -208,39 +218,45 @@ func (m *Manager) runAuthorization(ctx context.Context, req *runtime.RequestCont
 	return verdicts, nil
 }
 
-// evaluatePolicyForFinalVerdict converts verdicts to boolean inputs and feeds them to the policy
-// engine, returning both the allow decision and the blocking controller name.
-func (m *Manager) evaluatePolicyForFinalVerdict(authorizationVerdicts controller.AuthorizationVerdicts) *controller.AuthorizationVerdict {
-	if m.policy == nil {
-		return &controller.AuthorizationVerdict{
+// evaluatePolicy converts verdicts to boolean inputs and feeds them to the policy
+// engine, returning whether the request is allowed and, when denied, the offending verdict.
+func (m *Manager) evaluatePolicy(matchVerdicts controller.MatchVerdicts) (bool, *controller.MatchVerdict) {
+	if m.aouthorizationPolicy == nil {
+		return true, &controller.MatchVerdict{
 			Controller:     "policy",
 			ControllerKind: "policy",
-			Code:           codes.OK,
-			Reason:         "no policy configured, allowing by default",
+			IsMatch:        true,
+			DenyCode:       codes.OK,
+			Description:    "no policy configured, allowing by default",
 		}
 	}
 
-	verdictsPredicates := make(map[string]bool, len(authorizationVerdicts))
-	for controllerName, verdict := range authorizationVerdicts {
-		verdictsPredicates[controllerName] = verdict.InPolicy
+	verdictsPredicates := make(map[string]bool, len(matchVerdicts))
+	for controllerName, verdict := range matchVerdicts {
+		verdictsPredicates[controllerName] = verdict.IsMatch
 	}
 
-	if allowed, denyerControllerName := m.policy.Evaluate(verdictsPredicates); allowed {
-		return &controller.AuthorizationVerdict{
+	if allowed, denyerControllerName := m.aouthorizationPolicy.Evaluate(verdictsPredicates); allowed {
+		return true, &controller.MatchVerdict{
 			Controller:     "policy",
 			ControllerKind: "policy",
-			Code:           codes.OK,
-			Reason:         "request allowed by policy",
+			IsMatch:        true,
+			DenyCode:       codes.OK,
+			Description:    "request allowed by policy",
 		}
 	} else {
-		if denyerControllerVerdict, ok := authorizationVerdicts[denyerControllerName]; ok {
-			return denyerControllerVerdict
+		if denyerControllerVerdict, ok := matchVerdicts[denyerControllerName]; ok {
+			// ensure a sensible default code
+			if denyerControllerVerdict.DenyCode == codes.OK {
+				denyerControllerVerdict.DenyCode = codes.PermissionDenied
+			}
+			return false, denyerControllerVerdict
 		}
-		return &controller.AuthorizationVerdict{
+		return false, &controller.MatchVerdict{
 			Controller:     "policy",
 			ControllerKind: "policy",
-			Code:           codes.PermissionDenied,
-			Reason:         fmt.Sprintf("request denied by controller '%s'", denyerControllerName),
+			DenyCode:       codes.PermissionDenied,
+			Description:    fmt.Sprintf("request denied by controller '%s'", denyerControllerName),
 		}
 	}
 }
@@ -257,11 +273,16 @@ func (m *Manager) okResponse(headers []*corev3.HeaderValueOption) *authv3.CheckR
 
 // denyResponse wraps a denied authorization result with headers suitable for Envoy.
 func (m *Manager) denyResponse(code codes.Code, message string, headers []*corev3.HeaderValueOption) *authv3.CheckResponse {
+	sanitizedCode := code
+	if sanitizedCode == codes.OK {
+		sanitizedCode = codes.PermissionDenied
+	}
+
 	return &authv3.CheckResponse{
-		Status: status.New(code, message).Proto(),
+		Status: status.New(sanitizedCode, message).Proto(),
 		HttpResponse: &authv3.CheckResponse_DeniedResponse{
 			DeniedResponse: &authv3.DeniedHttpResponse{
-				Status:  &typev3.HttpStatus{Code: codeToHTTP(code)},
+				Status:  &typev3.HttpStatus{Code: codeToHTTP(sanitizedCode)},
 				Body:    message,
 				Headers: headers,
 			},
@@ -283,9 +304,9 @@ func codeToHTTP(code codes.Code) typev3.StatusCode {
 
 var headerPattern = regexp.MustCompile(`^[A-Za-z0-9-]+$`)
 
-// headerOptionsFromAnalysisReports flattens the analysis phase upstream headers into Envoy
+// upstreamHeadersFromAnalysisReports flattens the analysis phase upstream headers into Envoy
 // header options. The function keeps ordering deterministic for easier testing.
-func headerOptionsFromAnalysisReports(analysisReports controller.AnalysisReports) []*corev3.HeaderValueOption {
+func upstreamHeadersFromAnalysisReports(analysisReports controller.AnalysisReports) []*corev3.HeaderValueOption {
 	if len(analysisReports) == 0 {
 		return nil
 	}
@@ -297,14 +318,14 @@ func headerOptionsFromAnalysisReports(analysisReports controller.AnalysisReports
 	var headers []*corev3.HeaderValueOption
 	for _, name := range names {
 		report := analysisReports[name]
-		headers = append(headers, headerOptionsFromMap(report.UpstreamHeaders)...)
+		headers = append(headers, sanitizedHeaders(report.UpstreamHeaders)...)
 	}
 	return headers
 }
 
-// headerOptionsFromMap converts a map representation into Envoy header values while
+// sanitizedHeaders converts a map representation into Envoy header values while
 // filtering unsafe header names and trimming whitespace from values.
-func headerOptionsFromMap(values map[string]string) []*corev3.HeaderValueOption {
+func sanitizedHeaders(values map[string]string) []*corev3.HeaderValueOption {
 	if len(values) == 0 {
 		return nil
 	}
@@ -330,12 +351,4 @@ func headerOptionsFromMap(values map[string]string) []*corev3.HeaderValueOption 
 // propagating malformed headers upstream or downstream.
 func isSafeHeader(name string) bool {
 	return headerPattern.MatchString(strings.TrimSpace(name))
-}
-
-// phaseResult normalizes an error into a label-friendly string for metrics.
-func phaseResult(err error) string {
-	if err != nil {
-		return "error"
-	}
-	return "ok"
 }

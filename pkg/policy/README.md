@@ -1,10 +1,12 @@
 # Policy DSL
 
-This package implements the boolean expression DSL used to compose authorization controller
-verdicts. A few guiding principles influenced the implementation:
+This package implements the boolean expression DSL used to compose match controller
+verdicts.
+
+A few guiding principles influenced the implementation:
 
 - **Predictable semantics** – only the logical operators `&&`, `||`, and `!` are supported, along with parentheses for grouping
-- **Controller awareness** – every identifier in the expression must map to a configured authorization controller. Validation occurs at parse time, producing actionable errors.
+- **Controller awareness** – every identifier in the expression must map to a configured match controller. Validation occurs at parse time, producing actionable errors.
 - **Deterministic evaluation** – the AST is built via a recursive descent parser so the traversal order, short-circuit behavior, and resulting culprit controller are well defined.
 
 ## Parsing
@@ -27,8 +29,8 @@ graph TD
     AND["&&"] --> A["A"]
     AND --> OR["||"]
     OR --> NOT["!"]
-    OR --> C["C"]
-    NOT --> B["B"]
+    OR --> C["B"]
+    NOT --> B["C"]
 ```
 
 ## Evaluation

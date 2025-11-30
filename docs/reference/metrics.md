@@ -91,8 +91,8 @@ Controller phase execution time in seconds.
 |------------|---------------|-------------|
 | `authority` | `api.service.com` | HTTP host/:authority value of the downstream request (or `-` when absent) |
 | `controller_name` | `maxmind-asn-lookup` | Unique name of the controller instance (from configuration) |
-| `controller_kind` | `maxmind-asn` | Type of controller. Possible values: `maxmind-asn`, `maxmind-geoip`, `ua-detect` (analysis controllers), `ip-match`, `asn-match`, `ip-match-database` (authorization controllers) |
-| `phase` | `analysis` | Execution phase. Possible values: `analysis` (analysis controller execution), `authorization` (authorization controller execution) |
+| `controller_kind` | `maxmind-asn` | Type of controller. Possible values: `maxmind-asn`, `maxmind-geoip`, `ua-detect` (analysis controllers), `ip-match`, `asn-match`, `ip-match-database` (match controllers) |
+| `phase` | `analysis` | Execution phase. Possible values: `analysis` (analysis controller execution), `match` (match controller execution) |
 | `result` | `ok` | Execution outcome. Possible values: `ok` (successful execution), `error` (execution failed) |
 
 **Buckets**: `[.00005, .0001, .0005, .001, .002, .005, .01, .025, .05, .1, .25, .5]`
@@ -150,11 +150,11 @@ avg_over_time(envoy_authz_inflight_requests[5m])
 
 ## IP Match Database Metrics
 
-These metrics are specific to the `ip-match-database` authorization controller.
+These metrics are specific to the `ip-match-database` match controller.
 
 ### envoy_authz_ip_match_database_requests_total `Counter`
 
-Total authorization requests processed by the ip-match-database controller.
+Total requests processed by the ip-match-database controller.
 
 | Label Name | Example Value | Description |
 |------------|---------------|-------------|

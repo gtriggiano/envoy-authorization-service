@@ -145,6 +145,6 @@ metrics:
 
 - [Metrics Reference](/reference/metrics)
 - [Configure Analysis Controllers](/configuration/analysis-controllers)
-- [Configure Authorization Controllers](/configuration/authorization-controllers)
+- [Configure Match Controllers](/configuration/match-controllers)
 - [Configure Server & Metrics](/configuration/server-metrics)
 - [View Configuration Examples](/examples/)

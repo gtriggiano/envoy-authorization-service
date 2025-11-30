@@ -63,7 +63,7 @@ It's recommended to update it weekly.
 
 ## Integration with Authorization Controllers
 
-The ASN information exposed by this controller can be consumed by authorization controllers like [`asn-match`](../../authorization/asn_match) to make allow/deny decisions based on the origin network.
+The ASN information exposed by this controller can be consumed by match controllers like [`asn-match`](../../match/asn_match) to make allow/deny decisions based on the origin network.
 
 ### Example: ASN-based Authorization
 
@@ -74,15 +74,14 @@ analysisControllers:
     settings:
       databasePath: config/GeoLite2-ASN.mmdb
 
-authorizationControllers:
+matchControllers:
   - name: allowed-cloud-provider
     type: asn-match
     settings:
-      action: allow
-      asList: config/allowed-cloud-providers-asns.txt
+      asnList: config/allowed-cloud-providers-asns.txt
 ```
 
 ## See Also
 
-- [ASN Match Authorization Controller](../../authorization/asn_match)
+- [ASN Match Controller](../../match/asn_match)
 - [MaxMind GeoIP Analysis Controller](../maxmind_geoip)

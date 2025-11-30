@@ -23,14 +23,14 @@ const (
 
 // Server exposes Prometheus metrics and health probes.
 type Server struct {
-	cfg                      config.MetricsConfig
-	logger                   *zap.Logger
-	registry                 *prometheus.Registry
-	instrumentation          *Instrumentation
-	httpServer               *http.Server
-	analysisControllers      []controller.AnalysisController
-	authorizationControllers []controller.AuthorizationController
-	serviceServerReady       atomic.Bool
+	cfg                 config.MetricsConfig
+	logger              *zap.Logger
+	registry            *prometheus.Registry
+	instrumentation     *Instrumentation
+	httpServer          *http.Server
+	analysisControllers []controller.AnalysisController
+	matchControllers    []controller.MatchController
+	serviceServerReady  atomic.Bool
 }
 
 // NewServer builds a metrics server instance.
@@ -38,18 +38,18 @@ func NewServer(
 	cfg config.MetricsConfig,
 	logger *zap.Logger,
 	analysisControllers []controller.AnalysisController,
-	authorizationControllers []controller.AuthorizationController,
+	matchControllers []controller.MatchController,
 ) *Server {
 	reg := prometheus.NewRegistry()
 	inst := NewInstrumentation(reg)
 
 	return &Server{
-		cfg:                      cfg,
-		logger:                   logger,
-		registry:                 reg,
-		instrumentation:          inst,
-		analysisControllers:      analysisControllers,
-		authorizationControllers: authorizationControllers,
+		cfg:                 cfg,
+		logger:              logger,
+		registry:            reg,
+		instrumentation:     inst,
+		analysisControllers: analysisControllers,
+		matchControllers:    matchControllers,
 	}
 }
 
@@ -144,13 +144,13 @@ func (s *Server) readinessHandler() http.Handler {
 			}(ctrl)
 		}
 
-		// Check authorization controllers
-		for _, ctrl := range s.authorizationControllers {
+		// Check match controllers
+		for _, ctrl := range s.matchControllers {
 			wg.Add(1)
-			go func(ctrl controller.AuthorizationController) {
+			go func(ctrl controller.MatchController) {
 				defer wg.Done()
 				if err := ctrl.HealthCheck(ctx); err != nil {
-					s.logger.Warn("authorization controller health check failed",
+					s.logger.Warn("match controller health check failed",
 						zap.String("controller", ctrl.Name()),
 						zap.String("controller_type", ctrl.Kind()),
 						zap.Error(err),

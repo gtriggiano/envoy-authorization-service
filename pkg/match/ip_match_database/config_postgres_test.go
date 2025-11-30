@@ -9,7 +9,6 @@ import (
 func TestValidatePostgresConfig(t *testing.T) {
 	t.Run("requires postgres config when type is postgres", func(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "postgres",
 			},
@@ -26,7 +25,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 		setEnv(t, "PG_PASS", "testpass")
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "postgres",
 				Postgres: &PostgresConfig{
@@ -62,7 +60,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "postgres",
 				Postgres: &PostgresConfig{
@@ -86,7 +83,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "postgres",
 				Postgres: &PostgresConfig{
@@ -110,7 +106,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "postgres",
 				Postgres: &PostgresConfig{
@@ -134,7 +129,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 		setEnv(t, "PG_PASS_PRESENT", "secret")
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "postgres",
 				Postgres: &PostgresConfig{
@@ -158,7 +152,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 		_ = os.Unsetenv("PG_PASS_MISSING")
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "postgres",
 				Postgres: &PostgresConfig{
@@ -182,7 +175,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "postgres",
 				Postgres: &PostgresConfig{
@@ -210,7 +202,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "postgres",
 				Postgres: &PostgresConfig{
@@ -238,7 +229,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "postgres",
 				Postgres: &PostgresConfig{
@@ -268,7 +258,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "postgres",
 				Postgres: &PostgresConfig{
@@ -296,7 +285,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "postgres",
 				Postgres: &PostgresConfig{
@@ -325,7 +313,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
-			Action: "deny",
 			Database: DatabaseConfig{
 				Type: "postgres",
 				Postgres: &PostgresConfig{

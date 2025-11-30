@@ -53,35 +53,35 @@ var (
 	}, []string{"authority", "controller_name", "database"})
 )
 
-// observeRequest records an authorization request result
-func (c *ipMatchDatabaseAuthorizationController) observeRequest(authority, result string) {
+// observeRequest records a match request result
+func (c *ipMatchDatabaseController) observeRequest(authority, result string) {
 	requestsTotal.WithLabelValues(authority, c.name, c.dbType, result).Inc()
 }
 
 // observeQuery records a database query
-func (c *ipMatchDatabaseAuthorizationController) observeQuery(authority, dbType, result string, duration time.Duration) {
+func (c *ipMatchDatabaseController) observeQuery(authority, dbType, result string, duration time.Duration) {
 	queriesTotal.WithLabelValues(authority, c.name, dbType, result).Inc()
 	queryDuration.WithLabelValues(authority, c.name, dbType).Observe(duration.Seconds())
 }
 
 // observeCacheHit records a cache hit
-func (c *ipMatchDatabaseAuthorizationController) observeCacheHit(authority string) {
+func (c *ipMatchDatabaseController) observeCacheHit(authority string) {
 	cacheRequestsTotal.WithLabelValues(authority, c.name, "hit").Inc()
 }
 
 // observeCacheMiss records a cache miss
-func (c *ipMatchDatabaseAuthorizationController) observeCacheMiss(authority string) {
+func (c *ipMatchDatabaseController) observeCacheMiss(authority string) {
 	cacheRequestsTotal.WithLabelValues(authority, c.name, "miss").Inc()
 }
 
 // observeCacheSize updates the cache size gauge
-func (c *ipMatchDatabaseAuthorizationController) observeCacheSize(authority string) {
+func (c *ipMatchDatabaseController) observeCacheSize(authority string) {
 	if c.cache != nil {
 		cacheEntries.WithLabelValues(authority, c.name).Set(float64(c.cache.Size()))
 	}
 }
 
 // observeUnavailable records a database unavailability event
-func (c *ipMatchDatabaseAuthorizationController) observeUnavailable(authority, dbType string) {
+func (c *ipMatchDatabaseController) observeUnavailable(authority, dbType string) {
 	unavailableTotal.WithLabelValues(authority, c.name, dbType).Inc()
 }

@@ -7,16 +7,20 @@ import (
 )
 
 const (
-	ALLOW_DECISION = "ALLOW"
-	DENY_DECISION  = "DENY"
+	ALLOW        = "ALLOW"
+	DENY         = "DENY"
+	ANALYSIS     = "ANALYSIS"
+	MATCH        = "MATCH"
+	RESULT_OK    = "OK"
+	RESULT_ERROR = "ERROR"
 )
 
 // Instrumentation publishes Prometheus metrics for the authorization flow.
 type Instrumentation struct {
-	requestTotals    *prometheus.CounterVec
-	requestDuration  *prometheus.HistogramVec
-	controllerTiming *prometheus.HistogramVec
-	inFlight         *prometheus.GaugeVec
+	requestTotals      *prometheus.CounterVec
+	requestDuration    *prometheus.HistogramVec
+	controllerDuration *prometheus.HistogramVec
+	inFlight           *prometheus.GaugeVec
 }
 
 // NewInstrumentation registers all metric vectors.
@@ -33,10 +37,10 @@ func NewInstrumentation(reg prometheus.Registerer) *Instrumentation {
 			Help:      "End-to-end authorization latency",
 			Buckets:   []float64{.00005, .0001, .0005, .001, .002, .005, .01, .025, .05, .1, .25, .5},
 		}, []string{"authority", "verdict"}),
-		controllerTiming: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		controllerDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: "envoy_authz",
-			Name:      "controller_phase_duration_seconds",
-			Help:      "Controller phase execution time",
+			Name:      "controller_duration_seconds",
+			Help:      "Controller execution time",
 			Buckets:   []float64{.00005, .0001, .0005, .001, .002, .005, .01, .025, .05, .1, .25, .5},
 		}, []string{"authority", "controller_name", "controller_kind", "phase", "result"}),
 		inFlight: prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -46,25 +50,38 @@ func NewInstrumentation(reg prometheus.Registerer) *Instrumentation {
 		}, []string{"authority"}),
 	}
 
-	reg.MustRegister(inst.requestTotals, inst.requestDuration, inst.controllerTiming, inst.inFlight)
+	reg.MustRegister(inst.requestTotals, inst.requestDuration, inst.controllerDuration, inst.inFlight)
 	return inst
 }
 
 // ObserveDenyDecision records a deny decision and duration.
 func (i *Instrumentation) ObserveDenyDecision(authority string, duration time.Duration) {
-	i.requestTotals.WithLabelValues(authority, DENY_DECISION).Inc()
-	i.requestDuration.WithLabelValues(authority, DENY_DECISION).Observe(duration.Seconds())
+	i.requestTotals.WithLabelValues(authority, DENY).Inc()
+	i.requestDuration.WithLabelValues(authority, DENY).Observe(duration.Seconds())
 }
 
 // ObserveAllowDecision records an allow decision and duration.
 func (i *Instrumentation) ObserveAllowDecision(authority string, duration time.Duration) {
-	i.requestTotals.WithLabelValues(authority, ALLOW_DECISION).Inc()
-	i.requestDuration.WithLabelValues(authority, ALLOW_DECISION).Observe(duration.Seconds())
+	i.requestTotals.WithLabelValues(authority, ALLOW).Inc()
+	i.requestDuration.WithLabelValues(authority, ALLOW).Observe(duration.Seconds())
 }
 
-// ObservePhase records controller phase latencies.
-func (i *Instrumentation) ObservePhase(authority, controllerName, controllerKind, phase, result string, duration time.Duration) {
-	i.controllerTiming.WithLabelValues(authority, controllerName, controllerKind, phase, result).Observe(duration.Seconds())
+// ObserveAnalysisControllerDuration records analysis controller latency.
+func (i *Instrumentation) ObserveAnalysisControllerDuration(authority, controllerName, controllerKind string, success bool, duration time.Duration) {
+	result := RESULT_ERROR
+	if success {
+		result = RESULT_OK
+	}
+	i.controllerDuration.WithLabelValues(authority, controllerName, controllerKind, ANALYSIS, result).Observe(duration.Seconds())
+}
+
+// ObserveControllerDuration records match controller latency.
+func (i *Instrumentation) ObserveMatchControllerDuration(authority, controllerName, controllerKind string, success bool, duration time.Duration) {
+	result := RESULT_ERROR
+	if success {
+		result = RESULT_OK
+	}
+	i.controllerDuration.WithLabelValues(authority, controllerName, controllerKind, MATCH, result).Observe(duration.Seconds())
 }
 
 // InFlight increments or decrements the in-flight gauge.

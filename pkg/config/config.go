@@ -30,9 +30,9 @@ type Config struct {
 	Logging logging.Config `yaml:"logging"`
 	// AnalysisControllers defines controllers that inspect requests and emit metadata.
 	AnalysisControllers []ControllerConfig `yaml:"analysisControllers"`
-	// AuthorizationControllers defines controllers that make authorization decisions.
-	AuthorizationControllers []ControllerConfig `yaml:"authorizationControllers"`
-	// AuthorizationPolicy is a boolean expression evaluated against authorization verdicts.
+	// MatchControllers defines controllers that match requests for policy evaluation.
+	MatchControllers []ControllerConfig `yaml:"matchControllers"`
+	// AuthorizationPolicy is a boolean expression evaluated against match verdicts.
 	AuthorizationPolicy string `yaml:"authorizationPolicy"`
 	// AuthorizationPolicyBypass allows requests even when the policy evaluates to false (for testing/metrics).
 	AuthorizationPolicyBypass bool `yaml:"authorizationPolicyBypass"`
@@ -134,7 +134,7 @@ func (c *Config) Validate() error {
 	if err := validateControllerSet(c.AnalysisControllers, "analysis"); err != nil {
 		return err
 	}
-	if err := validateControllerSet(c.AuthorizationControllers, "authorization"); err != nil {
+	if err := validateControllerSet(c.MatchControllers, "match"); err != nil {
 		return err
 	}
 
@@ -287,11 +287,11 @@ func (c *Config) resolveTLSPaths() {
 	}
 }
 
-// EnabledAuthorizationControllerNames returns the list of enabled authorization controller names.
+// EnabledMatchControllerNames returns the list of enabled match controller names.
 // This is used by the policy parser to validate that all referenced controllers exist.
-func (c *Config) EnabledAuthorizationControllerNames() []string {
-	names := make([]string, 0, len(c.AuthorizationControllers))
-	for _, ctrl := range c.AuthorizationControllers {
+func (c *Config) EnabledMatchControllerNames() []string {
+	names := make([]string, 0, len(c.MatchControllers))
+	for _, ctrl := range c.MatchControllers {
 		if ctrl.Name != "" && ctrl.IsEnabled() {
 			names = append(names, ctrl.Name)
 		}

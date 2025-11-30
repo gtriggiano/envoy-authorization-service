@@ -20,7 +20,7 @@ analysisControllers:
     settings:
       databasePath: /maxmind/GeoLite2-City.mmdb
 
-authorizationControllers:
+matchControllers:
   - name: trusted-partners
     type: ip-match
     settings:

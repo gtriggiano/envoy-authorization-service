@@ -25,10 +25,10 @@ import (
 	_ "github.com/gtriggiano/envoy-authorization-service/pkg/analysis/maxmind_geoip"
 	_ "github.com/gtriggiano/envoy-authorization-service/pkg/analysis/ua_detect"
 
-	// Register authorization controllers
-	_ "github.com/gtriggiano/envoy-authorization-service/pkg/authorization/asn_match"
-	_ "github.com/gtriggiano/envoy-authorization-service/pkg/authorization/ip_match"
-	_ "github.com/gtriggiano/envoy-authorization-service/pkg/authorization/ip_match_database"
+	// Register match controllers
+	_ "github.com/gtriggiano/envoy-authorization-service/pkg/match/asn_match"
+	_ "github.com/gtriggiano/envoy-authorization-service/pkg/match/ip_match"
+	_ "github.com/gtriggiano/envoy-authorization-service/pkg/match/ip_match_database"
 )
 
 var (
@@ -71,26 +71,26 @@ var startCmd = &cobra.Command{
 			return err
 		}
 
-		authorizationControllers, err := controller.BuildAuthorizationControllers(runCtx, baseLogger.With(zap.String("component", "authorization-controller")), cfg.AuthorizationControllers)
+		matchControllers, err := controller.BuildMatchControllers(runCtx, baseLogger.With(zap.String("component", "match-controller")), cfg.MatchControllers)
 		if err != nil {
-			logger.Error("could not build authorization controllers", zap.Error(err))
+			logger.Error("could not build match controllers", zap.Error(err))
 			return err
 		}
 
-		authorizationPolicy, err := policy.Parse(cfg.AuthorizationPolicy, cfg.EnabledAuthorizationControllerNames())
+		authorizationPolicy, err := policy.Parse(cfg.AuthorizationPolicy, cfg.EnabledMatchControllerNames())
 		if err != nil {
 			logger.Error("could not parse authorization policy", zap.Error(err))
 			return err
 		}
 
-		metricsServer := metrics.NewServer(cfg.Metrics, baseLogger.With(zap.String("component", "metrics-server")), analysisControllers, authorizationControllers)
+		metricsServer := metrics.NewServer(cfg.Metrics, baseLogger.With(zap.String("component", "metrics-server")), analysisControllers, matchControllers)
 		metricsServer.SetReady(false)
 
 		serviceServer, err := service.NewServer(
 			cfg.Server,
 			service.NewManager(
 				analysisControllers,
-				authorizationControllers,
+				matchControllers,
 				metricsServer.Instrumentation(),
 				authorizationPolicy,
 				cfg.AuthorizationPolicyBypass,

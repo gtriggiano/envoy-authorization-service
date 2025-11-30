@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	authv3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -105,7 +103,7 @@ func buildManager(t *testing.T, ctx context.Context, logger *zap.Logger, authCfg
 	analysisControllers, err := controller.BuildAnalysisControllers(ctx, logger.Named("analysis"), analysisCfgs)
 	requireNoErr(t, err)
 
-	authControllers, err := controller.BuildAuthorizationControllers(ctx, logger.Named("auth"), []config.ControllerConfig{authCfg})
+	authControllers, err := controller.BuildMatchControllers(ctx, logger.Named("auth"), []config.ControllerConfig{authCfg})
 	requireNoErr(t, err)
 
 	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
@@ -121,22 +119,6 @@ func runCheck(t *testing.T, mgr *service.Manager, ip string) bool {
 	resp, err := mgr.Check(context.Background(), req)
 	requireNoErr(t, err)
 	return resp.GetStatus().GetCode() == int32(codes.OK)
-}
-
-func minimalCheckRequest(ip string) *authv3.CheckRequest {
-	return &authv3.CheckRequest{
-		Attributes: &authv3.AttributeContext{
-			Source: &authv3.AttributeContext_Peer{
-				Address: &corev3.Address{
-					Address: &corev3.Address_SocketAddress{
-						SocketAddress: &corev3.SocketAddress{
-							Address: ip,
-						},
-					},
-				},
-			},
-		},
-	}
 }
 
 func writeASNList(t *testing.T, lines []string) string {
