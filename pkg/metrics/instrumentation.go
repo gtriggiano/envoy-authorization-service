@@ -26,18 +26,19 @@ const (
 
 // Instrumentation publishes Prometheus metrics for the authorization flow.
 type Instrumentation struct {
-	requestTotals      *prometheus.CounterVec
-	requestDuration    *prometheus.HistogramVec
-	controllerDuration *prometheus.HistogramVec
-	controllerRequests *prometheus.CounterVec
-	inFlight           *prometheus.GaugeVec
-	matchVerdicts      *prometheus.CounterVec
-	matchDbRequests    *prometheus.CounterVec
-	matchDbQueries     *prometheus.CounterVec
-	matchDbQueryDur    *prometheus.HistogramVec
-	matchDbCacheReq    *prometheus.CounterVec
-	matchDbCacheSize   *prometheus.GaugeVec
-	matchDbUnavailable *prometheus.CounterVec
+	requestTotals        *prometheus.CounterVec
+	requestDuration      *prometheus.HistogramVec
+	controllerDuration   *prometheus.HistogramVec
+	controllerRequests   *prometheus.CounterVec
+	inFlight             *prometheus.GaugeVec
+	matchVerdicts        *prometheus.CounterVec
+	matchDbRequests      *prometheus.CounterVec
+	matchDbQueries       *prometheus.CounterVec
+	matchDbQueryDur      *prometheus.HistogramVec
+	matchDbCacheReq      *prometheus.CounterVec
+	matchDbCacheSize     *prometheus.GaugeVec
+	matchDbUnavailable   *prometheus.CounterVec
+	geofenceMatchTotals  *prometheus.CounterVec
 }
 
 // NewInstrumentation registers all metric vectors.
@@ -112,6 +113,11 @@ func NewInstrumentation(reg prometheus.Registerer) *Instrumentation {
 			Name:      "unavailable_total",
 			Help:      "Database unavailability events for match controllers",
 		}, []string{"authority", "controller_name", "controller_kind", "db_type"}),
+		geofenceMatchTotals: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: "envoy_authz",
+			Name:      "geofence_match_totals",
+			Help:      "Geofence match controller feature matches",
+		}, []string{"authority", "controller_name", "feature"}),
 	}
 
 	reg.MustRegister(
@@ -127,6 +133,7 @@ func NewInstrumentation(reg prometheus.Registerer) *Instrumentation {
 		inst.matchDbCacheReq,
 		inst.matchDbCacheSize,
 		inst.matchDbUnavailable,
+		inst.geofenceMatchTotals,
 	)
 	return inst
 }
@@ -270,4 +277,12 @@ func (i *Instrumentation) ObserveMatchDatabaseUnavailable(authority, controllerN
 		return
 	}
 	i.matchDbUnavailable.WithLabelValues(authority, controllerName, controllerKind, dbType).Inc()
+}
+
+// ObserveGeofenceMatch records a geofence feature match.
+func (i *Instrumentation) ObserveGeofenceMatch(authority, controllerName, feature string) {
+	if i == nil {
+		return
+	}
+	i.geofenceMatchTotals.WithLabelValues(authority, controllerName, feature).Inc()
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/gtriggiano/envoy-authorization-service/pkg/analysis/maxmind_geoip"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/controller"
+	"github.com/gtriggiano/envoy-authorization-service/pkg/metrics"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/runtime"
 )
 
@@ -43,16 +44,27 @@ type geoFeature struct {
 }
 
 type geofenceMatchController struct {
-	name     string
-	features []geoFeature
-	cache    map[string][]string // coordinates -> matched feature names
-	cacheMu  sync.RWMutex
-	logger   *zap.Logger
+	name            string
+	features        []geoFeature
+	cache           map[string][]string // coordinates -> matched feature names
+	cacheMu         sync.RWMutex
+	instrumentation *metrics.Instrumentation
+	logger          *zap.Logger
+}
+
+// SetInstrumentation injects the shared metrics instrumentation.
+func (c *geofenceMatchController) SetInstrumentation(inst *metrics.Instrumentation) {
+	c.instrumentation = inst
 }
 
 // Match implements controller.MatchController.
 func (c *geofenceMatchController) Match(ctx context.Context, req *runtime.RequestContext, reports controller.AnalysisReports) (*controller.MatchVerdict, error) {
 	isMatch, description, matchedFeatures := c.deriveMatch(reports)
+
+	// Emit metrics for each matched feature
+	for _, feature := range matchedFeatures {
+		c.instrumentation.ObserveGeofenceMatch(req.Authority, c.name, feature)
+	}
 
 	allowUpstreamHeaders := map[string]string{
 		fmt.Sprintf("X-Geofence-%s", c.name): fmt.Sprintf("%t", isMatch),
