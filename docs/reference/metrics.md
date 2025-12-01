@@ -76,6 +76,15 @@ Final verdicts produced by each match controller.
 | `controller_kind` | `ip-match-database` | Controller type |
 | `verdict` | `MATCH` | Possible values: `MATCH`, `NO_MATCH` |
 
+### `envoy_authz_geofence_match_totals` `Counter`
+Feature matches detected by the configured `geofence-match` controllers.
+
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `authority` | `api.service.com` | HTTP host/:authority value (or `-`) |
+| `controller_name` | `main-markets` | Controller instance name |
+| `feature` | `us-east-coast` | Name of the matched GeoJSON feature |
+
 ## Match Database Metrics
 
 Metrics for `*-match-database` controllers are unified under the `envoy_authz_match_database_*` subsystem.
