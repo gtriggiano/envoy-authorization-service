@@ -2,35 +2,10 @@
 
 Practical configuration examples for common authorization scenarios.
 
-## [IP Match](/examples/ip-match)
-Learn how to configure IP-based access control with allowlists and denylists.
+## SaaS Product Scenarios
 
-**Use cases**:
-- Corporate network access
-- Partner IP whitelisting
-- Threat mitigation
-
-## [IP Match - Redis](/examples/ip-match-redis)
-Dynamic IP control using Redis or PostgreSQL.
-
-**Use cases**:
-- Scraper detection
-- Dynamic partner management
-- Behavioral analysis integration
-
-
-## [ASN Match](/examples/asn-match)
-Control access based on Autonomous System Numbers.
-
-**Use cases**:
-- Allow only cloud providers
-- Block hosting networks
-- Geographic network restrictions
-
-## [Combined Policies](/examples/combined-policy)
-Complex policies combining multiple authorization methods.
-
-**Use cases**:
-- Layered security
-- Multiple allowlist sources
-- Allowlist with denylist overrides
+- [SaaS Admin Console with Live IP Allowlists](/examples/saas-admin-live-ip-allowlist) — customer-managed allowlists in Postgres plus SOC blocklists and rich UA/ASN analytics.
+- [Regional Compliance with Geofences and ISP Guardrails](/examples/regional-compliance-geofence-asn) — keep traffic inside approved regions and residential ISPs.
+- [Bot-Resistant Signup & Trial Forms](/examples/signup-bot-shield) — block hosting ASNs and dynamic abuse feeds while preserving funnel analytics.
+- [Zero-Trust Partner Webhooks](/examples/partner-webhooks-zero-trust) — layered CIDR/ASN checks with live partner updates and incident kill switches.
+- [Geofenced Store Tablets & Kiosks](/examples/store-tablet-geo-ua) — restrict devices to store locations, Wi‑Fi ranges, and tablet UAs with fast revocation.

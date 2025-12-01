@@ -105,13 +105,26 @@ const defaultConfiguration = defineConfig({
           text: "Examples",
           items: [
             { text: "Overview", link: "/examples/" },
-            { text: "IP Match", link: "/examples/ip-match" },
             {
-              text: "IP Match - Redis",
-              link: "/examples/ip-match-redis",
+              text: "Zero-Trust Partner Webhooks",
+              link: "/examples/partner-webhooks-zero-trust",
             },
-            { text: "ASN Match", link: "/examples/asn-match" },
-            { text: "Combined Policies", link: "/examples/combined-policy" },
+            {
+              text: "Regional Compliance with Geofences and ISP Guardrails",
+              link: "/examples/regional-compliance-geofence-asn",
+            },
+            {
+              text: "SaaS Admin Console with Live IP Allowlists",
+              link: "/examples/saas-admin-live-ip-allowlist",
+            },
+            {
+              text: "Bot-Resistant Signup & Trial Forms",
+              link: "/examples/signup-bot-shield",
+            },
+            {
+              text: "Geofenced Store Tablets & Kiosks",
+              link: "/examples/store-tablet-geo-ua",
+            }
           ],
         },
         {
