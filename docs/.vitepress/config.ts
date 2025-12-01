@@ -87,6 +87,10 @@ const defaultConfiguration = defineConfig({
               text: "ASN Match Database",
               link: "/match-controllers/asn-match-database",
             },
+            {
+              text: "Geofence Match",
+              link: "/match-controllers/geofence-match",
+            },
           ],
         },
         {

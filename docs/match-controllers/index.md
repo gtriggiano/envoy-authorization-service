@@ -7,6 +7,7 @@ Match controllers run during the **match phase**, after analysis completes. They
 - [IP Match Database](/match-controllers/ip-match-database)
 - [ASN Match](/match-controllers/asn-match)
 - [ASN Match Database](/match-controllers/asn-match-database)
+- [Geofence Match](/match-controllers/geofence-match)
 
 ## Combining Controllers
 
