@@ -198,7 +198,9 @@ func newGeofenceMatchController(_ context.Context, logger *zap.Logger, cfg confi
 }
 
 // parseAndValidateGeoJSON parses a GeoJSON FeatureCollection and extracts polygons.
-// Each Feature must have a Polygon or MultiPolygon geometry and a "name" property.
+// Each Feature must have:
+//   - A "name" property (string) for identification
+//   - A geometry of type Polygon or MultiPolygon with valid GPS coordinates
 func parseAndValidateGeoJSON(content []byte) ([]namedPolygon, error) {
 	fc, err := geojson.UnmarshalFeatureCollection(content)
 	if err != nil {
@@ -277,10 +279,7 @@ func extractPolygons(feature *geojson.Feature, name string) ([]namedPolygon, err
 
 	case orb.MultiPolygon:
 		for i, poly := range geom {
-			polyName := name
-			if len(geom) > 1 {
-				polyName = fmt.Sprintf("%s-%d", name, i)
-			}
+			polyName := fmt.Sprintf("%s-%d", name, i)
 			if err := validatePolygon(polyName, poly); err != nil {
 				return nil, err
 			}
