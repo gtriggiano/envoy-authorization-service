@@ -41,22 +41,22 @@ func (m *mockMatchController) Match(ctx context.Context, req *runtime.RequestCon
 }
 func (m *mockMatchController) HealthCheck(ctx context.Context) error { return m.healthErr }
 
-func TestRegisterAnalysisContollerFactory(t *testing.T) {
+func TestRegisterAnalysisControllerFactory(t *testing.T) {
 	// Reset registry for test isolation
-	oldReg := analysisContollersRegistry
+	oldReg := analysisControllersRegistry
 	t.Cleanup(func() {
-		analysisContollersRegistry = oldReg
+		analysisControllersRegistry = oldReg
 	})
-	analysisContollersRegistry = newRegistry[AnalysisContollerFactory]()
+	analysisControllersRegistry = newRegistry[AnalysisControllerFactory]()
 
 	factory := func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (AnalysisController, error) {
 		return &mockAnalysisController{name: cfg.Name, kind: "test"}, nil
 	}
 
 	t.Run("successful registration", func(t *testing.T) {
-		RegisterAnalysisContollerFactory("test-type", factory)
+		RegisterAnalysisControllerFactory("test-type", factory)
 
-		f, ok := getFactory(analysisContollersRegistry, "test-type")
+		f, ok := getFactory(analysisControllersRegistry, "test-type")
 		if !ok {
 			t.Error("factory not found after registration")
 		}
@@ -71,7 +71,7 @@ func TestRegisterAnalysisContollerFactory(t *testing.T) {
 				t.Error("expected panic on duplicate registration")
 			}
 		}()
-		RegisterAnalysisContollerFactory("test-type", factory)
+		RegisterAnalysisControllerFactory("test-type", factory)
 	})
 
 	t.Run("panic on empty kind", func(t *testing.T) {
@@ -80,26 +80,26 @@ func TestRegisterAnalysisContollerFactory(t *testing.T) {
 				t.Error("expected panic on empty kind")
 			}
 		}()
-		RegisterAnalysisContollerFactory("", factory)
+		RegisterAnalysisControllerFactory("", factory)
 	})
 }
 
-func TestRegisterMatchContollerFactory(t *testing.T) {
+func TestRegisterMatchControllerFactory(t *testing.T) {
 	// Reset registry for test isolation
-	oldReg := matchContollersRegistry
+	oldReg := matchControllersRegistry
 	t.Cleanup(func() {
-		matchContollersRegistry = oldReg
+		matchControllersRegistry = oldReg
 	})
-	matchContollersRegistry = newRegistry[MatchContollerFactory]()
+	matchControllersRegistry = newRegistry[MatchControllerFactory]()
 
 	factory := func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (MatchController, error) {
 		return &mockMatchController{name: cfg.Name, kind: "test"}, nil
 	}
 
 	t.Run("successful registration", func(t *testing.T) {
-		RegisterMatchContollerFactory("test-type", factory)
+		RegisterMatchControllerFactory("test-type", factory)
 
-		f, ok := getFactory(matchContollersRegistry, "test-type")
+		f, ok := getFactory(matchControllersRegistry, "test-type")
 		if !ok {
 			t.Error("factory not found after registration")
 		}
@@ -114,22 +114,22 @@ func TestRegisterMatchContollerFactory(t *testing.T) {
 				t.Error("expected panic on duplicate registration")
 			}
 		}()
-		RegisterMatchContollerFactory("test-type", factory)
+		RegisterMatchControllerFactory("test-type", factory)
 	})
 }
 
 func TestBuildAnalysisControllers(t *testing.T) {
 	// Reset registry for test isolation
-	oldReg := analysisContollersRegistry
+	oldReg := analysisControllersRegistry
 	t.Cleanup(func() {
-		analysisContollersRegistry = oldReg
+		analysisControllersRegistry = oldReg
 	})
-	analysisContollersRegistry = newRegistry[AnalysisContollerFactory]()
+	analysisControllersRegistry = newRegistry[AnalysisControllerFactory]()
 
 	factory := func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (AnalysisController, error) {
 		return &mockAnalysisController{name: cfg.Name, kind: cfg.Type}, nil
 	}
-	RegisterAnalysisContollerFactory("mock-type", factory)
+	RegisterAnalysisControllerFactory("mock-type", factory)
 
 	logger, _ := zap.NewDevelopment()
 	ctx := context.Background()
@@ -182,16 +182,16 @@ func TestBuildAnalysisControllers(t *testing.T) {
 
 func TestBuildMatchControllers(t *testing.T) {
 	// Reset registry for test isolation
-	oldReg := matchContollersRegistry
+	oldReg := matchControllersRegistry
 	t.Cleanup(func() {
-		matchContollersRegistry = oldReg
+		matchControllersRegistry = oldReg
 	})
-	matchContollersRegistry = newRegistry[MatchContollerFactory]()
+	matchControllersRegistry = newRegistry[MatchControllerFactory]()
 
 	factory := func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (MatchController, error) {
 		return &mockMatchController{name: cfg.Name, kind: cfg.Type}, nil
 	}
-	RegisterMatchContollerFactory("mock-type", factory)
+	RegisterMatchControllerFactory("mock-type", factory)
 
 	logger, _ := zap.NewDevelopment()
 	ctx := context.Background()

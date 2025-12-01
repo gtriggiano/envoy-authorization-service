@@ -54,11 +54,11 @@ type MatchController interface {
 	HealthCheck(ctx context.Context) error
 }
 
-// AnalysisContollerFactory builds an analysis controller instance from configuration.
-type AnalysisContollerFactory func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (AnalysisController, error)
+// AnalysisControllerFactory builds an analysis controller instance from configuration.
+type AnalysisControllerFactory func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (AnalysisController, error)
 
-// MatchContollerFactory builds a match controller from configuration.
-type MatchContollerFactory func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (MatchController, error)
+// MatchControllerFactory builds a match controller from configuration.
+type MatchControllerFactory func(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (MatchController, error)
 
 type registry[T any] struct {
 	mu        sync.RWMutex
@@ -66,8 +66,8 @@ type registry[T any] struct {
 }
 
 var (
-	analysisContollersRegistry = newRegistry[AnalysisContollerFactory]()
-	matchContollersRegistry    = newRegistry[MatchContollerFactory]()
+	analysisControllersRegistry = newRegistry[AnalysisControllerFactory]()
+	matchControllersRegistry    = newRegistry[MatchControllerFactory]()
 )
 
 // newRegistry initializes a typed controller factory registry.
@@ -75,16 +75,16 @@ func newRegistry[T any]() *registry[T] {
 	return &registry[T]{factories: make(map[string]T)}
 }
 
-// RegisterAnalysisContollerFactory associates an analysis controller type with a factory.
-func RegisterAnalysisContollerFactory(kind string, factory AnalysisContollerFactory) {
-	if err := register(analysisContollersRegistry, kind, factory); err != nil {
+// RegisterAnalysisControllerFactory associates an analysis controller type with a factory.
+func RegisterAnalysisControllerFactory(kind string, factory AnalysisControllerFactory) {
+	if err := register(analysisControllersRegistry, kind, factory); err != nil {
 		panic(err)
 	}
 }
 
-// RegisterMatchContollerFactory associates a match controller type with a factory.
-func RegisterMatchContollerFactory(kind string, factory MatchContollerFactory) {
-	if err := register(matchContollersRegistry, kind, factory); err != nil {
+// RegisterMatchControllerFactory associates a match controller type with a factory.
+func RegisterMatchControllerFactory(kind string, factory MatchControllerFactory) {
+	if err := register(matchControllersRegistry, kind, factory); err != nil {
 		panic(err)
 	}
 }
@@ -119,7 +119,7 @@ func BuildAnalysisControllers(ctx context.Context, logger *zap.Logger, configura
 			continue
 		}
 
-		factory, ok := getFactory(analysisContollersRegistry, configuration.Type)
+		factory, ok := getFactory(analysisControllersRegistry, configuration.Type)
 		if !ok {
 			return nil, fmt.Errorf("analysis controller '%s' is of unknown type '%s'", configuration.Name, configuration.Type)
 		}
@@ -141,7 +141,7 @@ func BuildMatchControllers(ctx context.Context, logger *zap.Logger, configuratio
 			continue
 		}
 
-		factory, ok := getFactory(matchContollersRegistry, configuration.Type)
+		factory, ok := getFactory(matchControllersRegistry, configuration.Type)
 		if !ok {
 			return nil, fmt.Errorf("match controller '%s' is of unknown type '%s'", configuration.Name, configuration.Type)
 		}

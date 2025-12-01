@@ -21,7 +21,7 @@ const (
 
 // init registers the MaxMind GeoIP analysis controller factory.
 func init() {
-	controller.RegisterAnalysisContollerFactory(ControllerKind, newMaxMindCityAnalysisController)
+	controller.RegisterAnalysisControllerFactory(ControllerKind, newMaxMindCityAnalysisController)
 }
 
 type MaxMindCityAnalysisConfig struct {

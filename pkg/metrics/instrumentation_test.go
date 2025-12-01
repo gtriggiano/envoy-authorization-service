@@ -44,7 +44,7 @@ func TestObservePhaseAndInFlight(t *testing.T) {
 	if c := testutil.CollectAndCount(inst.controllerDuration); c != 2 {
 		t.Fatalf("expected controllerTiming to have two label sets, got %d", c)
 	}
-	if v := testutil.ToFloat64(inst.controllerRequests.WithLabelValues("allow.example", "c1", "kind", ANALISYS, OK)); v != 1 {
+	if v := testutil.ToFloat64(inst.controllerRequests.WithLabelValues("allow.example", "c1", "kind", ANALYSIS, OK)); v != 1 {
 		t.Fatalf("expected analysis OK count, got %v", v)
 	}
 	if v := testutil.ToFloat64(inst.controllerRequests.WithLabelValues("allow.example", "c1", "kind", MATCH, ERROR)); v != 1 {

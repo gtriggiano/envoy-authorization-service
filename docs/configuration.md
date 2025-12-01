@@ -21,7 +21,7 @@ The Envoy Authorization Service is configured with a single YAML file that wires
 
 ::: tip Paths resolution
 
-All file paths in configuration file can be espressed as:
+All file paths in configuration file can be expressed as:
 - **Absolute**: `/etc/auth-service/config.yaml`
 - **Relative**: `config/database.mmdb` (is resolved from the current working directory)
 
