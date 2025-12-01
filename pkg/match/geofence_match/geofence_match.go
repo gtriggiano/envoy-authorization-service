@@ -336,3 +336,50 @@ func validateGPSCoordinate(name string, ringIndex, pointIndex int, lon, lat floa
 
 	return nil
 }
+
+// ValidateGeoJSONFile reads and validates a GeoJSON file, returning the number of polygons found.
+// This is used by the CLI validate-geojson command.
+func ValidateGeoJSONFile(filePath string) (int, error) {
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return 0, fmt.Errorf("invalid file path: %w", err)
+	}
+
+	content, err := os.ReadFile(absPath)
+	if err != nil {
+		return 0, fmt.Errorf("could not read file: %w", err)
+	}
+
+	polygons, err := parseAndValidateGeoJSON(content)
+	if err != nil {
+		return 0, err
+	}
+
+	return len(polygons), nil
+}
+
+// GetPolygonNames reads a GeoJSON file and returns the names of all polygons.
+// This is used by the CLI validate-geojson command for detailed output.
+func GetPolygonNames(filePath string) ([]string, error) {
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("invalid file path: %w", err)
+	}
+
+	content, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not read file: %w", err)
+	}
+
+	polygons, err := parseAndValidateGeoJSON(content)
+	if err != nil {
+		return nil, err
+	}
+
+	names := make([]string, len(polygons))
+	for i, p := range polygons {
+		names[i] = p.name
+	}
+
+	return names, nil
+}
