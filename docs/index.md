@@ -18,39 +18,41 @@ hero:
 features:
   - icon: 🚀
     title: Production-Ready
-    details: Graceful shutdown, health endpoints, structured logging, and comprehensive Prometheus metrics out of the box.
-  
-  - icon: 🔌
-    title: Extensible Architecture
-    details: Plugin-based system for analysis and match controllers.
-  
+    details: Graceful shutdown, health endpoints, structured logging and sensible defaults.
+
+  - icon: ⚡
+    title: High Performance Pipeline
+    details: Concurrent controller execution with smart caching to keep latency low under load.
+
   - icon: 📜
     title: Authz Policy DSL
-    details: Compose authorization logic with ease. Express authorization requirements using validated boolean expressions that combine match controller verdicts.
-  
-  - icon: 🏷️
-    title: Header Injection
-    details: Dynamically add headers to upstream and downstream requests based on analysis and match results.
-  
+    details: Compose precise authorization rules with validated boolean expressions over controller verdicts.
+
   - icon: 📊
     title: Full Observability
-    details: Comprehensive Prometheus metrics, structured logs, health checks, for complete visibility.
-  
-  - icon: ⚡
-    title: High Performance
-    details: Concurrent controller execution and intelligent caching for minimal latency.
-  
-  - icon: 🛠️
-    title: Easy Configuration
-    details: YAML-based configuration with validation, sensible defaults, and clear error messages.
-  
-  - icon: 🌍
-    title: GeoIP & ASN Support
-    details: Built-in MaxMind integration for IP geolocation and ASN lookups.
-  
+    details: Prometheus metrics, structured logs, and health checks with per-controller timings and error tracking.
+
+  - icon: 🏷️
+    title: Header Injection
+    details: Inject analysis results into upstream and downstream headers to propagate trust signals safely.
+
+  - icon: 🧩
+    title: Configurable Controllers
+    details: Drop-in analysis and match controller plugins so you can ship custom analysis/match logic.
+
+  - icon: 🌐
+    title: IP & User-Agent Intelligence
+    details: Built-in MaxMind GeoIP/ASN enrichment and UA detection to add context before matching.
+
+  - icon: 🧭
+    title: Geofencing
+    details: Enforce geographic policies with GeoJSON polygon matching and region-aware rules.
+
   - icon: 🗄️
-    title: External datasources
-    details: Integrates Redis and PostgreSQL support for dynamic match based on behavioral analysis or threat intelligence.
+    title: External Data Sources
+    details: Redis and PostgreSQL integrations for dynamic IP/ASN lists and threat-intel driven decisions.
+
+  
 ---
 
 ## How it works?
