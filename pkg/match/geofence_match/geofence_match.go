@@ -9,10 +9,10 @@ import (
 	"sync"
 
 	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/geojson"
 	"github.com/paulmach/orb/planar"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
-	"gopkg.in/yaml.v3"
 
 	"github.com/gtriggiano/envoy-authorization-service/pkg/analysis/maxmind_geoip"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
@@ -33,17 +33,6 @@ func init() {
 // GeofenceMatchConfig holds the configuration for the geofence match controller.
 type GeofenceMatchConfig struct {
 	PolygonsFile string `yaml:"polygonsFile"`
-}
-
-// PolygonEntry represents a named polygon from the configuration file.
-type PolygonEntry struct {
-	Name    string      `yaml:"name"`
-	Polygon [][]float64 `yaml:"polygon"`
-}
-
-// PolygonsFileContent represents the structure of the polygons file.
-type PolygonsFileContent struct {
-	Polygons []PolygonEntry `yaml:"polygons"`
 }
 
 // namedPolygon holds a validated polygon with its name.
@@ -172,7 +161,7 @@ func formatMatchedPolygonNames(names []string) string {
 }
 
 // newGeofenceMatchController constructs a match controller from
-// configuration by loading and validating the polygons file.
+// configuration by loading and validating the GeoJSON polygons file.
 func newGeofenceMatchController(_ context.Context, logger *zap.Logger, cfg config.ControllerConfig) (controller.MatchController, error) {
 	var matchConfig GeofenceMatchConfig
 	if err := controller.DecodeControllerSettings(cfg.Settings, &matchConfig); err != nil {
@@ -193,12 +182,12 @@ func newGeofenceMatchController(_ context.Context, logger *zap.Logger, cfg confi
 		return nil, fmt.Errorf("could not read polygonsFile file: %w", err)
 	}
 
-	polygons, err := parseAndValidatePolygons(polygonsFileContent)
+	polygons, err := parseAndValidateGeoJSON(polygonsFileContent)
 	if err != nil {
-		return nil, fmt.Errorf("polygons validation failed: %w", err)
+		return nil, fmt.Errorf("GeoJSON validation failed: %w", err)
 	}
 
-	logger.Info("loaded geofence polygons", zap.Int("count", len(polygons)))
+	logger.Info("loaded geofence polygons from GeoJSON", zap.Int("count", len(polygons)))
 
 	return &geofenceMatchController{
 		name:     cfg.Name,
@@ -208,87 +197,142 @@ func newGeofenceMatchController(_ context.Context, logger *zap.Logger, cfg confi
 	}, nil
 }
 
-// parseAndValidatePolygons parses the YAML file and validates all polygons.
-func parseAndValidatePolygons(content []byte) ([]namedPolygon, error) {
-	var fileContent PolygonsFileContent
-	if err := yaml.Unmarshal(content, &fileContent); err != nil {
-		return nil, fmt.Errorf("failed to parse polygons file: %w", err)
+// parseAndValidateGeoJSON parses a GeoJSON FeatureCollection and extracts polygons.
+// Each Feature must have a Polygon or MultiPolygon geometry and a "name" property.
+func parseAndValidateGeoJSON(content []byte) ([]namedPolygon, error) {
+	fc, err := geojson.UnmarshalFeatureCollection(content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse GeoJSON: %w", err)
 	}
 
-	if len(fileContent.Polygons) == 0 {
-		return nil, fmt.Errorf("polygons file must contain at least one polygon")
+	if len(fc.Features) == 0 {
+		return nil, fmt.Errorf("GeoJSON FeatureCollection must contain at least one feature")
 	}
 
-	result := make([]namedPolygon, 0, len(fileContent.Polygons))
+	result := make([]namedPolygon, 0, len(fc.Features))
 	seenNames := make(map[string]bool)
 
-	for i, entry := range fileContent.Polygons {
-		if entry.Name == "" {
-			return nil, fmt.Errorf("polygon at index %d must have a name", i)
-		}
-
-		if seenNames[entry.Name] {
-			return nil, fmt.Errorf("duplicate polygon name: %s", entry.Name)
-		}
-		seenNames[entry.Name] = true
-
-		polygon, err := validatePolygon(entry.Name, entry.Polygon)
+	for i, feature := range fc.Features {
+		// Get the name from properties
+		name, err := getFeatureName(feature, i)
 		if err != nil {
 			return nil, err
 		}
 
-		result = append(result, namedPolygon{
-			name:    entry.Name,
-			polygon: polygon,
-		})
+		if seenNames[name] {
+			return nil, fmt.Errorf("duplicate feature name: %s", name)
+		}
+		seenNames[name] = true
+
+		// Extract polygons from the geometry
+		polygons, err := extractPolygons(feature, name)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, polygons...)
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no valid polygons found in GeoJSON")
 	}
 
 	return result, nil
 }
 
-// validatePolygon validates a polygon definition and returns an orb.Polygon.
-func validatePolygon(name string, coords [][]float64) (orb.Polygon, error) {
-	if len(coords) < 4 {
-		return nil, fmt.Errorf("polygon '%s' must have at least 4 points (including closing point)", name)
+// getFeatureName extracts the name property from a GeoJSON feature.
+func getFeatureName(feature *geojson.Feature, index int) (string, error) {
+	if feature.Properties == nil {
+		return "", fmt.Errorf("feature at index %d must have properties with a 'name' field", index)
 	}
 
-	ring := make(orb.Ring, len(coords))
+	nameVal, ok := feature.Properties["name"]
+	if !ok {
+		return "", fmt.Errorf("feature at index %d must have a 'name' property", index)
+	}
 
-	for i, coord := range coords {
-		if len(coord) != 2 {
-			return nil, fmt.Errorf("polygon '%s' point %d must have exactly 2 coordinates [longitude, latitude]", name, i)
-		}
+	name, ok := nameVal.(string)
+	if !ok || name == "" {
+		return "", fmt.Errorf("feature at index %d 'name' property must be a non-empty string", index)
+	}
 
-		lon := coord[0]
-		lat := coord[1]
+	return name, nil
+}
 
-		if err := validateGPSCoordinate(name, i, lon, lat); err != nil {
+// extractPolygons extracts orb.Polygon geometries from a GeoJSON feature.
+// Supports Polygon and MultiPolygon geometry types.
+func extractPolygons(feature *geojson.Feature, name string) ([]namedPolygon, error) {
+	if feature.Geometry == nil {
+		return nil, fmt.Errorf("feature '%s' has no geometry", name)
+	}
+
+	var result []namedPolygon
+
+	switch geom := feature.Geometry.(type) {
+	case orb.Polygon:
+		if err := validatePolygon(name, geom); err != nil {
 			return nil, err
 		}
+		result = append(result, namedPolygon{name: name, polygon: geom})
 
-		ring[i] = orb.Point{lon, lat}
+	case orb.MultiPolygon:
+		for i, poly := range geom {
+			polyName := name
+			if len(geom) > 1 {
+				polyName = fmt.Sprintf("%s-%d", name, i)
+			}
+			if err := validatePolygon(polyName, poly); err != nil {
+				return nil, err
+			}
+			result = append(result, namedPolygon{name: polyName, polygon: poly})
+		}
+
+	default:
+		return nil, fmt.Errorf("feature '%s' has unsupported geometry type: only Polygon and MultiPolygon are supported", name)
 	}
 
-	// Check if polygon is closed
-	first := coords[0]
-	last := coords[len(coords)-1]
-	if first[0] != last[0] || first[1] != last[1] {
-		return nil, fmt.Errorf("polygon '%s' must be closed (first and last points must be identical)", name)
+	return result, nil
+}
+
+// validatePolygon validates a polygon's coordinates are within valid GPS bounds.
+func validatePolygon(name string, polygon orb.Polygon) error {
+	if len(polygon) == 0 {
+		return fmt.Errorf("polygon '%s' has no rings", name)
 	}
 
-	return orb.Polygon{ring}, nil
+	for ringIdx, ring := range polygon {
+		if len(ring) < 4 {
+			return fmt.Errorf("polygon '%s' ring %d must have at least 4 points (including closing point)", name, ringIdx)
+		}
+
+		// Check if ring is closed
+		first := ring[0]
+		last := ring[len(ring)-1]
+		if first[0] != last[0] || first[1] != last[1] {
+			return fmt.Errorf("polygon '%s' ring %d must be closed (first and last points must be identical)", name, ringIdx)
+		}
+
+		// Validate coordinates
+		for pointIdx, point := range ring {
+			if err := validateGPSCoordinate(name, ringIdx, pointIdx, point[0], point[1]); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // validateGPSCoordinate checks if coordinates are valid GPS coordinates.
-func validateGPSCoordinate(name string, pointIndex int, lon, lat float64) error {
+func validateGPSCoordinate(name string, ringIndex, pointIndex int, lon, lat float64) error {
 	// Valid latitude range: -90 to 90
 	if lat < -90 || lat > 90 {
-		return fmt.Errorf("polygon '%s' point %d has invalid latitude %.6f (must be between -90 and 90)", name, pointIndex, lat)
+		return fmt.Errorf("polygon '%s' ring %d point %d has invalid latitude %.6f (must be between -90 and 90)", name, ringIndex, pointIndex, lat)
 	}
 
 	// Valid longitude range: -180 to 180
 	if lon < -180 || lon > 180 {
-		return fmt.Errorf("polygon '%s' point %d has invalid longitude %.6f (must be between -180 and 180)", name, pointIndex, lon)
+		return fmt.Errorf("polygon '%s' ring %d point %d has invalid longitude %.6f (must be between -180 and 180)", name, ringIndex, pointIndex, lon)
 	}
 
 	return nil

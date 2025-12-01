@@ -18,26 +18,32 @@ import (
 	"github.com/gtriggiano/envoy-authorization-service/pkg/runtime"
 )
 
-// Sample polygon covering a rectangular area around Rome, Italy
-const testPolygonsYAML = `polygons:
-  - name: rome-area
-    polygon:
-      - [12.4, 41.8]  # SW
-      - [12.6, 41.8]  # SE
-      - [12.6, 42.0]  # NE
-      - [12.4, 42.0]  # NW
-      - [12.4, 41.8]  # Close the polygon
-  - name: london-area
-    polygon:
-      - [-0.2, 51.4]  # SW
-      - [0.0, 51.4]   # SE
-      - [0.0, 51.6]   # NE
-      - [-0.2, 51.6]  # NW
-      - [-0.2, 51.4]  # Close the polygon
-`
+// Sample GeoJSON FeatureCollection with polygons around Rome and London
+// This format can be created using geojson.io or similar online tools
+const testPolygonsGeoJSON = `{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "rome-area" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[12.4, 41.8], [12.6, 41.8], [12.6, 42.0], [12.4, 42.0], [12.4, 41.8]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "london-area" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-0.2, 51.4], [0.0, 51.4], [0.0, 51.6], [-0.2, 51.6], [-0.2, 51.4]]]
+      }
+    }
+  ]
+}`
 
 func TestGeofenceMatchController_Match(t *testing.T) {
-	ctrl := createTestController(t, testPolygonsYAML)
+	ctrl := createTestController(t, testPolygonsGeoJSON)
 
 	tests := []struct {
 		name         string
@@ -85,7 +91,7 @@ func TestGeofenceMatchController_Match(t *testing.T) {
 }
 
 func TestGeofenceMatchController_NoGeoIPReport(t *testing.T) {
-	ctrl := createTestController(t, testPolygonsYAML)
+	ctrl := createTestController(t, testPolygonsGeoJSON)
 	req := runtime.NewRequestContext(minimalCheckRequest("198.51.100.1"))
 
 	verdict, err := ctrl.Match(context.Background(), req, nil)
@@ -101,7 +107,7 @@ func TestGeofenceMatchController_NoGeoIPReport(t *testing.T) {
 }
 
 func TestGeofenceMatchController_ZeroCoordinates(t *testing.T) {
-	ctrl := createTestController(t, testPolygonsYAML)
+	ctrl := createTestController(t, testPolygonsGeoJSON)
 	req := runtime.NewRequestContext(minimalCheckRequest("198.51.100.1"))
 
 	reports := controller.AnalysisReports{
@@ -129,7 +135,7 @@ func TestGeofenceMatchController_ZeroCoordinates(t *testing.T) {
 }
 
 func TestGeofenceMatchController_Cache(t *testing.T) {
-	ctrl := createTestController(t, testPolygonsYAML)
+	ctrl := createTestController(t, testPolygonsGeoJSON)
 	lat := 41.9
 	lon := 12.5
 
@@ -153,126 +159,154 @@ func TestGeofenceMatchController_Cache(t *testing.T) {
 }
 
 func TestValidatePolygon_NotClosed(t *testing.T) {
-	polygonYAML := `polygons:
-  - name: not-closed
-    polygon:
-      - [12.4, 41.8]
-      - [12.6, 41.8]
-      - [12.6, 42.0]
-      - [12.4, 42.0]
-`
-	_, err := createTestControllerWithError(t, polygonYAML)
+	geojson := `{
+		"type": "FeatureCollection",
+		"features": [{
+			"type": "Feature",
+			"properties": { "name": "not-closed" },
+			"geometry": {
+				"type": "Polygon",
+				"coordinates": [[[12.4, 41.8], [12.6, 41.8], [12.6, 42.0], [12.4, 42.0]]]
+			}
+		}]
+	}`
+	_, err := createTestControllerWithError(t, geojson)
 	if err == nil {
 		t.Fatal("expected error for non-closed polygon")
 	}
 }
 
 func TestValidatePolygon_TooFewPoints(t *testing.T) {
-	polygonYAML := `polygons:
-  - name: too-few
-    polygon:
-      - [12.4, 41.8]
-      - [12.6, 41.8]
-      - [12.4, 41.8]
-`
-	_, err := createTestControllerWithError(t, polygonYAML)
+	geojson := `{
+		"type": "FeatureCollection",
+		"features": [{
+			"type": "Feature",
+			"properties": { "name": "too-few" },
+			"geometry": {
+				"type": "Polygon",
+				"coordinates": [[[12.4, 41.8], [12.6, 41.8], [12.4, 41.8]]]
+			}
+		}]
+	}`
+	_, err := createTestControllerWithError(t, geojson)
 	if err == nil {
 		t.Fatal("expected error for polygon with too few points")
 	}
 }
 
 func TestValidatePolygon_InvalidLatitude(t *testing.T) {
-	polygonYAML := `polygons:
-  - name: invalid-lat
-    polygon:
-      - [12.4, 91.0]
-      - [12.6, 41.8]
-      - [12.6, 42.0]
-      - [12.4, 42.0]
-      - [12.4, 91.0]
-`
-	_, err := createTestControllerWithError(t, polygonYAML)
+	geojson := `{
+		"type": "FeatureCollection",
+		"features": [{
+			"type": "Feature",
+			"properties": { "name": "invalid-lat" },
+			"geometry": {
+				"type": "Polygon",
+				"coordinates": [[[12.4, 91.0], [12.6, 41.8], [12.6, 42.0], [12.4, 42.0], [12.4, 91.0]]]
+			}
+		}]
+	}`
+	_, err := createTestControllerWithError(t, geojson)
 	if err == nil {
 		t.Fatal("expected error for invalid latitude")
 	}
 }
 
 func TestValidatePolygon_InvalidLongitude(t *testing.T) {
-	polygonYAML := `polygons:
-  - name: invalid-lon
-    polygon:
-      - [181.0, 41.8]
-      - [12.6, 41.8]
-      - [12.6, 42.0]
-      - [12.4, 42.0]
-      - [181.0, 41.8]
-`
-	_, err := createTestControllerWithError(t, polygonYAML)
+	geojson := `{
+		"type": "FeatureCollection",
+		"features": [{
+			"type": "Feature",
+			"properties": { "name": "invalid-lon" },
+			"geometry": {
+				"type": "Polygon",
+				"coordinates": [[[181.0, 41.8], [12.6, 41.8], [12.6, 42.0], [12.4, 42.0], [181.0, 41.8]]]
+			}
+		}]
+	}`
+	_, err := createTestControllerWithError(t, geojson)
 	if err == nil {
 		t.Fatal("expected error for invalid longitude")
 	}
 }
 
 func TestValidatePolygon_DuplicateName(t *testing.T) {
-	polygonYAML := `polygons:
-  - name: same-name
-    polygon:
-      - [12.4, 41.8]
-      - [12.6, 41.8]
-      - [12.6, 42.0]
-      - [12.4, 42.0]
-      - [12.4, 41.8]
-  - name: same-name
-    polygon:
-      - [0.0, 0.0]
-      - [1.0, 0.0]
-      - [1.0, 1.0]
-      - [0.0, 1.0]
-      - [0.0, 0.0]
-`
-	_, err := createTestControllerWithError(t, polygonYAML)
+	geojson := `{
+		"type": "FeatureCollection",
+		"features": [
+			{
+				"type": "Feature",
+				"properties": { "name": "same-name" },
+				"geometry": {
+					"type": "Polygon",
+					"coordinates": [[[12.4, 41.8], [12.6, 41.8], [12.6, 42.0], [12.4, 42.0], [12.4, 41.8]]]
+				}
+			},
+			{
+				"type": "Feature",
+				"properties": { "name": "same-name" },
+				"geometry": {
+					"type": "Polygon",
+					"coordinates": [[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]]]
+				}
+			}
+		]
+	}`
+	_, err := createTestControllerWithError(t, geojson)
 	if err == nil {
 		t.Fatal("expected error for duplicate polygon name")
 	}
 }
 
 func TestValidatePolygon_MissingName(t *testing.T) {
-	polygonYAML := `polygons:
-  - name: ""
-    polygon:
-      - [12.4, 41.8]
-      - [12.6, 41.8]
-      - [12.6, 42.0]
-      - [12.4, 42.0]
-      - [12.4, 41.8]
-`
-	_, err := createTestControllerWithError(t, polygonYAML)
+	geojson := `{
+		"type": "FeatureCollection",
+		"features": [{
+			"type": "Feature",
+			"properties": {},
+			"geometry": {
+				"type": "Polygon",
+				"coordinates": [[[12.4, 41.8], [12.6, 41.8], [12.6, 42.0], [12.4, 42.0], [12.4, 41.8]]]
+			}
+		}]
+	}`
+	_, err := createTestControllerWithError(t, geojson)
 	if err == nil {
 		t.Fatal("expected error for missing polygon name")
 	}
 }
 
-func TestValidatePolygon_EmptyFile(t *testing.T) {
-	polygonYAML := `polygons: []`
-	_, err := createTestControllerWithError(t, polygonYAML)
+func TestValidatePolygon_EmptyFeatureCollection(t *testing.T) {
+	geojson := `{"type": "FeatureCollection", "features": []}`
+	_, err := createTestControllerWithError(t, geojson)
 	if err == nil {
-		t.Fatal("expected error for empty polygons")
+		t.Fatal("expected error for empty feature collection")
 	}
 }
 
-func TestValidatePolygon_InvalidCoordinateFormat(t *testing.T) {
-	polygonYAML := `polygons:
-  - name: wrong-format
-    polygon:
-      - [12.4]
-      - [12.6, 41.8]
-      - [12.6, 42.0]
-      - [12.4, 42.0]
-      - [12.4]
-`
-	_, err := createTestControllerWithError(t, polygonYAML)
+func TestValidatePolygon_InvalidGeoJSON(t *testing.T) {
+	geojson := `{"invalid": "json"}`
+	_, err := createTestControllerWithError(t, geojson)
 	if err == nil {
-		t.Fatal("expected error for invalid coordinate format")
+		t.Fatal("expected error for invalid GeoJSON")
+	}
+}
+
+func TestValidatePolygon_UnsupportedGeometry(t *testing.T) {
+	geojson := `{
+		"type": "FeatureCollection",
+		"features": [{
+			"type": "Feature",
+			"properties": { "name": "point-feature" },
+			"geometry": {
+				"type": "Point",
+				"coordinates": [12.5, 41.9]
+			}
+		}]
+	}`
+	_, err := createTestControllerWithError(t, geojson)
+	if err == nil {
+		t.Fatal("expected error for unsupported geometry type")
 	}
 }
 
@@ -306,23 +340,28 @@ func TestNewGeofenceMatchController_InvalidPath(t *testing.T) {
 
 func TestGeofenceMatchController_MultiplePolygonMatch(t *testing.T) {
 	// Create overlapping polygons
-	overlappingPolygonsYAML := `polygons:
-  - name: zone-a
-    polygon:
-      - [10.0, 40.0]
-      - [15.0, 40.0]
-      - [15.0, 45.0]
-      - [10.0, 45.0]
-      - [10.0, 40.0]
-  - name: zone-b
-    polygon:
-      - [12.0, 42.0]
-      - [17.0, 42.0]
-      - [17.0, 47.0]
-      - [12.0, 47.0]
-      - [12.0, 42.0]
-`
-	ctrl := createTestController(t, overlappingPolygonsYAML)
+	overlappingGeoJSON := `{
+		"type": "FeatureCollection",
+		"features": [
+			{
+				"type": "Feature",
+				"properties": { "name": "zone-a" },
+				"geometry": {
+					"type": "Polygon",
+					"coordinates": [[[10.0, 40.0], [15.0, 40.0], [15.0, 45.0], [10.0, 45.0], [10.0, 40.0]]]
+				}
+			},
+			{
+				"type": "Feature",
+				"properties": { "name": "zone-b" },
+				"geometry": {
+					"type": "Polygon",
+					"coordinates": [[[12.0, 42.0], [17.0, 42.0], [17.0, 47.0], [12.0, 47.0], [12.0, 42.0]]]
+				}
+			}
+		]
+	}`
+	ctrl := createTestController(t, overlappingGeoJSON)
 
 	// Point inside both zones
 	verdict := matchCoords(t, ctrl, 43.0, 13.0)
@@ -341,8 +380,45 @@ func TestGeofenceMatchController_MultiplePolygonMatch(t *testing.T) {
 	}
 }
 
+func TestGeofenceMatchController_MultiPolygon(t *testing.T) {
+	// Test MultiPolygon geometry support
+	multiPolygonGeoJSON := `{
+		"type": "FeatureCollection",
+		"features": [{
+			"type": "Feature",
+			"properties": { "name": "multi-zone" },
+			"geometry": {
+				"type": "MultiPolygon",
+				"coordinates": [
+					[[[10.0, 40.0], [12.0, 40.0], [12.0, 42.0], [10.0, 42.0], [10.0, 40.0]]],
+					[[[14.0, 40.0], [16.0, 40.0], [16.0, 42.0], [14.0, 42.0], [14.0, 40.0]]]
+				]
+			}
+		}]
+	}`
+	ctrl := createTestController(t, multiPolygonGeoJSON)
+
+	// Point inside first polygon of MultiPolygon
+	verdict := matchCoords(t, ctrl, 41.0, 11.0)
+	if !verdict.IsMatch {
+		t.Fatal("expected match in first polygon of MultiPolygon")
+	}
+
+	// Point inside second polygon of MultiPolygon
+	verdict = matchCoords(t, ctrl, 41.0, 15.0)
+	if !verdict.IsMatch {
+		t.Fatal("expected match in second polygon of MultiPolygon")
+	}
+
+	// Point outside both polygons
+	verdict = matchCoords(t, ctrl, 41.0, 13.0)
+	if verdict.IsMatch {
+		t.Fatal("expected no match between MultiPolygon parts")
+	}
+}
+
 func TestGeofenceMatchController_ControllerMetadata(t *testing.T) {
-	ctrl := createTestController(t, testPolygonsYAML)
+	ctrl := createTestController(t, testPolygonsGeoJSON)
 
 	if ctrl.Name() != "geofence-test" {
 		t.Fatalf("expected name 'geofence-test', got '%s'", ctrl.Name())
@@ -359,21 +435,21 @@ func TestGeofenceMatchController_ControllerMetadata(t *testing.T) {
 
 // helpers
 
-func createTestController(t *testing.T, polygonsYAML string) controller.MatchController {
+func createTestController(t *testing.T, geojsonContent string) controller.MatchController {
 	t.Helper()
-	ctrl, err := createTestControllerWithError(t, polygonsYAML)
+	ctrl, err := createTestControllerWithError(t, geojsonContent)
 	if err != nil {
 		t.Fatalf("failed to create controller: %v", err)
 	}
 	return ctrl
 }
 
-func createTestControllerWithError(t *testing.T, polygonsYAML string) (controller.MatchController, error) {
+func createTestControllerWithError(t *testing.T, geojsonContent string) (controller.MatchController, error) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	path := filepath.Join(tmpDir, "polygons.yaml")
-	if err := os.WriteFile(path, []byte(polygonsYAML), 0o644); err != nil {
-		t.Fatalf("failed to write polygons file: %v", err)
+	path := filepath.Join(tmpDir, "polygons.geojson")
+	if err := os.WriteFile(path, []byte(geojsonContent), 0o644); err != nil {
+		t.Fatalf("failed to write geojson file: %v", err)
 	}
 	cfg := config.ControllerConfig{
 		Name: "geofence-test",
