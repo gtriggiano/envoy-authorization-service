@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/paulmach/orb"
@@ -167,14 +168,7 @@ func (c *geofenceMatchController) findContainingPolygons(lat, lon float64) []str
 
 // formatMatchedPolygonNames joins polygon names with commas for the header.
 func formatMatchedPolygonNames(names []string) string {
-	result := ""
-	for i, name := range names {
-		if i > 0 {
-			result += ","
-		}
-		result += name
-	}
-	return result
+	return strings.Join(names, ",")
 }
 
 // newGeofenceMatchController constructs a match controller from

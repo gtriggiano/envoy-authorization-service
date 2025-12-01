@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -423,9 +424,10 @@ func minimalCheckRequest(ip string) *authv3.CheckRequest {
 }
 
 func containsAll(s string, items []string) bool {
+	parts := strings.Split(s, ",")
 	for _, item := range items {
 		found := false
-		for _, part := range splitComma(s) {
+		for _, part := range parts {
 			if part == item {
 				found = true
 				break
@@ -436,21 +438,4 @@ func containsAll(s string, items []string) bool {
 		}
 	}
 	return true
-}
-
-func splitComma(s string) []string {
-	var result []string
-	current := ""
-	for _, c := range s {
-		if c == ',' {
-			result = append(result, current)
-			current = ""
-		} else {
-			current += string(c)
-		}
-	}
-	if current != "" {
-		result = append(result, current)
-	}
-	return result
 }
