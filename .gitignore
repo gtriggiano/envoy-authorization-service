@@ -40,3 +40,4 @@ config/*.tar.gz
 docs/node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+envoy-authorization-service

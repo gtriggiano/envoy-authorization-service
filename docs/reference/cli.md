@@ -127,3 +127,52 @@ envoy-authorization-service synthesize-asn-list \
 15169
 16509
 ```
+
+## `validate-geojson`
+
+Validate a GeoJSON file for use with the geofence-match controller.
+
+### Usage
+
+```bash
+envoy-authorization-service validate-geojson [flags]
+```
+
+### Flags
+
+```
+--file string      Path to GeoJSON file to validate (required)
+```
+
+### Examples
+
+**Validate a GeoJSON file**:
+```bash
+envoy-authorization-service validate-geojson --file europe.geojson
+```
+
+**Output on success**:
+```
+✓ GeoJSON file is valid
+  Features found: 2
+    - europe-region
+    - us-east-coast
+```
+
+**Output on failure**:
+```
+Error: validation failed: polygon 'my-zone' ring 0 must be closed (first and last points must be identical)
+```
+
+### Validation Rules
+
+The command validates that:
+
+- The file is valid JSON and follows GeoJSON FeatureCollection format
+- Each feature has a `name` property (string)
+- Each feature has a `Polygon` or `MultiPolygon` geometry
+- All polygons are closed (first and last points match)
+- All coordinates are valid GPS coordinates:
+  - Latitude: -90 to 90
+  - Longitude: -180 to 180
+- Feature names are unique
