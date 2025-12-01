@@ -77,11 +77,6 @@ const defaultConfiguration = defineConfig({
           text: "Match Controllers",
           items: [
             { text: "Overview", link: "/match-controllers/" },
-            { text: "IP Match", link: "/match-controllers/ip-match" },
-            {
-              text: "IP Match Database",
-              link: "/match-controllers/ip-match-database",
-            },
             { text: "ASN Match", link: "/match-controllers/asn-match" },
             {
               text: "ASN Match Database",
@@ -90,6 +85,11 @@ const defaultConfiguration = defineConfig({
             {
               text: "Geofence Match",
               link: "/match-controllers/geofence-match",
+            },
+            { text: "IP Match", link: "/match-controllers/ip-match" },
+            {
+              text: "IP Match Database",
+              link: "/match-controllers/ip-match-database",
             },
           ],
         },

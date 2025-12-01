@@ -1,4 +1,4 @@
-# MaxMind ASN Lookup
+# MaxMind ASN
 
 The `maxmind-asn` analysis controller performs IP-to-ASN lookups to identify the Autonomous System Number and organization.
 

@@ -1,4 +1,4 @@
-# MaxMind GeoIP Lookup
+# MaxMind GeoIP
 
 The `maxmind-geoip` analysis controller performs IP-to-location lookups to identify geographic information.
 
