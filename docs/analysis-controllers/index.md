@@ -4,13 +4,13 @@ Analysis controllers run during the **first phase** of request processing to ext
 
 ## Available Controllers
 
-### [MaxMind ASN Lookup](/analysis-controllers/maxmind-asn)
+### [MaxMind ASN](/analysis-controllers/maxmind-asn)
 Performs IP-to-ASN lookups using MaxMind GeoLite2 or GeoIP2 databases. Identifies the Autonomous System Number and organization name for the client IP. Essential for ASN-based match controllers.
 
-### [MaxMind GeoIP Lookup](/analysis-controllers/maxmind-geoip)
+### [MaxMind GeoIP](/analysis-controllers/maxmind-geoip)
 Performs IP-to-location lookups using MaxMind GeoLite2 or GeoIP2 City databases. Extracts geographic data including country, city, coordinates, timezone, and more. Required for geofence-based authorization.
 
-### [User-Agent Detection](/analysis-controllers/ua-detect)
+### [User-Agent Detect](/analysis-controllers/ua-detect)
 Parses HTTP User-Agent headers to identify browser, operating system, device type, and bot detection. Useful for device-specific policies or bot filtering strategies.
 
 ## Complete Analysis Setup
