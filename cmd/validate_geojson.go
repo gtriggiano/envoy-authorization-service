@@ -40,13 +40,13 @@ The command checks that:
 			return fmt.Errorf("could not stat file %s: %w", geojsonFile, err)
 		}
 
-		names, err := geofence_match.GetPolygonNames(geojsonFile)
+		names, err := geofence_match.GetFeatureNames(geojsonFile)
 		if err != nil {
 			return fmt.Errorf("validation failed: %w", err)
 		}
 
 		fmt.Printf("✓ GeoJSON file is valid\n")
-		fmt.Printf("  Polygons found: %d\n", len(names))
+		fmt.Printf("  Features found: %d\n", len(names))
 		for _, name := range names {
 			fmt.Printf("    - %s\n", name)
 		}

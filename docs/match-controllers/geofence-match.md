@@ -18,10 +18,10 @@ analysisControllers:
 
 ```yaml
 matchControllers:
-  - name: allowed-regions
+  - name: europe
     type: geofence-match
     settings:
-      polygonsFile: config/allowed-regions.geojson
+      polygonsFile: config/europe.geojson
 ```
 
 ## Settings
@@ -91,19 +91,18 @@ The controller validates that:
 ## Upstream Headers
 
 When a request is processed, the controller adds headers to upstream requests:
-- `X-Geofence-{controller-name}`: `true` or `false` indicating if the location matched any polygon
-- `X-Geofence-{controller-name}-Polygons`: Comma-separated list of matched polygon names (only when matched)
+- `X-Geofence-{controller-name}`: `true` or `false` indicating if the location matched any feature
+- `X-Geofence-{controller-name}-Features`: Comma-separated list of matched feature names in ascending order (only when matched)
 
 ## Policy Patterns
 
-- Allow only from specific regions: `authorizationPolicy: "allowed-regions"`
+- Allow only from specific regions: `authorizationPolicy: "europe"`
 - Block specific regions: `authorizationPolicy: "!blocked-regions"`
-- Combine with other controllers: `authorizationPolicy: "allowed-regions && !blocked-asn"`
-- Require region AND IP allowlist: `authorizationPolicy: "allowed-regions && corporate-network"`
+- Combine with other controllers: `authorizationPolicy: "europe && !blocked-asn"`
+- Require region AND IP allowlist: `authorizationPolicy: "europe && corporate-network"`
 
 ## Use Cases
 
 - **Geographic restrictions**: Restrict access to users from specific countries or regions
 - **Compliance**: Enforce data residency requirements
 - **Fraud prevention**: Block or flag requests from unexpected locations
-- **Regional routing**: Route requests based on geographic location

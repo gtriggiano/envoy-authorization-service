@@ -369,14 +369,14 @@ func TestGeofenceMatchController_MultiplePolygonMatch(t *testing.T) {
 		t.Fatal("expected match")
 	}
 
-	// Check that both polygon names are in the header
-	polygonsHeader := verdict.AllowUpstreamHeaders["X-Geofence-"+ctrl.Name()+"-Polygons"]
-	if polygonsHeader == "" {
-		t.Fatal("expected polygons header to be set")
+	// Check that both feature names are in the header
+	featuresHeader := verdict.AllowUpstreamHeaders["X-Geofence-"+ctrl.Name()+"-Features"]
+	if featuresHeader == "" {
+		t.Fatal("expected features header to be set")
 	}
-	// Both zone-a and zone-b should be present
-	if !containsAll(polygonsHeader, []string{"zone-a", "zone-b"}) {
-		t.Fatalf("expected both zone-a and zone-b in header, got: %s", polygonsHeader)
+	// Both zone-a and zone-b should be present (sorted alphabetically)
+	if !containsAll(featuresHeader, []string{"zone-a", "zone-b"}) {
+		t.Fatalf("expected both zone-a and zone-b in header, got: %s", featuresHeader)
 	}
 }
 

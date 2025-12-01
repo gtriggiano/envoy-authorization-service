@@ -148,13 +148,13 @@ envoy-authorization-service validate-geojson [flags]
 
 **Validate a GeoJSON file**:
 ```bash
-envoy-authorization-service validate-geojson --file allowed-regions.geojson
+envoy-authorization-service validate-geojson --file europe.geojson
 ```
 
 **Output on success**:
 ```
 ✓ GeoJSON file is valid
-  Polygons found: 2
+  Features found: 2
     - europe-region
     - us-east-coast
 ```

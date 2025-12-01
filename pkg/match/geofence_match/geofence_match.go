@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -35,30 +36,30 @@ type GeofenceMatchConfig struct {
 	PolygonsFile string `yaml:"polygonsFile"`
 }
 
-// namedPolygon holds a validated polygon with its name.
-type namedPolygon struct {
-	name    string
-	polygon orb.Polygon
+// geoFeature holds a validated feature with its name and associated polygons.
+type geoFeature struct {
+	name     string
+	polygons []orb.Polygon
 }
 
 type geofenceMatchController struct {
 	name     string
-	polygons []namedPolygon
-	cache    map[string][]string // IP -> matched polygon names
+	features []geoFeature
+	cache    map[string][]string // coordinates -> matched feature names
 	cacheMu  sync.RWMutex
 	logger   *zap.Logger
 }
 
 // Match implements controller.MatchController.
 func (c *geofenceMatchController) Match(ctx context.Context, req *runtime.RequestContext, reports controller.AnalysisReports) (*controller.MatchVerdict, error) {
-	isMatch, description, matchedPolygons := c.deriveMatch(reports)
+	isMatch, description, matchedFeatures := c.deriveMatch(reports)
 
 	allowUpstreamHeaders := map[string]string{
 		fmt.Sprintf("X-Geofence-%s", c.name): fmt.Sprintf("%t", isMatch),
 	}
 
-	if isMatch && len(matchedPolygons) > 0 {
-		allowUpstreamHeaders[fmt.Sprintf("X-Geofence-%s-Polygons", c.name)] = formatMatchedPolygonNames(matchedPolygons)
+	if isMatch && len(matchedFeatures) > 0 {
+		allowUpstreamHeaders[fmt.Sprintf("X-Geofence-%s-Features", c.name)] = formatMatchedFeatureNames(matchedFeatures)
 	}
 
 	return &controller.MatchVerdict{
@@ -88,7 +89,7 @@ func (c *geofenceMatchController) HealthCheck(ctx context.Context) error {
 }
 
 // deriveMatch inspects analyzer reports, determines whether the coordinates
-// fall within any configured polygon, and returns the result.
+// fall within any configured feature's polygons, and returns the result.
 func (c *geofenceMatchController) deriveMatch(reports controller.AnalysisReports) (bool, string, []string) {
 	var geoipResult *maxmind_geoip.IpLookupResult
 	for _, report := range reports {
@@ -115,53 +116,59 @@ func (c *geofenceMatchController) deriveMatch(reports controller.AnalysisReports
 
 	// Check cache
 	c.cacheMu.RLock()
-	if cachedPolygons, ok := c.cache[cacheKey]; ok {
+	if cachedFeatures, ok := c.cache[cacheKey]; ok {
 		c.cacheMu.RUnlock()
 		c.logger.Debug("cache hit for coordinates", zap.String("coords", cacheKey))
-		if len(cachedPolygons) > 0 {
-			return true, fmt.Sprintf("coordinates (%.4f, %.4f) matched %d polygon(s): %v", lat, lon, len(cachedPolygons), cachedPolygons), cachedPolygons
+		if len(cachedFeatures) > 0 {
+			return true, fmt.Sprintf("coordinates (%.4f, %.4f) matched %d feature(s): %v", lat, lon, len(cachedFeatures), cachedFeatures), cachedFeatures
 		}
-		return false, fmt.Sprintf("coordinates (%.4f, %.4f) did not match any polygon", lat, lon), nil
+		return false, fmt.Sprintf("coordinates (%.4f, %.4f) did not match any feature", lat, lon), nil
 	}
 	c.cacheMu.RUnlock()
 
 	// Cache miss - compute match
 	c.logger.Debug("cache miss for coordinates", zap.String("coords", cacheKey))
-	matchedPolygons := c.findContainingPolygons(lat, lon)
+	matchedFeatures := c.findContainingFeatures(lat, lon)
 
 	// Store in cache
 	c.cacheMu.Lock()
-	c.cache[cacheKey] = matchedPolygons
+	c.cache[cacheKey] = matchedFeatures
 	c.cacheMu.Unlock()
 
-	if len(matchedPolygons) > 0 {
-		return true, fmt.Sprintf("coordinates (%.4f, %.4f) matched %d polygon(s): %v", lat, lon, len(matchedPolygons), matchedPolygons), matchedPolygons
+	if len(matchedFeatures) > 0 {
+		return true, fmt.Sprintf("coordinates (%.4f, %.4f) matched %d feature(s): %v", lat, lon, len(matchedFeatures), matchedFeatures), matchedFeatures
 	}
 
-	return false, fmt.Sprintf("coordinates (%.4f, %.4f) did not match any polygon", lat, lon), nil
+	return false, fmt.Sprintf("coordinates (%.4f, %.4f) did not match any feature", lat, lon), nil
 }
 
-// findContainingPolygons checks which polygons contain the given point.
-func (c *geofenceMatchController) findContainingPolygons(lat, lon float64) []string {
+// findContainingFeatures checks which features contain the given point.
+func (c *geofenceMatchController) findContainingFeatures(lat, lon float64) []string {
 	point := orb.Point{lon, lat} // orb uses [lon, lat] order
 	var matched []string
 
-	for _, np := range c.polygons {
-		if planar.PolygonContains(np.polygon, point) {
-			matched = append(matched, np.name)
+	for _, feature := range c.features {
+		for _, polygon := range feature.polygons {
+			if planar.PolygonContains(polygon, point) {
+				matched = append(matched, feature.name)
+				break // Once matched, no need to check other polygons of the same feature
+			}
 		}
 	}
+
+	// Sort matched feature names in ascending order
+	sort.Strings(matched)
 
 	return matched
 }
 
-// formatMatchedPolygonNames joins polygon names with commas for the header.
-func formatMatchedPolygonNames(names []string) string {
+// formatMatchedFeatureNames joins feature names with commas for the header.
+func formatMatchedFeatureNames(names []string) string {
 	return strings.Join(names, ",")
 }
 
 // newGeofenceMatchController constructs a match controller from
-// configuration by loading and validating the GeoJSON polygons file.
+// configuration by loading and validating the GeoJSON features file.
 func newGeofenceMatchController(_ context.Context, logger *zap.Logger, cfg config.ControllerConfig) (controller.MatchController, error) {
 	var matchConfig GeofenceMatchConfig
 	if err := controller.DecodeControllerSettings(cfg.Settings, &matchConfig); err != nil {
@@ -182,26 +189,26 @@ func newGeofenceMatchController(_ context.Context, logger *zap.Logger, cfg confi
 		return nil, fmt.Errorf("could not read polygonsFile file: %w", err)
 	}
 
-	polygons, err := parseAndValidateGeoJSON(polygonsFileContent)
+	features, err := parseAndValidateGeoJSON(polygonsFileContent)
 	if err != nil {
 		return nil, fmt.Errorf("GeoJSON validation failed: %w", err)
 	}
 
-	logger.Info("loaded geofence polygons from GeoJSON", zap.Int("count", len(polygons)))
+	logger.Info("loaded geofence features from GeoJSON", zap.Int("count", len(features)))
 
 	return &geofenceMatchController{
 		name:     cfg.Name,
-		polygons: polygons,
+		features: features,
 		cache:    make(map[string][]string),
 		logger:   logger,
 	}, nil
 }
 
-// parseAndValidateGeoJSON parses a GeoJSON FeatureCollection and extracts polygons.
+// parseAndValidateGeoJSON parses a GeoJSON FeatureCollection and extracts features.
 // Each Feature must have:
 //   - A "name" property (string) for identification
 //   - A geometry of type Polygon or MultiPolygon with valid GPS coordinates
-func parseAndValidateGeoJSON(content []byte) ([]namedPolygon, error) {
+func parseAndValidateGeoJSON(content []byte) ([]geoFeature, error) {
 	fc, err := geojson.UnmarshalFeatureCollection(content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse GeoJSON: %w", err)
@@ -211,7 +218,7 @@ func parseAndValidateGeoJSON(content []byte) ([]namedPolygon, error) {
 		return nil, fmt.Errorf("GeoJSON FeatureCollection must contain at least one feature")
 	}
 
-	result := make([]namedPolygon, 0, len(fc.Features))
+	result := make([]geoFeature, 0, len(fc.Features))
 	seenNames := make(map[string]bool)
 
 	for i, feature := range fc.Features {
@@ -232,11 +239,14 @@ func parseAndValidateGeoJSON(content []byte) ([]namedPolygon, error) {
 			return nil, err
 		}
 
-		result = append(result, polygons...)
+		result = append(result, geoFeature{
+			name:     name,
+			polygons: polygons,
+		})
 	}
 
 	if len(result) == 0 {
-		return nil, fmt.Errorf("no valid polygons found in GeoJSON")
+		return nil, fmt.Errorf("no valid features found in GeoJSON")
 	}
 
 	return result, nil
@@ -263,19 +273,19 @@ func getFeatureName(feature *geojson.Feature, index int) (string, error) {
 
 // extractPolygons extracts orb.Polygon geometries from a GeoJSON feature.
 // Supports Polygon and MultiPolygon geometry types.
-func extractPolygons(feature *geojson.Feature, name string) ([]namedPolygon, error) {
+func extractPolygons(feature *geojson.Feature, name string) ([]orb.Polygon, error) {
 	if feature.Geometry == nil {
 		return nil, fmt.Errorf("feature '%s' has no geometry", name)
 	}
 
-	var result []namedPolygon
+	var result []orb.Polygon
 
 	switch geom := feature.Geometry.(type) {
 	case orb.Polygon:
 		if err := validatePolygon(name, geom); err != nil {
 			return nil, err
 		}
-		result = append(result, namedPolygon{name: name, polygon: geom})
+		result = append(result, geom)
 
 	case orb.MultiPolygon:
 		for i, poly := range geom {
@@ -283,7 +293,7 @@ func extractPolygons(feature *geojson.Feature, name string) ([]namedPolygon, err
 			if err := validatePolygon(polyName, poly); err != nil {
 				return nil, err
 			}
-			result = append(result, namedPolygon{name: polyName, polygon: poly})
+			result = append(result, poly)
 		}
 
 	default:
@@ -337,7 +347,7 @@ func validateGPSCoordinate(name string, ringIndex, pointIndex int, lon, lat floa
 	return nil
 }
 
-// ValidateGeoJSONFile reads and validates a GeoJSON file, returning the number of polygons found.
+// ValidateGeoJSONFile reads and validates a GeoJSON file, returning the number of features found.
 // This is used by the CLI validate-geojson command.
 func ValidateGeoJSONFile(filePath string) (int, error) {
 	absPath, err := filepath.Abs(filePath)
@@ -350,17 +360,17 @@ func ValidateGeoJSONFile(filePath string) (int, error) {
 		return 0, fmt.Errorf("could not read file: %w", err)
 	}
 
-	polygons, err := parseAndValidateGeoJSON(content)
+	features, err := parseAndValidateGeoJSON(content)
 	if err != nil {
 		return 0, err
 	}
 
-	return len(polygons), nil
+	return len(features), nil
 }
 
-// GetPolygonNames reads a GeoJSON file and returns the names of all polygons.
+// GetFeatureNames reads a GeoJSON file and returns the names of all features.
 // This is used by the CLI validate-geojson command for detailed output.
-func GetPolygonNames(filePath string) ([]string, error) {
+func GetFeatureNames(filePath string) ([]string, error) {
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("invalid file path: %w", err)
@@ -371,15 +381,18 @@ func GetPolygonNames(filePath string) ([]string, error) {
 		return nil, fmt.Errorf("could not read file: %w", err)
 	}
 
-	polygons, err := parseAndValidateGeoJSON(content)
+	features, err := parseAndValidateGeoJSON(content)
 	if err != nil {
 		return nil, err
 	}
 
-	names := make([]string, len(polygons))
-	for i, p := range polygons {
-		names[i] = p.name
+	names := make([]string, len(features))
+	for i, f := range features {
+		names[i] = f.name
 	}
+
+	// Sort names in ascending order
+	sort.Strings(names)
 
 	return names, nil
 }
