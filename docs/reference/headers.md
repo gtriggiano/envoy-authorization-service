@@ -97,3 +97,34 @@ analysisControllers:
     type: ua-detect
 ```
 
+## Geofence
+
+Injected by the `geofence-match` match controller.
+
+| Header | Example | Description |
+|--------|---------|-------------|
+| `X-Geofence-{controller-name}` | `true` | Boolean indicating if the client location matched any feature in the geofence |
+| `X-Geofence-{controller-name}-Features` | `europe-region,uk-zone` | Comma-separated list of matched feature names in ascending order (only present when matched) |
+
+### Configuration
+
+```yaml
+analysisControllers:
+  - name: geoip
+    type: maxmind-geoip
+    settings:
+      databasePath: GeoLite2-City.mmdb
+
+matchControllers:
+  - name: europe
+    type: geofence-match
+    settings:
+      featuresFile: config/europe.geojson
+```
+
+::: warning NOTE
+
+The `geofence-match` controller requires the `maxmind-geoip` analysis controller to provide latitude/longitude data.
+
+:::
+
