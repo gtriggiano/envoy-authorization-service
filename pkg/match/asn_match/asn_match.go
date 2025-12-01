@@ -23,7 +23,7 @@ const (
 // init registers the ASN-match match controller so the application can
 // create instances from configuration.
 func init() {
-	controller.RegisterMatchContollerFactory(ControllerKind, newASNMatchController)
+	controller.RegisterMatchControllerFactory(ControllerKind, newASNMatchController)
 }
 
 type ASNMatchConfig struct {

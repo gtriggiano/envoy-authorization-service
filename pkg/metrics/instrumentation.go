@@ -9,7 +9,7 @@ import (
 const (
 	ALLOW            = "ALLOW"
 	DENY             = "DENY"
-	ANALISYS         = "ANALISYS"
+	ANALYSIS         = "ANALYSIS"
 	MATCH            = "MATCH"
 	OK               = "OK"
 	ERROR            = "ERROR"
@@ -184,8 +184,8 @@ func (i *Instrumentation) ObserveAnalysisControllerRequest(authority, controller
 	if success {
 		result = OK
 	}
-	i.controllerRequests.WithLabelValues(authority, controllerName, controllerKind, ANALISYS, result).Inc()
-	i.controllerDuration.WithLabelValues(authority, controllerName, controllerKind, ANALISYS, result).Observe(duration.Seconds())
+	i.controllerRequests.WithLabelValues(authority, controllerName, controllerKind, ANALYSIS, result).Inc()
+	i.controllerDuration.WithLabelValues(authority, controllerName, controllerKind, ANALYSIS, result).Observe(duration.Seconds())
 }
 
 // ObserveMatchControllerRequest records match controller invocation and latency.

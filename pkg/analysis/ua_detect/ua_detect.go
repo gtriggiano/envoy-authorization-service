@@ -21,7 +21,7 @@ const (
 
 // init registers the UA detection analysis controller factory.
 func init() {
-	controller.RegisterAnalysisContollerFactory(ControllerKind, newUADetectAnalysisController)
+	controller.RegisterAnalysisControllerFactory(ControllerKind, newUADetectAnalysisController)
 }
 
 // UADetectAnalysisConfig captures optional settings for the UA detection controller.

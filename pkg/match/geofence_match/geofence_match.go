@@ -29,7 +29,7 @@ const (
 // init registers the geofence-match match controller so it can be constructed
 // from configuration at runtime.
 func init() {
-	controller.RegisterMatchContollerFactory(ControllerKind, newGeofenceMatchController)
+	controller.RegisterMatchControllerFactory(ControllerKind, newGeofenceMatchController)
 }
 
 // GeofenceMatchConfig holds the configuration for the geofence match controller.

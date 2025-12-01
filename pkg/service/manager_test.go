@@ -129,7 +129,7 @@ func TestRunMatchPopulatesVerdicts(t *testing.T) {
 // --- policy evaluation ------------------------------------------------------
 
 func TestEvaluatePolicyNilPolicyAllows(t *testing.T) {
-	mgr := &Manager{aouthorizationPolicy: nil}
+	mgr := &Manager{authorizationPolicy: nil}
 
 	allowed, verdict := mgr.evaluatePolicy(nil)
 	if !allowed || verdict == nil || verdict.DenyCode != codes.OK {
@@ -142,7 +142,7 @@ func TestEvaluatePolicyDeniesWithControllerVerdict(t *testing.T) {
 	if err != nil {
 		t.Fatalf("policy parse failed: %v", err)
 	}
-	mgr := &Manager{aouthorizationPolicy: pol}
+	mgr := &Manager{authorizationPolicy: pol}
 
 	expected := &controller.MatchVerdict{
 		Controller:  "auth",
@@ -164,7 +164,7 @@ func TestEvaluatePolicyMissingController(t *testing.T) {
 	if err != nil {
 		t.Fatalf("policy parse failed: %v", err)
 	}
-	mgr := &Manager{aouthorizationPolicy: pol}
+	mgr := &Manager{authorizationPolicy: pol}
 
 	allowed, verdict := mgr.evaluatePolicy(nil)
 
@@ -244,10 +244,10 @@ func TestManagerCheckAllowsAndPropagatesHeaders(t *testing.T) {
 				},
 			},
 		},
-		instrumentation:      inst,
-		aouthorizationPolicy: nil,
-		policyBypass:         false,
-		logger:               logger,
+		instrumentation:     inst,
+		authorizationPolicy: nil,
+		policyBypass:        false,
+		logger:              logger,
 	}
 
 	resp, err := mgr.Check(context.Background(), minimalCheckRequestUnit("192.0.2.5"))
@@ -284,10 +284,10 @@ func TestManagerCheckDeniesViaPolicy(t *testing.T) {
 				},
 			},
 		},
-		instrumentation:      inst,
-		aouthorizationPolicy: pol,
-		policyBypass:         false,
-		logger:               logger,
+		instrumentation:     inst,
+		authorizationPolicy: pol,
+		policyBypass:        false,
+		logger:              logger,
 	}
 
 	resp, err := mgr.Check(context.Background(), minimalCheckRequestUnit("198.51.100.99"))
@@ -329,10 +329,10 @@ func TestManagerCheckPolicyBypassReturnsOK(t *testing.T) {
 				},
 			},
 		},
-		instrumentation:      inst,
-		aouthorizationPolicy: pol,
-		policyBypass:         true,
-		logger:               logger,
+		instrumentation:     inst,
+		authorizationPolicy: pol,
+		policyBypass:        true,
+		logger:              logger,
 	}
 
 	resp, err := mgr.Check(context.Background(), minimalCheckRequestUnit("198.51.100.99"))

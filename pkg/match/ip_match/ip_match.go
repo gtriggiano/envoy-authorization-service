@@ -23,7 +23,7 @@ const (
 // init registers the ip-match match controller so it can be constructed
 // from configuration at runtime.
 func init() {
-	controller.RegisterMatchContollerFactory(ControllerKind, newIpMatchController)
+	controller.RegisterMatchControllerFactory(ControllerKind, newIpMatchController)
 }
 
 type IpMatchConfig struct {

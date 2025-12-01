@@ -22,7 +22,7 @@ const (
 
 // init registers the asn-match-database match controller
 func init() {
-	controller.RegisterMatchContollerFactory(ControllerKind, newASNMatchDatabaseController)
+	controller.RegisterMatchControllerFactory(ControllerKind, newASNMatchDatabaseController)
 }
 
 type asnMatchDatabaseController struct {

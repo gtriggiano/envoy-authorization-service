@@ -21,7 +21,7 @@ const (
 
 // init registers the MaxMind ASN analysis controller factory.
 func init() {
-	controller.RegisterAnalysisContollerFactory(ControllerKind, newMaxMindAsnAnalysisController)
+	controller.RegisterAnalysisControllerFactory(ControllerKind, newMaxMindAsnAnalysisController)
 }
 
 type MaxMindAsnAnalysisConfig struct {

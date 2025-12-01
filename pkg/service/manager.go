@@ -25,12 +25,12 @@ import (
 
 // Manager coordinates controllers through the Envoy authorization lifecycle.
 type Manager struct {
-	analysisControllers  []controller.AnalysisController
-	matchControllers     []controller.MatchController
-	instrumentation      *metrics.Instrumentation
-	aouthorizationPolicy *policy.Policy
-	policyBypass         bool
-	logger               *zap.Logger
+	analysisControllers []controller.AnalysisController
+	matchControllers    []controller.MatchController
+	instrumentation     *metrics.Instrumentation
+	authorizationPolicy *policy.Policy
+	policyBypass        bool
+	logger              *zap.Logger
 }
 
 // NewManager instantiates a controller manager.
@@ -51,12 +51,12 @@ func NewManager(
 	}
 
 	return &Manager{
-		analysisControllers:  analysisControllers,
-		matchControllers:     matchControllers,
-		instrumentation:      instrumentation,
-		aouthorizationPolicy: policy,
-		policyBypass:         policyBypass,
-		logger:               logger,
+		analysisControllers: analysisControllers,
+		matchControllers:    matchControllers,
+		instrumentation:     instrumentation,
+		authorizationPolicy: policy,
+		policyBypass:        policyBypass,
+		logger:              logger,
 	}
 }
 
@@ -224,7 +224,7 @@ func (m *Manager) runMatch(ctx context.Context, req *runtime.RequestContext, rep
 // evaluatePolicy converts verdicts to boolean inputs and feeds them to the policy
 // engine, returning whether the request is allowed and, when denied, the offending verdict.
 func (m *Manager) evaluatePolicy(matchVerdicts controller.MatchVerdicts) (bool, *controller.MatchVerdict) {
-	if m.aouthorizationPolicy == nil {
+	if m.authorizationPolicy == nil {
 		return true, &controller.MatchVerdict{
 			Controller:     "policy",
 			ControllerKind: "policy",
@@ -239,7 +239,7 @@ func (m *Manager) evaluatePolicy(matchVerdicts controller.MatchVerdicts) (bool, 
 		verdictsPredicates[controllerName] = verdict.IsMatch
 	}
 
-	if allowed, denyerControllerName := m.aouthorizationPolicy.Evaluate(verdictsPredicates); allowed {
+	if allowed, denyerControllerName := m.authorizationPolicy.Evaluate(verdictsPredicates); allowed {
 		return true, &controller.MatchVerdict{
 			Controller:     "policy",
 			ControllerKind: "policy",

@@ -57,7 +57,7 @@ Controller invocations by phase and result.
 | `authority` | `api.service.com` | HTTP host/:authority value (or `-` when absent) |
 | `controller_name` | `trusted-clouds` | Controller instance name |
 | `controller_kind` | `asn-match` | Controller type |
-| `phase` | `MATCH` | Execution phase; possible values: `ANALISYS`, `MATCH` |
+| `phase` | `MATCH` | Execution phase; possible values: `ANALYSIS`, `MATCH` |
 | `result` | `OK` | Outcome; possible values: `OK` (succeeded), `ERROR` (failed) |
 
 ### `envoy_authz_controller_duration_seconds` `Histogram`

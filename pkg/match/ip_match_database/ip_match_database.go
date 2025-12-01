@@ -20,7 +20,7 @@ const (
 
 // init registers the ip-match-database match controller
 func init() {
-	controller.RegisterMatchContollerFactory(ControllerKind, newIpMatchDatabaseController)
+	controller.RegisterMatchControllerFactory(ControllerKind, newIpMatchDatabaseController)
 }
 
 type ipMatchDatabaseController struct {
