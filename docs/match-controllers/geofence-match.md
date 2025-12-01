@@ -21,12 +21,18 @@ matchControllers:
   - name: europe
     type: geofence-match
     settings:
-      polygonsFile: config/europe.geojson
+      featuresFile: config/europe.geojson
 ```
 
 ## Settings
 
-- `polygonsFile` (required): Path to a GeoJSON file containing polygon definitions.
+- `featuresFile` (required): Path to a GeoJSON file containing features definitions.
+
+::: tip Features Files Validation
+
+To validate that your features files are compliant with [validation rules](#validation-rules) you can use the [`validate-geojson` CLI command](/reference/cli.html#validate-geojson).
+
+:::
 
 ## GeoJSON Format
 

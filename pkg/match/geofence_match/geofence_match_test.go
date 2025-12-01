@@ -310,17 +310,17 @@ func TestValidatePolygon_UnsupportedGeometry(t *testing.T) {
 	}
 }
 
-func TestNewGeofenceMatchController_MissingPolygonsFile(t *testing.T) {
+func TestNewGeofenceMatchController_MissingFeaturesFile(t *testing.T) {
 	cfg := config.ControllerConfig{
 		Name: "test",
 		Type: ControllerKind,
 		Settings: map[string]any{
-			"polygonsFile": "",
+			"featuresFile": "",
 		},
 	}
 	_, err := newGeofenceMatchController(context.Background(), zap.NewNop(), cfg)
 	if err == nil {
-		t.Fatal("expected error for missing polygonsFile")
+		t.Fatal("expected error for missing featuresFile")
 	}
 }
 
@@ -329,12 +329,12 @@ func TestNewGeofenceMatchController_InvalidPath(t *testing.T) {
 		Name: "test",
 		Type: ControllerKind,
 		Settings: map[string]any{
-			"polygonsFile": "/does/not/exist",
+			"featuresFile": "/does/not/exist",
 		},
 	}
 	_, err := newGeofenceMatchController(context.Background(), zap.NewNop(), cfg)
 	if err == nil {
-		t.Fatal("expected error for invalid polygonsFile path")
+		t.Fatal("expected error for invalid featuresFile path")
 	}
 }
 
@@ -447,7 +447,7 @@ func createTestController(t *testing.T, geojsonContent string) controller.MatchC
 func createTestControllerWithError(t *testing.T, geojsonContent string) (controller.MatchController, error) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	path := filepath.Join(tmpDir, "polygons.geojson")
+	path := filepath.Join(tmpDir, "features.geojson")
 	if err := os.WriteFile(path, []byte(geojsonContent), 0o644); err != nil {
 		t.Fatalf("failed to write geojson file: %v", err)
 	}
@@ -455,7 +455,7 @@ func createTestControllerWithError(t *testing.T, geojsonContent string) (control
 		Name: "geofence-test",
 		Type: ControllerKind,
 		Settings: map[string]any{
-			"polygonsFile": path,
+			"featuresFile": path,
 		},
 	}
 	return newGeofenceMatchController(context.Background(), zap.NewNop(), cfg)

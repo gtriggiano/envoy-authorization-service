@@ -33,7 +33,7 @@ func init() {
 
 // GeofenceMatchConfig holds the configuration for the geofence match controller.
 type GeofenceMatchConfig struct {
-	PolygonsFile string `yaml:"polygonsFile"`
+	FeaturesFile string `yaml:"featuresFile"`
 }
 
 // geoFeature holds a validated feature with its name and associated polygons.
@@ -175,21 +175,21 @@ func newGeofenceMatchController(_ context.Context, logger *zap.Logger, cfg confi
 		return nil, err
 	}
 
-	if matchConfig.PolygonsFile == "" {
-		return nil, fmt.Errorf("polygonsFile is required, check your configuration")
+	if matchConfig.FeaturesFile == "" {
+		return nil, fmt.Errorf("featuresFile is required, check your configuration")
 	}
 
-	polygonsFilePath, err := filepath.Abs(matchConfig.PolygonsFile)
+	featuresFilePath, err := filepath.Abs(matchConfig.FeaturesFile)
 	if err != nil {
-		return nil, fmt.Errorf("polygonsFile path is not valid: %w", err)
+		return nil, fmt.Errorf("featuresFile path is not valid: %w", err)
 	}
 
-	polygonsFileContent, err := os.ReadFile(polygonsFilePath)
+	featuresFileContent, err := os.ReadFile(featuresFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("could not read polygonsFile file: %w", err)
+		return nil, fmt.Errorf("could not read featuresFile file: %w", err)
 	}
 
-	features, err := parseAndValidateGeoJSON(polygonsFileContent)
+	features, err := parseAndValidateGeoJSON(featuresFileContent)
 	if err != nil {
 		return nil, fmt.Errorf("GeoJSON validation failed: %w", err)
 	}
