@@ -11,6 +11,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
 	go build -trimpath -ldflags="-s -w" -o /out/envoy-authorization-service .
 
 FROM gcr.io/distroless/static:nonroot
+LABEL org.opencontainers.image.source=https://github.com/gtriggiano/envoy-authorization-service
 COPY --from=builder /out/envoy-authorization-service /usr/local/bin/envoy-authorization-service
 ENTRYPOINT ["/usr/local/bin/envoy-authorization-service"]
 CMD ["start", "--config", "/config/config.yaml"]
