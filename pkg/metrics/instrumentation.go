@@ -26,19 +26,19 @@ const (
 
 // Instrumentation publishes Prometheus metrics for the authorization flow.
 type Instrumentation struct {
-	requestTotals        *prometheus.CounterVec
-	requestDuration      *prometheus.HistogramVec
-	controllerDuration   *prometheus.HistogramVec
-	controllerRequests   *prometheus.CounterVec
-	inFlight             *prometheus.GaugeVec
-	matchVerdicts        *prometheus.CounterVec
-	matchDbRequests      *prometheus.CounterVec
-	matchDbQueries       *prometheus.CounterVec
-	matchDbQueryDur      *prometheus.HistogramVec
-	matchDbCacheReq      *prometheus.CounterVec
-	matchDbCacheSize     *prometheus.GaugeVec
-	matchDbUnavailable   *prometheus.CounterVec
-	geofenceMatchTotals  *prometheus.CounterVec
+	requestTotals       *prometheus.CounterVec
+	requestDuration     *prometheus.HistogramVec
+	controllerDuration  *prometheus.HistogramVec
+	controllerRequests  *prometheus.CounterVec
+	inFlight            *prometheus.GaugeVec
+	matchVerdicts       *prometheus.CounterVec
+	matchDbRequests     *prometheus.CounterVec
+	matchDbQueries      *prometheus.CounterVec
+	matchDbQueryDur     *prometheus.HistogramVec
+	matchDbCacheReq     *prometheus.CounterVec
+	matchDbCacheSize    *prometheus.GaugeVec
+	matchDbUnavailable  *prometheus.CounterVec
+	geofenceMatchTotals *prometheus.CounterVec
 }
 
 // NewInstrumentation registers all metric vectors.
