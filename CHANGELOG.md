@@ -1,7 +1,19 @@
 # Changelog
 
 
+## [v1.1.3](https://github.com/gtriggiano/envoy-authorization-service/compare/v1.1.2...v1.1.3) - 2025-12-01
+
+### Documentation
+- update feature descriptions
+- remove "verdict.IsMatch semantics" section from policy DSL documentation
+
+
+
 ## [v1.1.2](https://github.com/gtriggiano/envoy-authorization-service/compare/v1.1.1...v1.1.2) - 2025-12-01
+
+### Chores
+- v1.1.2
+
 
 ### Documentation
 - update examples
