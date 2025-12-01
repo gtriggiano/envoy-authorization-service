@@ -25,12 +25,12 @@ import (
 
 // Manager coordinates controllers through the Envoy authorization lifecycle.
 type Manager struct {
-	analysisControllers   []controller.AnalysisController
-	matchControllers      []controller.MatchController
-	instrumentation       *metrics.Instrumentation
-	authorizationPolicy   *policy.Policy
-	policyBypass          bool
-	logger                *zap.Logger
+	analysisControllers []controller.AnalysisController
+	matchControllers    []controller.MatchController
+	instrumentation     *metrics.Instrumentation
+	authorizationPolicy *policy.Policy
+	policyBypass        bool
+	logger              *zap.Logger
 }
 
 // NewManager instantiates a controller manager.
@@ -51,12 +51,12 @@ func NewManager(
 	}
 
 	return &Manager{
-		analysisControllers:   analysisControllers,
-		matchControllers:      matchControllers,
-		instrumentation:       instrumentation,
-		authorizationPolicy:   policy,
-		policyBypass:          policyBypass,
-		logger:                logger,
+		analysisControllers: analysisControllers,
+		matchControllers:    matchControllers,
+		instrumentation:     instrumentation,
+		authorizationPolicy: policy,
+		policyBypass:        policyBypass,
+		logger:              logger,
 	}
 }
 

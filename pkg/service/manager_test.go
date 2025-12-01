@@ -244,10 +244,10 @@ func TestManagerCheckAllowsAndPropagatesHeaders(t *testing.T) {
 				},
 			},
 		},
-		instrumentation:       inst,
-		authorizationPolicy:   nil,
-		policyBypass:          false,
-		logger:               logger,
+		instrumentation:     inst,
+		authorizationPolicy: nil,
+		policyBypass:        false,
+		logger:              logger,
 	}
 
 	resp, err := mgr.Check(context.Background(), minimalCheckRequestUnit("192.0.2.5"))
@@ -284,10 +284,10 @@ func TestManagerCheckDeniesViaPolicy(t *testing.T) {
 				},
 			},
 		},
-		instrumentation:       inst,
-		authorizationPolicy:   pol,
-		policyBypass:          false,
-		logger:                logger,
+		instrumentation:     inst,
+		authorizationPolicy: pol,
+		policyBypass:        false,
+		logger:              logger,
 	}
 
 	resp, err := mgr.Check(context.Background(), minimalCheckRequestUnit("198.51.100.99"))
@@ -329,10 +329,10 @@ func TestManagerCheckPolicyBypassReturnsOK(t *testing.T) {
 				},
 			},
 		},
-		instrumentation:       inst,
-		authorizationPolicy:   pol,
-		policyBypass:          true,
-		logger:                logger,
+		instrumentation:     inst,
+		authorizationPolicy: pol,
+		policyBypass:        true,
+		logger:              logger,
 	}
 
 	resp, err := mgr.Check(context.Background(), minimalCheckRequestUnit("198.51.100.99"))
