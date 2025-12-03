@@ -1,7 +1,35 @@
 # Changelog
 
 
+## [v1.2.0](https://github.com/gtriggiano/envoy-authorization-service/compare/v1.1.3...v1.2.0) - 2025-12-03
+
+### Chores
+- standardize commit message prefix for dependency updates
+- add dependabot configuration for automated dependency updates
+- bump github.com/redis/go-redis/v9 ([#3](https://github.com/gtriggiano/envoy-authorization-service/issues/3))
+
+
+### Documentation
+- improve trial DEX and get started documentation
+- add Geofence section to headers reference
+
+
+### Features
+- enhance client IP extraction taking into account Envoy behind a reverse proxy
+
+
+### Refactoring
+- remove unused strings import and deny reason check in TestManagerCheckDeniesViaPolicy
+- standardize cache logging messages across analysis and match controllers
+- rename ControllerKind to ControllerType and update related fields
+
+
+
 ## [v1.1.3](https://github.com/gtriggiano/envoy-authorization-service/compare/v1.1.2...v1.1.3) - 2025-12-01
+
+### Chores
+- v1.1.3
+
 
 ### Documentation
 - update feature descriptions
