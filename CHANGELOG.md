@@ -1,6 +1,23 @@
 # Changelog
 
 
+## [v1.3.0](https://github.com/gtriggiano/envoy-authorization-service/compare/v1.2.0...v1.3.0) - 2025-12-03
+
+### Chores
+- bump actions/upload-pages-artifact from 3 to 4 ([#4](https://github.com/gtriggiano/envoy-authorization-service/issues/4))
+- bump actions/checkout from 4 to 6 ([#6](https://github.com/gtriggiano/envoy-authorization-service/issues/6))
+- bump actions/setup-go from 5 to 6 ([#5](https://github.com/gtriggiano/envoy-authorization-service/issues/5))
+
+
+### Documentation
+- improve metrics documentation and provide better prometheus rules
+
+
+### Features
+- add options for country and geofence metrics tracking
+
+
+
 ## [v1.2.0](https://github.com/gtriggiano/envoy-authorization-service/compare/v1.1.3...v1.2.0) - 2025-12-03
 
 ### Chores
