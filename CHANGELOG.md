@@ -1,6 +1,13 @@
 # Changelog
 
 
+## [v1.3.1](https://github.com/gtriggiano/envoy-authorization-service/compare/v1.3.0...v1.3.1) - 2025-12-03
+
+### Documentation
+- reorganize navigation and update examples section for clarity
+
+
+
 ## [v1.3.0](https://github.com/gtriggiano/envoy-authorization-service/compare/v1.2.0...v1.3.0) - 2025-12-03
 
 ### Chores
@@ -24,6 +31,7 @@
 - standardize commit message prefix for dependency updates
 - add dependabot configuration for automated dependency updates
 - bump github.com/redis/go-redis/v9 ([#3](https://github.com/gtriggiano/envoy-authorization-service/issues/3))
+- v1.2.0
 
 
 ### Documentation
