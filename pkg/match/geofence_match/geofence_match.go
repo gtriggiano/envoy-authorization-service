@@ -130,7 +130,7 @@ func (c *geofenceMatchController) deriveMatch(reports controller.AnalysisReports
 	c.cacheMu.RLock()
 	if cachedFeatures, ok := c.cache[cacheKey]; ok {
 		c.cacheMu.RUnlock()
-		c.logger.Debug("cache hit for coordinates", zap.String("coords", cacheKey))
+		c.logger.Debug("cache hit", zap.String("coordinates", cacheKey))
 		if len(cachedFeatures) > 0 {
 			return true, fmt.Sprintf("coordinates (%.4f, %.4f) matched %d feature(s): %v", lat, lon, len(cachedFeatures), cachedFeatures), cachedFeatures
 		}
@@ -139,13 +139,14 @@ func (c *geofenceMatchController) deriveMatch(reports controller.AnalysisReports
 	c.cacheMu.RUnlock()
 
 	// Cache miss - compute match
-	c.logger.Debug("cache miss for coordinates", zap.String("coords", cacheKey))
 	matchedFeatures := c.findContainingFeatures(lat, lon)
 
 	// Store in cache
 	c.cacheMu.Lock()
 	c.cache[cacheKey] = matchedFeatures
 	c.cacheMu.Unlock()
+
+	c.logger.Debug("cache update", zap.String("coordinates", cacheKey))
 
 	if len(matchedFeatures) > 0 {
 		return true, fmt.Sprintf("coordinates (%.4f, %.4f) matched %d feature(s): %v", lat, lon, len(matchedFeatures), matchedFeatures), matchedFeatures

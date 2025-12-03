@@ -66,6 +66,7 @@ func (c *ipMatchDatabaseController) Match(ctx context.Context, req *runtime.Requ
 			// Cache the result if query was successful
 			if dbError == nil {
 				c.cache.Set(ipAddress, matched)
+				c.logger.Debug("cache update", zap.String("ip", ipAddress))
 				c.observeCacheSize(req.Authority)
 			}
 		}

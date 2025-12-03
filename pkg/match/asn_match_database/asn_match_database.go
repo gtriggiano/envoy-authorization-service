@@ -75,12 +75,12 @@ func (c *asnMatchDatabaseController) Match(ctx context.Context, req *runtime.Req
 			matched = cachedMatch
 		} else {
 			c.observeCacheMiss(req.Authority)
-			c.logger.Debug("cache miss", zap.Uint("asn", asn))
 			matched, dbError = c.queryDatabase(ctx, req.Authority, asn)
 
 			// Cache the result if query was successful
 			if dbError == nil {
 				c.cache.Set(asnKey, matched)
+				c.logger.Debug("cache update", zap.Uint("asn", asn))
 				c.observeCacheSize(req.Authority)
 			}
 		}

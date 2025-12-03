@@ -75,6 +75,19 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 	// Run match phase
 	matchVerdicts := m.runMatch(ctx, reqCtx, analysisReports)
 
+	for _, matchVerdict := range matchVerdicts {
+		logFields := []zap.Field{
+			zap.Bool("matches", matchVerdict.IsMatch),
+			zap.String("description", matchVerdict.Description),
+			zap.String("controller_type", matchVerdict.ControllerType),
+			zap.String("controller_name", matchVerdict.Controller),
+		}
+		m.logger.Debug("match controller verdict", append(
+			logFields,
+			reqCtx.LogFields()...,
+		)...)
+	}
+
 	// Evaluate policy
 	allowed, denyVerdict := m.evaluatePolicy(matchVerdicts)
 
@@ -90,18 +103,14 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 			zap.String("culprit_description", denyVerdict.Description),
 			zap.Bool("policy_bypass", m.policyBypass),
 		)
-		if m.policyBypass {
-			m.logger.Warn("request would be denied but policy bypass is enabled", logFields...)
-		} else {
-			m.logger.Warn("request denied by policy", logFields...)
-		}
+		m.logger.Warn("POLICY BLOCK", logFields...)
 	} else {
 		// Log requests allowed by policy
 		logFields := append(
 			logFields,
 			zap.String("verdict", metrics.ALLOW),
 		)
-		m.logger.Debug("request allowed by policy", logFields...)
+		m.logger.Debug("POLICY AUTHORIZE", logFields...)
 	}
 
 	if !allowed && !m.policyBypass {

@@ -109,13 +109,12 @@ func (c *maxMindCityAnalysisController) ipLookup(ipAddress netip.Addr) *IpLookup
 	c.cacheMu.RLock()
 	if cachedResult, ok := c.cache[ipAddressAsString]; ok {
 		c.cacheMu.RUnlock()
-		c.logger.Debug("cache hit for IP", zap.String("ip", ipAddressAsString))
+		c.logger.Debug("cache hit", zap.String("ip", ipAddressAsString))
 		return cachedResult
 	}
 	c.cacheMu.RUnlock()
 
 	// Cache miss - perform database lookup
-	c.logger.Debug("cache miss for IP", zap.String("ip", ipAddressAsString))
 	ipLookupResult := c.databaseLookup(ipAddress)
 
 	// Store in cache with write lock
@@ -123,7 +122,7 @@ func (c *maxMindCityAnalysisController) ipLookup(ipAddress netip.Addr) *IpLookup
 	c.cache[ipAddressAsString] = ipLookupResult
 	c.cacheMu.Unlock()
 
-	c.logger.Debug("cached GeoIP lookup result", zap.String("ip", ipAddressAsString))
+	c.logger.Debug("cache update", zap.String("ip", ipAddressAsString))
 	return ipLookupResult
 }
 

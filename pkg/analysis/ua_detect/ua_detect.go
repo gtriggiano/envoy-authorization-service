@@ -155,10 +155,9 @@ func (c *uaDetectAnalysisController) HealthCheck(ctx context.Context) error {
 func (c *uaDetectAnalysisController) detect(uaString string) *UADetectionResult {
 	if c.config.CacheEnabled {
 		if cached := c.getCached(uaString); cached != nil {
-			c.logger.Debug("ua-detect cache hit", zap.String("ua", uaString))
+			c.logger.Debug("cache hit", zap.String("ua", uaString))
 			return cached
 		}
-		c.logger.Debug("ua-detect cache miss", zap.String("ua", uaString))
 	}
 
 	result := c.userAgentDetection(uaString)
@@ -169,6 +168,7 @@ func (c *uaDetectAnalysisController) detect(uaString string) *UADetectionResult 
 		c.cacheMu.Unlock()
 	}
 
+	c.logger.Debug("cache update", zap.String("ua", uaString))
 	return result
 }
 
