@@ -82,13 +82,44 @@ func (r *RequestContext) LogFields() []zap.Field {
 	return out
 }
 
+// Standard HTTP headers that may contain the client IP address.
+var ipAddressHeadersCandidates = []string{"x-client-ip", "x-forwarded-for", "cf-connecting-ip", "fastly-client-ip", "true-client-ip", "x-real-ip", "x-cluster-client-ip", "x-forwarded", "forwarded-for", "forwarded"}
+
 // requestIpAddress extracts the downstream client IP address from the CheckRequest.
 // It navigates through the Envoy AttributeContext to retrieve the source address
 // and returns the zero-value netip.Addr when the IP cannot be determined.
 func requestIpAddress(req *authv3.CheckRequest) netip.Addr {
+	defaultIp := netip.Addr{}
+
 	if req == nil {
-		return netip.Addr{}
+		return defaultIp
 	}
+
+	// Collect request headers in a case-insensitive map
+	requestHeaders := map[string]string{}
+	for k, v := range req.GetAttributes().GetRequest().GetHttp().GetHeaders() {
+		requestHeaders[strings.ToLower(k)] = v
+	}
+
+	for _, candidateHeader := range ipAddressHeadersCandidates {
+		switch candidateHeader {
+		case "x-forwarded-for": // Load-balancers (AWS ELB) or proxies.
+			if headerValue, ok := requestHeaders[candidateHeader]; ok {
+				if clientIP, ok := getClientIPFromXForwardedFor(headerValue); ok {
+					return clientIP
+				}
+			}
+
+		default:
+			if headerValue, ok := requestHeaders[candidateHeader]; ok {
+				if clientIP, err := netip.ParseAddr(headerValue); err == nil {
+					return clientIP
+				}
+			}
+		}
+	}
+
+	// Fallback to Envoy AttributeContext source address
 	attr := req.GetAttributes()
 	if attr == nil {
 		return netip.Addr{}
@@ -109,6 +140,27 @@ func requestIpAddress(req *authv3.CheckRequest) netip.Addr {
 	ip, _ := netip.ParseAddr(socketAddr.Address)
 
 	return ip
+}
+
+// getClientIPFromXForwardedFor  - returns first known ip address else return empty string
+func getClientIPFromXForwardedFor(headerValue string) (clientIP netip.Addr, validIP bool) {
+	if headerValue == "" {
+		return netip.Addr{}, false
+	}
+	// x-forwarded-for may return multiple IP addresses in the format: "client IP, proxy 1 IP, proxy 2 IP"
+	// Therefore, the right-most IP address is the IP address of the most recent proxy
+	// and the left-most IP address is the IP address of the originating client.
+	forwardedIps := strings.Split(headerValue, ",")
+	if len(forwardedIps) > 0 {
+		ip := strings.TrimSpace(forwardedIps[0])
+		if splitted := strings.Split(ip, ":"); len(splitted) == 2 {
+			ip = splitted[0]
+		}
+		clientIP, err := netip.ParseAddr(ip)
+		return clientIP, err == nil
+	}
+
+	return netip.Addr{}, false
 }
 
 // requestAuthority extracts the :authority/Host value from the CheckRequest.
