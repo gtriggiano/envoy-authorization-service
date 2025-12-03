@@ -1,2 +1,6 @@
 GeoLite2-ASN.mmdb
 GeoLite2-City.mmdb
+.maxmind-tmp/
+*.tar.gz
+test.yaml
+*.txt

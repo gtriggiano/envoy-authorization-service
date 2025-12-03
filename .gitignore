@@ -33,8 +33,6 @@ go.work.sum
 # .vscode/
 
 bin/
-config/.maxmind-tmp/
-config/*.tar.gz
 
 # Documentation
 docs/node_modules/

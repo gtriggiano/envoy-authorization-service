@@ -1,151 +1,110 @@
-# Getting Started
+# Get Started
 
-## Configuration
+The fastest way to try the authorization service is using the provided `docker-compose.yaml` and `config/envoy.yaml` files from the repository.
 
-Create a `config.yaml` [configuration file](/configuration).
+## Steps
 
-```yaml
-# Match controllers
-matchControllers:
-  - name: corporate-network
-    type: ip-match
-    settings:
-      action: allow
-      cidrList: corporate-network-cidrs.txt
-
-# Policy expression
-authorizationPolicy: "corporate-network"
-```
-
-Create an `corporate-network-cidrs.txt` file with your allowed IP ranges:
-
-```txt
-# Our corporate network
-1.1.1.0/24
-```
-
-## Running the Service
-
-### Docker
+### 1. Clone the Repository
 
 ```bash
-docker run -p 9001:9001 -p 9090:9090 \
-  -v $(pwd)/config.yaml:/config.yaml \
-  -v $(pwd)/corporate-network-cidrs.txt:/corporate-network-cidrs.txt \
-  ghcr.io/gtriggiano/envoy-authorization-service:{{VERSION}} \
-  start --config /config.yaml
+git clone https://github.com/gtriggiano/envoy-authorization-service.git
+cd envoy-authorization-service
 ```
 
-### Docker Compose
+### 2. Create a Configuration File
+
+You can [start from an example](/examples/) or use the following, anyway put your [configuration file](/configuration) in `config/test.yaml`
 
 ```yaml
-services:
-  envoy_authz:
-    image: ghcr.io/gtriggiano/envoy-authorization-service:{{VERSION}}
-    ports:
-      - "9001:9001"
-      - "9090:9090"
-    volumes:
-      - ./config.yaml:/config.yaml
-      - ./corporate-network-cidrs.txt:/corporate-network-cidrs.txt
-    command: start --config /config.yaml
+logging:
+  level: debug
+
+authorizationPolicy: "eu-or-us-east"
+
+analysisControllers:
+  - name: asn
+    type: maxmind-asn
+    settings:
+      databasePath: config/GeoLite2-ASN.mmdb
+
+  - name: geoip
+    type: maxmind-geoip
+    settings:
+      databasePath: config/GeoLite2-City.mmdb
+
+  - name: user-agent
+    type: ua-detect
+
+matchControllers:
+  - name: eu-or-us-east
+    type: geofence-match
+    settings:
+      featuresFile: config/Europe+US_East.geojson
 ```
 
-### Binary
+::: warning For the config above you'll need MaxMind databases
+```bash
+make fetch-maxmind
+# or directly:
+./scripts/fetch-maxmind.sh
 
-::: code-group
-
-```bash [Linux AMD64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-linux-amd64
-chmod +x envoy-authorization-service-linux-amd64
-mv envoy-authorization-service-linux-amd64 /usr/local/bin/envoy-authorization-service
+# then GeoLite2-ASN.mmdb and GeoLite2-City.mmdb will be in ./config
 ```
 
-```bash [Linux ARM64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-linux-arm64
-chmod +x envoy-authorization-service-linux-arm64
-mv envoy-authorization-service-linux-arm64 /usr/local/bin/envoy-authorization-service
+**When referencing the databases in the configuration**, mind what will be `current working directory` when you'll launch the service and move from there.
+:::
+
+::: tip Redis and PostgreSQL Available
+The `docker-compose.yaml` includes Redis and PostgreSQL services for testing database-backed controllers like `ip-match-database` and `asn-match-database`:
+
+```bash
+# Start all services including databases
+docker compose up -d postgres redis
 ```
 
-```bash [macOS AMD64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-darwin-amd64
-chmod +x envoy-authorization-service-darwin-amd64
-mv envoy-authorization-service-darwin-amd64 /usr/local/bin/envoy-authorization-service
-```
-
-```bash [macOS ARM64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-darwin-arm64
-chmod +x envoy-authorization-service-darwin-arm64
-mv envoy-authorization-service-darwin-arm64 /usr/local/bin/envoy-authorization-service
-```
+**The services have default ports mapped on host**, so you can reference them in controllers just setting `host: localhost`.
 
 :::
 
-```bash
-envoy-authorization-service start --config config.yaml
-```
-
-## Verify Installation
-
-Check that the service is running:
+### 3. Start the Authorization Service
 
 ```bash
-# Health check
-curl http://localhost:9090/healthz
-
-# Readiness check
-curl http://localhost:9090/readyz
-
-# Metrics
-curl http://localhost:9090/metrics
+go run main.go start --config config/test.yaml
 ```
 
-Expected response for health checks: `200 OK`
-
-## Configure Envoy
-
-Add the External Authorization filter to your Envoy configuration:
-
-```yaml
-http_filters:
-  - name: envoy.filters.http.ext_authz
-    typed_config:
-      "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
-      grpc_service:
-        envoy_grpc:
-          cluster_name: auth_service
-        timeout: 1s
-      transport_api_version: V3
-      
-clusters:
-  - name: auth_service
-    type: STRICT_DNS
-    connect_timeout: 1s
-    http2_protocol_options: {}
-    load_assignment:
-      cluster_name: auth_service
-      endpoints:
-        - lb_endpoints:
-            - endpoint:
-                address:
-                  socket_address:
-                    address: localhost
-                    port_value: 9001
-```
-
-## Test Authorization
-
-Send a test request through Envoy:
+### 4. Start Envoy and Upstream Services
 
 ```bash
-curl -v http://localhost:8080/test
+docker compose up -d envoy upstream
 ```
 
-The authorization service will:
-1. Receive the request from Envoy
-2. Check if the client IP is in `corporate-network-cidrs.txt`
-3. Return OK or Denied to Envoy
-4. Envoy forwards or rejects the request accordingly
+This starts:
+- **Envoy** on `localhost:8080` — configured with the ext_authz filter pointing to the authorization service at `host.docker.internal:9001`
+- **Upstream** behind envoy or directly on `localhost:8082` — a simple echo server for testing
+
+### 5. Test the Setup
+
+```bash
+curl -v http://localhost:8080
+```
+
+## Testing with Custom Source IPs
+
+The provided `config/envoy.yaml` is configured with `xff_num_trusted_hops: 1`, which makes Envoy trust the `X-Forwarded-For` header to determine the client IP. This allows you to simulate requests from different IP addresses for testing your authorization policies.
+
+::: warning Mind what you do in Production
+The `xff_num_trusted_hops: 1` setting is intended for development and testing. In production, set this value to match the actual number of trusted proxies in front of Envoy, or set it to `0` if Envoy is the edge proxy and should not trust `X-Forwarded-For` headers.
+:::
+
+Use the `X-Forwarded-For` header to test how your policies behave with different client IPs:
+
+```bash
+curl -H "X-Forwarded-For: 1.1.1.100" http://localhost:8080
+
+curl -H "X-Forwarded-For: 8.8.8.8" http://localhost:8080
+```
+
+You can do the same thing with the `host` (for `authority`) and `user-agent` headers.
 
 ## Next Steps
 
