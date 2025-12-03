@@ -56,6 +56,8 @@ metrics:
   address: ":9090" # Optional listen address
   healthPath: /healthz # Optional
   readinessPath: /readyz # Optional
+  trackCountry: false # Optional: populate country/continent labels on request metrics (default false to limit cardinality)
+  trackGeofence: true # Optional: emit geofence match metrics (default true)
   dropPrefixes: # Optional: exclude metric prefixes (default shown)
     - go_
     - process_

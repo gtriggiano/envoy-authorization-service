@@ -29,11 +29,16 @@ Total number of authorization requests processed by the service.
 | Label Name | Example Value | Description |
 |------------|---------------|-------------|
 | `authority` | `api.service.com` | HTTP host/:authority value of the downstream request (or `-` when absent) |
-| `verdict` | `ALLOW` | Authorization decision. Possible values: `ALLOW` (request was allowed), `DENY` (request was denied) |
-| `culprit_controller_name` | `partner-ip` | Match controller name that caused the denial (`-` for allowed requests or when unavailable) |
-| `culprit_controller_kind` | `ip-match-database` | Match controller kind that caused the denial (`-` for allowed requests or when unavailable) |
-| `culprit_controller_verdict` | `MATCH` | Verdict from the culprit match controller (`MATCH`, `NO_MATCH`, or `-` when allowed/not available) |
-| `culprit_controller_result` | `OK` | Execution result of the culprit match controller (`OK`, `ERROR`, or `-` when allowed/not available) |
+| `verdict` | `ALLOW` | Final response sent to Envoy (`ALLOW`/`DENY`). Can be `ALLOW` even when policy wanted `DENY` if `policyBypass` is enabled. |
+| `policy_verdict` | `DENY` | Result of policy evaluation before bypass. |
+| `country_iso` | `US` | 2-letter ISO from GeoIP analysis, or `-` if unavailable. Populated only when `metrics.trackCountry` is true. |
+| `continent` | `North America` | Continent from GeoIP analysis, or `-` if unavailable. Populated only when `metrics.trackCountry` is true. |
+| `culprit_controller_name` | `partner-ip` | Match controller name that policy used to deny (`-` when policy allowed). |
+| `culprit_controller_kind` | `ip-match-database` | Match controller kind for the culprit (`-` when policy allowed). |
+| `culprit_controller_verdict` | `MATCH` | Controller verdict (`MATCH`/`NO_MATCH` or `-` when policy allowed). |
+| `culprit_controller_result` | `OK` | Execution result of the culprit controller (`OK`/`ERROR` or `-` when policy allowed). |
+
+**Verdict vs policy_verdict:** `verdict` is what Envoy sees; `policy_verdict` is the raw policy evaluation result. They differ when `policyBypass` lets a denied request pass, letting you distinguish “should have been denied” from “actually denied.” Geo labels default to `-` when GeoIP analysis is not configured or did not return data.
 
 ### `envoy_authz_request_duration_seconds` `Histogram`
 
@@ -42,11 +47,14 @@ End-to-end authorization request latency in seconds.
 | Label Name | Example Value | Description |
 |------------|---------------|-------------|
 | `authority` | `api.service.com` | HTTP host/:authority value of the downstream request (or `-` when absent) |
-| `verdict` | `DENY` | Authorization decision. Possible values: `ALLOW` (request was allowed), `DENY` (request was denied) |
-| `culprit_controller_name` | `scraper-ip` | Match controller name that caused the denial (`-` for allowed requests or when unavailable) |
-| `culprit_controller_kind` | `ip-match` | Match controller kind that caused the denial (`-` for allowed requests or when unavailable) |
-| `culprit_controller_verdict` | `MATCH` | Verdict from the culprit match controller (`MATCH`, `NO_MATCH`, or `-` when allowed/not available) |
-| `culprit_controller_result` | `OK` | Execution result of the culprit match controller (`OK`, `ERROR`, or `-` when allowed/not available) |
+| `verdict` | `DENY` | Final response sent to Envoy (`ALLOW`/`DENY`). |
+| `policy_verdict` | `DENY` | Policy evaluation result prior to bypass. |
+| `country_iso` | `US` | 2-letter ISO from GeoIP analysis, or `-` if unavailable. Populated only when `metrics.trackCountry` is true. |
+| `continent` | `North America` | Continent from GeoIP analysis, or `-` if unavailable. Populated only when `metrics.trackCountry` is true. |
+| `culprit_controller_name` | `scraper-ip` | Match controller name that caused the denial (`-` when policy allowed). |
+| `culprit_controller_kind` | `ip-match` | Match controller kind that caused the denial (`-` when policy allowed). |
+| `culprit_controller_verdict` | `MATCH` | Verdict from the culprit match controller (`MATCH`, `NO_MATCH`, or `-` when policy allowed/not available) |
+| `culprit_controller_result` | `OK` | Execution result of the culprit match controller (`OK`, `ERROR`, or `-` when policy allowed/not available) |
 
 ### `envoy_authz_controller_requests_total` `Counter`
 
@@ -78,6 +86,7 @@ Final verdicts produced by each match controller.
 
 ### `envoy_authz_geofence_match_totals` `Counter`
 Feature matches detected by the configured `geofence-match` controllers.
+Emitted only when `metrics.trackGeofence` is true (default).
 
 | Label Name | Example Value | Description |
 |------------|---------------|-------------|
@@ -142,179 +151,6 @@ Added labels:
 
 ### `envoy_authz_match_database_cache_entries` `Gauge`
 Current cache entries per controller/backend pair.
-
-## Recording Rules
-
-Recommended Prometheus recording rules for efficient queries:
-
-```yaml
-apiVersion: monitoring.coreos.com/v1
-kind: PrometheusRule
-metadata:
-  name: envoy-authz-recording-rules
-  namespace: monitoring
-spec:
-  groups:
-    - name: auth-service-recordings
-      interval: 30s
-      rules:
-        # Request rate
-        - record: job:envoy_authz:request_rate
-          expr: sum by (authority) (rate(envoy_authz_requests_total[5m]))
-        
-        # Denial rate
-        - record: job:envoy_authz:denial_rate
-          expr: sum by (authority) (rate(envoy_authz_requests_total{verdict="DENY"}[5m]))
-        
-        # p99 latency
-        - record: job:envoy_authz:latency_p99
-          expr: |
-            histogram_quantile(0.99,
-              rate(envoy_authz_request_duration_seconds_bucket[5m])
-            ) by (authority)
-        
-        # Controller p99 latency by name
-        - record: job:envoy_authz:controller_latency_p99:by_name
-          expr: |
-            histogram_quantile(0.99,
-              rate(envoy_authz_controller_duration_seconds_bucket[5m])
-            ) by (authority, controller_name)
-        
-        # Cache hit rate
-        - record: job:envoy_authz:cache_hit_rate
-          expr: |
-            sum by (authority) (rate(envoy_authz_match_database_cache_requests_total{cache_result="HIT"}[5m]))
-            /
-            sum by (authority) (rate(envoy_authz_match_database_cache_requests_total[5m]))
-```
-
-## Alerting
-
-Recommended Prometheus alerting rules.
-
-```yaml
-apiVersion: monitoring.coreos.com/v1
-kind: PrometheusRule
-metadata:
-  name: envoy-authz-alerts
-  namespace: monitoring
-spec:
-  groups:
-    - name: auth-service-alerts
-      rules:
-        # High denial rate
-        - alert: EnvoyAuthzHighDenialRate
-          expr: |
-            sum by (authority) (
-              rate(envoy_authz_requests_total{verdict="DENY"}[5m])
-            ) > 100
-          for: 5m
-          labels:
-            severity: warning
-          annotations:
-            summary: "High authorization denial rate for {{ $labels.authority }}"
-            description: "Denial rate is {{ $value }} req/s for authority {{ $labels.authority }}"
-        
-        # High latency
-        - alert: EnvoyAuthzHighLatency
-          expr: |
-            histogram_quantile(0.99,
-              rate(envoy_authz_request_duration_seconds_bucket[5m])
-            ) by (authority) > 0.05
-          for: 10m
-          labels:
-            severity: warning
-          annotations:
-            summary: "High authorization latency for {{ $labels.authority }}"
-            description: "p99 latency is {{ $value }}s for authority {{ $labels.authority }}"
-        
-        # Controller errors
-        - alert: EnvoyAuthzControllerErrors
-          expr: |
-            rate(envoy_authz_controller_duration_seconds_count{result="error"}[5m]) by (authority, controller_name, controller_kind) > 1
-          for: 5m
-          labels:
-            severity: warning
-          annotations:
-            summary: "Envoy Authz Controller for {{ $labels.authority }} experiencing errors"
-            description: "{{ $labels.controller_name }} ({{ $labels.controller_kind }}) error rate: {{ $value }}"
-        
-        # Match Database Query errors
-        - alert: EnvoyAuthzMatchDatabaseQueryErrors
-          expr: |
-            rate(envoy_authz_match_database_queries_total{result="ERROR"}[5m]) by (authority, controller_name, controller_kind, db_type) > 10
-          for: 2m
-          labels:
-            severity: warning
-          annotations:
-            summary: "Database controller errors for {{ $labels.authority }}"
-            description: "{{ $labels.controller_name }} ({{ $labels.controller_kind }}) on {{ $labels.db_type }} (authority {{ $labels.authority }}): {{ $value }} errors/s"
-
-        # Match Database unavailable
-        - alert: EnvoyAuthzMatchDatabaseUnavailable
-          expr: |
-            rate(envoy_authz_match_database_unavailable_total[1m]) by (authority, controller_name, controller_kind, db_type) > 0
-          for: 1m
-          labels:
-            severity: critical
-          annotations:
-            summary: "Database unavailable for {{ $labels.authority }}"
-            description: "{{ $labels.db_type }} unavailable for {{ $labels.controller_name }} (authority {{ $labels.authority }})"
-
-        # Low cache hit rate
-        - alert: LowCacheHitRate
-          expr: |
-            sum by (authority) (rate(envoy_authz_match_database_cache_requests_total{cache_result="HIT"}[5m]))
-            /
-            sum by (authority) (rate(envoy_authz_match_database_cache_requests_total[5m]))
-            < 0.7
-          for: 10m
-          labels:
-            severity: info
-          annotations:
-            summary: "Cache hit rate below 70% for {{ $labels.authority }}"
-            description: "Current hit rate: {{ $value | humanizePercentage }} for authority {{ $labels.authority }}"
-```
-
-## Grafana Dashboard Examples
-
-### Request Rate Panel
-
-```promql
-sum(rate(envoy_authz_requests_total[5m])) by (authority, verdict)
-```
-
-### Authorization Latency (p50, p95, p99)
-
-```promql
-histogram_quantile(0.50, rate(envoy_authz_request_duration_seconds_bucket[5m])) by (authority)
-histogram_quantile(0.95, rate(envoy_authz_request_duration_seconds_bucket[5m])) by (authority)
-histogram_quantile(0.99, rate(envoy_authz_request_duration_seconds_bucket[5m])) by (authority)
-```
-
-### Controller Performance
-
-```promql
-histogram_quantile(0.99,
-  rate(envoy_authz_controller_duration_seconds_bucket[5m])
-) by (controller_name, phase)
-```
-
-### Database Query Performance
-
-```promql
-histogram_quantile(0.99,
-  rate(envoy_authz_match_database_query_duration_seconds_bucket[5m])
-) by (authority, db_type)
-```
-
-### Cache Hit Rate
-
-```promql
-100 * sum(rate(envoy_authz_match_database_cache_requests_total{cache_result="HIT"}[5m])) by (authority)
-/
-sum(rate(envoy_authz_match_database_cache_requests_total[5m])) by (authority)
-```
 
 ## Go Runtime Metrics
 
