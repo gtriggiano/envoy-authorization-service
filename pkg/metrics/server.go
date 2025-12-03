@@ -41,7 +41,10 @@ func NewServer(
 	matchControllers []controller.MatchController,
 ) *Server {
 	reg := prometheus.NewRegistry()
-	inst := NewInstrumentation(reg)
+	inst := NewInstrumentation(reg, TrackOptions{
+		TrackCountry:  cfg.TrackCountry,
+		TrackGeofence: cfg.TrackGeofence != nil && *cfg.TrackGeofence,
+	})
 
 	return &Server{
 		cfg:                 cfg,

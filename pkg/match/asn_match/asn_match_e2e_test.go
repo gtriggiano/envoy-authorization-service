@@ -106,7 +106,7 @@ func buildManager(t *testing.T, ctx context.Context, logger *zap.Logger, authCfg
 	authControllers, err := controller.BuildMatchControllers(ctx, logger.Named("auth"), []config.ControllerConfig{authCfg})
 	requireNoErr(t, err)
 
-	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
+	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{TrackCountry: false, TrackGeofence: true})
 	pol, err := policy.Parse(authCfg.Name, []string{authCfg.Name})
 	requireNoErr(t, err)
 

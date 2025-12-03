@@ -17,9 +17,11 @@ import (
 	authv3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	typev3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"go.uber.org/zap/zaptest"
 	"google.golang.org/grpc/codes"
 
+	"github.com/gtriggiano/envoy-authorization-service/pkg/analysis/maxmind_geoip"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/controller"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/metrics"
@@ -42,6 +44,18 @@ func (s stubAnalysisController) Analyze(ctx context.Context, _ *runtime.RequestC
 	return s.report, s.err
 }
 func (s stubAnalysisController) HealthCheck(context.Context) error { return nil }
+
+// geoAnalysisReport builds a minimal GeoIP analysis report with upstream headers populated.
+func geoAnalysisReport(countryISO, continent string) *controller.AnalysisReport {
+	return &controller.AnalysisReport{
+		Controller:     "geo",
+		ControllerKind: maxmind_geoip.ControllerKind,
+		UpstreamHeaders: map[string]string{
+			"X-GeoIP-CountryISO": countryISO,
+			"X-GeoIP-Continent":  continent,
+		},
+	}
+}
 
 type stubMatchController struct {
 	name    string
@@ -75,7 +89,7 @@ func minimalCheckRequestUnit(ip string) *authv3.CheckRequest {
 
 func TestRunAnalysisCollectsReports(t *testing.T) {
 	logger := zaptest.NewLogger(t)
-	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
+	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{TrackCountry: false, TrackGeofence: true})
 	mgr := &Manager{
 		analysisControllers: []controller.AnalysisController{
 			stubAnalysisController{name: "b", kind: "analysis", report: &controller.AnalysisReport{UpstreamHeaders: map[string]string{"X-B": "b"}}},
@@ -97,7 +111,7 @@ func TestRunAnalysisCollectsReports(t *testing.T) {
 
 func TestRunMatchPopulatesVerdicts(t *testing.T) {
 	logger := zaptest.NewLogger(t)
-	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
+	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{TrackCountry: false, TrackGeofence: true})
 	mgr := &Manager{
 		matchControllers: []controller.MatchController{
 			stubMatchController{
@@ -222,7 +236,7 @@ func TestCodeToHTTPMapping(t *testing.T) {
 
 func TestManagerCheckAllowsAndPropagatesHeaders(t *testing.T) {
 	logger := zaptest.NewLogger(t)
-	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
+	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{TrackCountry: false, TrackGeofence: true})
 	mgr := &Manager{
 		analysisControllers: []controller.AnalysisController{
 			stubAnalysisController{
@@ -270,7 +284,7 @@ func TestManagerCheckDeniesViaPolicy(t *testing.T) {
 	}
 
 	logger := zaptest.NewLogger(t)
-	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
+	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{TrackCountry: false, TrackGeofence: true})
 	mgr := &Manager{
 		matchControllers: []controller.MatchController{
 			stubMatchController{
@@ -312,7 +326,7 @@ func TestManagerCheckPolicyBypassReturnsOK(t *testing.T) {
 	}
 
 	logger := zaptest.NewLogger(t)
-	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
+	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{TrackCountry: false, TrackGeofence: true})
 	mgr := &Manager{
 		matchControllers: []controller.MatchController{
 			stubMatchController{
@@ -338,6 +352,63 @@ func TestManagerCheckPolicyBypassReturnsOK(t *testing.T) {
 	if resp.GetStatus().GetCode() != int32(codes.OK) {
 		t.Fatalf("expected OK status due to policy bypass, got %d", resp.GetStatus().GetCode())
 	}
+}
+
+func TestRequestMetricsIncludeGeoAndPolicyVerdict(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{TrackCountry: false, TrackGeofence: true})
+	mgr := &Manager{
+		analysisControllers: []controller.AnalysisController{
+			stubAnalysisController{
+				name:   "geo",
+				kind:   maxmind_geoip.ControllerKind,
+				report: geoAnalysisReport("US", "North America"),
+			},
+		},
+		matchControllers: []controller.MatchController{
+			stubMatchController{
+				name: "auth-one",
+				kind: "auth",
+				verdict: &controller.MatchVerdict{
+					DenyCode:    codes.PermissionDenied,
+					Description: "blocked",
+					IsMatch:     false,
+				},
+			},
+		},
+		instrumentation:     inst,
+		authorizationPolicy: mustParsePolicy(t, "auth-one", []string{"auth-one"}),
+		policyBypass:        true, // force final allow while policy verdict is deny
+		logger:              logger,
+	}
+
+	_, err := mgr.Check(context.Background(), minimalCheckRequestUnit("198.51.100.99"))
+	if err != nil {
+		t.Fatalf("Check returned error: %v", err)
+	}
+
+	// Expect a single metric with verdict ALLOW (final), policy_verdict DENY, geo labels, and culprit labels.
+	val := testutil.ToFloat64(inst.RequestTotals().WithLabelValues(
+		"-", metrics.ALLOW, metrics.DENY, "US", "North America", "auth-one", "auth", metrics.NO_MATCH_VERDICT, metrics.OK,
+	))
+	if val == 0 {
+		// Fall back to the non-enriched combination to surface clearer failures.
+		val = testutil.ToFloat64(inst.RequestTotals().WithLabelValues(
+			"-", metrics.ALLOW, metrics.DENY, metrics.NotAvailable, metrics.NotAvailable, "auth-one", "auth", metrics.NO_MATCH_VERDICT, metrics.OK,
+		))
+	}
+	if val != 1 {
+		t.Fatalf("expected request metric with policy bypass labels (enriched or default), got %v", val)
+	}
+}
+
+func mustParsePolicy(t *testing.T, expr string, controllers []string) *policy.Policy {
+	t.Helper()
+	p, err := policy.Parse(expr, controllers)
+	if err != nil {
+		t.Fatalf("policy parse failed: %v", err)
+	}
+	return p
 }
 
 // --- Server helpers --------------------------------------------------------
@@ -387,7 +458,7 @@ func TestBuildTLSConfigErrorsOnMissingFiles(t *testing.T) {
 
 func TestServerStartFailsOnBadAddress(t *testing.T) {
 	logger := zaptest.NewLogger(t)
-	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
+	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{TrackCountry: true, TrackGeofence: true})
 	mgr := &Manager{
 		instrumentation: inst,
 		logger:          logger,

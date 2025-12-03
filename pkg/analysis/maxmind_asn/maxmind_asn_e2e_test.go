@@ -45,7 +45,7 @@ func TestMaxMindASNHeaders(t *testing.T) {
 	analysisControllers, err := controller.BuildAnalysisControllers(ctx, logger.Named("analysis"), []config.ControllerConfig{analysisCfg})
 	requireNoErr(t, err)
 
-	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
+	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{TrackCountry: false, TrackGeofence: true})
 	// No auth controllers, no policy: analysis headers should flow into OK response.
 	mgr := service.NewManager(analysisControllers, nil, inst, nil, false, logger)
 

@@ -45,7 +45,7 @@ func TestMaxMindGeoIPHeaders(t *testing.T) {
 	analysisControllers, err := controller.BuildAnalysisControllers(ctx, logger.Named("analysis"), []config.ControllerConfig{analysisCfg})
 	requireNoErr(t, err)
 
-	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
+	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{TrackCountry: false, TrackGeofence: true})
 	mgr := service.NewManager(analysisControllers, nil, inst, nil, false, logger)
 
 	ip := "8.8.8.8"

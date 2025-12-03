@@ -71,6 +71,7 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 
 	// Run analysis phase
 	analysisReports := m.runAnalysis(ctx, reqCtx)
+	countryISO, continent := geoLabelsFromReports(analysisReports)
 
 	// Run match phase
 	matchVerdicts := m.runMatch(ctx, reqCtx, analysisReports)
@@ -89,11 +90,15 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 	}
 
 	// Evaluate policy
-	allowed, denyVerdict := m.evaluatePolicy(matchVerdicts)
+	policyAllowed, denyVerdict := m.evaluatePolicy(matchVerdicts)
 
-	logFields := reqCtx.LogFields()
+	logFields := append(
+		reqCtx.LogFields(),
+		zap.String("country_iso", countryISO),
+		zap.String("continent", continent),
+	)
 
-	if !allowed {
+	if !policyAllowed {
 		// Log requests denied by policy (or bypassed)
 		logFields := append(
 			logFields,
@@ -101,27 +106,40 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 			zap.String("culprit_controller_type", denyVerdict.ControllerType),
 			zap.String("culprit_controller_name", denyVerdict.Controller),
 			zap.String("culprit_description", denyVerdict.Description),
-			zap.Bool("policy_bypass", m.policyBypass),
 		)
-		m.logger.Warn("POLICY BLOCK", logFields...)
+		m.logger.Debug("POLICY DENY", logFields...)
 	} else {
 		// Log requests allowed by policy
 		logFields := append(
 			logFields,
 			zap.String("verdict", metrics.ALLOW),
 		)
-		m.logger.Debug("POLICY AUTHORIZE", logFields...)
+		m.logger.Debug("POLICY ALLOW", logFields...)
 	}
 
-	if !allowed && !m.policyBypass {
-		culpritName, culpritKind, culpritVerdict, culpritResult := culpritLabelsFromVerdict(denyVerdict)
-		// Deny the request
-		m.instrumentation.ObserveDenyDecision(reqCtx.Authority, culpritName, culpritKind, culpritVerdict, culpritResult, time.Since(start))
+	culpritName, culpritKind, culpritVerdict, culpritResult := culpritLabelsFromVerdict(policyAllowed, denyVerdict)
+	policyVerdict := metrics.DENY
+	if policyAllowed {
+		policyVerdict = metrics.ALLOW
+	}
+
+	finalAllowed := policyAllowed || m.policyBypass
+	bypassed := !policyAllowed && m.policyBypass
+
+	if !finalAllowed {
+		m.logger.Warn("DENY", logFields...)
+		m.instrumentation.ObserveDenyDecision(reqCtx.Authority, policyVerdict, countryISO, continent, culpritName, culpritKind, culpritVerdict, culpritResult, time.Since(start))
 		return m.denyResponse(
 			denyVerdict.DenyCode,
 			denyVerdict.DenyMessage,
 			sanitizedHeaders(denyVerdict.DenyDownstreamHeaders),
 		), nil
+	} else {
+		if bypassed {
+			m.logger.Warn("BYPASS", logFields...)
+		} else {
+			m.logger.Debug("ALLOW", logFields...)
+		}
 	}
 
 	upstreamHeaders := upstreamHeadersFromAnalysisReports(analysisReports)
@@ -133,7 +151,7 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 		)
 	}
 
-	m.instrumentation.ObserveAllowDecision(reqCtx.Authority, time.Since(start))
+	m.instrumentation.ObserveAllowDecision(reqCtx.Authority, policyVerdict, countryISO, continent, culpritName, culpritKind, culpritVerdict, culpritResult, time.Since(start))
 	return m.okResponse(upstreamHeaders), nil
 }
 
@@ -273,10 +291,8 @@ func (m *Manager) evaluatePolicy(matchVerdicts controller.MatchVerdicts) (bool, 
 	}
 }
 
-// culpritLabelsFromVerdict extracts the label values to be attached to request-level metrics
-// when a policy denial is caused by a specific match controller.
-func culpritLabelsFromVerdict(denyVerdict *controller.MatchVerdict) (string, string, string, string) {
-	if denyVerdict == nil || denyVerdict.ControllerType == "policy" || denyVerdict.Controller == "" || denyVerdict.ControllerType == "" {
+func culpritLabelsFromVerdict(policyAllowed bool, denyVerdict *controller.MatchVerdict) (string, string, string, string) {
+	if policyAllowed || denyVerdict == nil || denyVerdict.ControllerType == "policy" || denyVerdict.Controller == "" || denyVerdict.ControllerType == "" {
 		return metrics.NotAvailable, metrics.NotAvailable, metrics.NotAvailable, metrics.NotAvailable
 	}
 
@@ -287,6 +303,28 @@ func culpritLabelsFromVerdict(denyVerdict *controller.MatchVerdict) (string, str
 
 	// If a verdict reached policy evaluation, the controller returned successfully.
 	return denyVerdict.Controller, denyVerdict.ControllerType, controllerVerdict, metrics.OK
+}
+
+// geoLabelsFromReports pulls country and continent labels from GeoIP analysis reports.
+func geoLabelsFromReports(reports controller.AnalysisReports) (string, string) {
+	country := metrics.NotAvailable
+	continent := metrics.NotAvailable
+
+	for _, report := range reports {
+		if report == nil {
+			continue
+		}
+		if iso, ok := report.UpstreamHeaders["X-GeoIP-CountryISO"]; ok && iso != "" {
+			country = iso
+		}
+		if cont, ok := report.UpstreamHeaders["X-GeoIP-Continent"]; ok && cont != "" {
+			continent = cont
+		}
+		if country != metrics.NotAvailable || continent != metrics.NotAvailable {
+			break
+		}
+	}
+	return country, continent
 }
 
 // okResponse wraps an OK authorization result with optional upstream headers.

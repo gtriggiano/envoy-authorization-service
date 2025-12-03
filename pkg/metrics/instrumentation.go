@@ -39,22 +39,31 @@ type Instrumentation struct {
 	matchDbCacheSize    *prometheus.GaugeVec
 	matchDbUnavailable  *prometheus.CounterVec
 	geofenceMatchTotals *prometheus.CounterVec
+
+	trackOptions TrackOptions
+}
+
+// TrackOptions configures which optional dimensions are emitted.
+type TrackOptions struct {
+	TrackCountry  bool
+	TrackGeofence bool
 }
 
 // NewInstrumentation registers all metric vectors.
-func NewInstrumentation(reg prometheus.Registerer) *Instrumentation {
+// Track options control optional label population and metric emission (geo, geofence).
+func NewInstrumentation(reg prometheus.Registerer, opts TrackOptions) *Instrumentation {
 	inst := &Instrumentation{
 		requestTotals: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: "envoy_authz",
 			Name:      "requests_total",
 			Help:      "Total authorization decisions by result",
-		}, []string{"authority", "verdict", "culprit_controller_name", "culprit_controller_kind", "culprit_controller_verdict", "culprit_controller_result"}),
+		}, []string{"authority", "verdict", "policy_verdict", "country_iso", "continent", "culprit_controller_name", "culprit_controller_kind", "culprit_controller_verdict", "culprit_controller_result"}),
 		requestDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: "envoy_authz",
 			Name:      "request_duration_seconds",
 			Help:      "End-to-end authorization latency",
 			Buckets:   []float64{.00005, .0001, .0005, .001, .002, .005, .01, .025, .05, .1, .25, .5},
-		}, []string{"authority", "verdict", "culprit_controller_name", "culprit_controller_kind", "culprit_controller_verdict", "culprit_controller_result"}),
+		}, []string{"authority", "verdict", "policy_verdict", "country_iso", "continent", "culprit_controller_name", "culprit_controller_kind", "culprit_controller_verdict", "culprit_controller_result"}),
 		controllerDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: "envoy_authz",
 			Name:      "controller_duration_seconds",
@@ -113,11 +122,6 @@ func NewInstrumentation(reg prometheus.Registerer) *Instrumentation {
 			Name:      "unavailable_total",
 			Help:      "Database unavailability events for match controllers",
 		}, []string{"authority", "controller_name", "controller_kind", "db_type"}),
-		geofenceMatchTotals: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: "envoy_authz",
-			Name:      "geofence_match_totals",
-			Help:      "Geofence match controller feature matches",
-		}, []string{"authority", "controller_name", "feature"}),
 	}
 
 	reg.MustRegister(
@@ -133,8 +137,18 @@ func NewInstrumentation(reg prometheus.Registerer) *Instrumentation {
 		inst.matchDbCacheReq,
 		inst.matchDbCacheSize,
 		inst.matchDbUnavailable,
-		inst.geofenceMatchTotals,
 	)
+
+	if opts.TrackGeofence {
+		inst.geofenceMatchTotals = prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: "envoy_authz",
+			Name:      "geofence_match_totals",
+			Help:      "Geofence match controller feature matches",
+		}, []string{"authority", "controller_name", "feature"})
+		reg.MustRegister(inst.geofenceMatchTotals)
+	}
+
+	inst.trackOptions = opts
 	return inst
 }
 
@@ -154,24 +168,42 @@ func (i *Instrumentation) InFlight(authority string, delta float64) {
 	i.inFlight.WithLabelValues(authority).Sub(-delta)
 }
 
-// ObserveDenyDecision records a deny decision and duration with culprit labels.
-func (i *Instrumentation) ObserveDenyDecision(authority, controllerName, controllerKind, controllerVerdict, controllerResult string, duration time.Duration) {
+// ObserveDenyDecision records a deny decision and duration with policy/geo/culprit labels.
+func (i *Instrumentation) ObserveDenyDecision(authority, policyVerdict, countryISO, continent, controllerName, controllerKind, controllerVerdict, controllerResult string, duration time.Duration) {
 	if i == nil {
 		return
 	}
 
-	i.requestTotals.WithLabelValues(authority, DENY, controllerName, controllerKind, controllerVerdict, controllerResult).Inc()
-	i.requestDuration.WithLabelValues(authority, DENY, controllerName, controllerKind, controllerVerdict, controllerResult).Observe(duration.Seconds())
+	i.recordDecision(authority, DENY, policyVerdict, countryISO, continent, controllerName, controllerKind, controllerVerdict, controllerResult, duration)
 }
 
-// ObserveAllowDecision records an allow decision and duration with culprit labels set to not applicable.
-func (i *Instrumentation) ObserveAllowDecision(authority string, duration time.Duration) {
+// ObserveAllowDecision records an allow decision and duration with policy/geo/culprit labels.
+func (i *Instrumentation) ObserveAllowDecision(authority, policyVerdict, countryISO, continent, controllerName, controllerKind, controllerVerdict, controllerResult string, duration time.Duration) {
 	if i == nil {
 		return
 	}
 
-	i.requestTotals.WithLabelValues(authority, ALLOW, NotAvailable, NotAvailable, NotAvailable, NotAvailable).Inc()
-	i.requestDuration.WithLabelValues(authority, ALLOW, NotAvailable, NotAvailable, NotAvailable, NotAvailable).Observe(duration.Seconds())
+	i.recordDecision(authority, ALLOW, policyVerdict, countryISO, continent, controllerName, controllerKind, controllerVerdict, controllerResult, duration)
+}
+
+// recordDecision emits both the counter and latency histogram for a request-level decision.
+func (i *Instrumentation) recordDecision(authority, verdict, policyVerdict, countryISO, continent, controllerName, controllerKind, controllerVerdict, controllerResult string, duration time.Duration) {
+	if i == nil {
+		return
+	}
+
+	if !i.trackOptions.TrackCountry {
+		countryISO = NotAvailable
+		continent = NotAvailable
+	}
+
+	i.requestTotals.WithLabelValues(authority, verdict, policyVerdict, countryISO, continent, controllerName, controllerKind, controllerVerdict, controllerResult).Inc()
+	i.requestDuration.WithLabelValues(authority, verdict, policyVerdict, countryISO, continent, controllerName, controllerKind, controllerVerdict, controllerResult).Observe(duration.Seconds())
+}
+
+// RequestTotals exposes the requestTotals counter (primarily for testing).
+func (i *Instrumentation) RequestTotals() *prometheus.CounterVec {
+	return i.requestTotals
 }
 
 // ObserveAnalysisControllerRequest records analysis controller invocation and latency.
@@ -281,7 +313,7 @@ func (i *Instrumentation) ObserveMatchDatabaseUnavailable(authority, controllerN
 
 // ObserveGeofenceMatch records a geofence feature match.
 func (i *Instrumentation) ObserveGeofenceMatch(authority, controllerName, feature string) {
-	if i == nil {
+	if i == nil || i.geofenceMatchTotals == nil {
 		return
 	}
 	i.geofenceMatchTotals.WithLabelValues(authority, controllerName, feature).Inc()

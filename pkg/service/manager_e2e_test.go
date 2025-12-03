@@ -121,7 +121,7 @@ func buildIPMatchDatabaseControllers(t *testing.T, ctx context.Context, cfg conf
 func runManagerCheck(t *testing.T, ctx context.Context, authControllers []controller.MatchController, policyExpr, ip string) bool {
 	t.Helper()
 
-	inst := metrics.NewInstrumentation(prometheus.NewRegistry())
+	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{TrackCountry: false, TrackGeofence: true})
 	pol, err := policy.Parse(policyExpr, []string{authControllers[0].Name()})
 	requireNoErr(t, err)
 

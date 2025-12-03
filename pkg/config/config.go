@@ -70,6 +70,10 @@ type MetricsConfig struct {
 	ReadinessPath string `yaml:"readinessPath"`
 	// DropPrefixes specifies metric name prefixes to filter out from the default Go runtime registry.
 	DropPrefixes []string `yaml:"dropPrefixes"`
+	// TrackCountry enables country/continent labels on request-level metrics (off by default to limit cardinality).
+	TrackCountry bool `yaml:"trackCountry"`
+	// TrackGeofence toggles emission of geofence match counters (default true).
+	TrackGeofence *bool `yaml:"trackGeofence"`
 }
 
 // ControllerConfig defines one controller instance with its type and settings.
@@ -178,6 +182,11 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Metrics.DropPrefixes == nil {
 		c.Metrics.DropPrefixes = []string{"go_", "process_", "promhttp_"}
+	}
+	// Default geofence metric emission to true unless explicitly disabled.
+	if c.Metrics.TrackGeofence == nil {
+		val := true
+		c.Metrics.TrackGeofence = &val
 	}
 
 	if c.Shutdown.Timeout == "" {
