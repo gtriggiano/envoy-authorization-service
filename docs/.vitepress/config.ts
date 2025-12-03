@@ -17,9 +17,22 @@ const defaultConfiguration = defineConfig({
 
     nav: [
       { text: "Get Started", link: "/get-started" },
-      { text: "Analysis Controllers", link: "/analysis-controllers/" },
-      { text: "Match Controllers", link: "/match-controllers/" },
-      { text: "Examples", link: "/examples/" },
+      {
+        text: "Guides",
+        items: [
+          { text: "Docker Deployment", link: "/guides/docker" },
+          { text: "Kubernetes Deployment", link: "/guides/kubernetes" },
+          { text: "Observability", link: "/guides/observability" },
+        ],
+      },
+      { text: "Use Cases", link: "/examples/" },
+      {
+        text: "Controllers",
+        items: [
+          { text: "Analysis Controllers", link: "/analysis-controllers/" },
+          { text: "Match Controllers", link: "/match-controllers/" },
+        ],
+      },
       {
         text: "Reference",
         items: [
@@ -59,6 +72,40 @@ const defaultConfiguration = defineConfig({
           ],
         },
         {
+          text: "Guides",
+          items: [
+            { text: "Docker Deployment", link: "/guides/docker" },
+            { text: "Kubernetes Deployment", link: "/guides/kubernetes" },
+            { text: "Observability", link: "/guides/observability" },
+          ],
+        },
+        {
+          text: "Use Cases",
+          link: "/examples/",
+          items: [
+            {
+              text: "Zero-Trust Partner Webhooks",
+              link: "/examples/partner-webhooks-zero-trust",
+            },
+            {
+              text: "Regional Compliance with Geofences and ISP Guardrails",
+              link: "/examples/regional-compliance-geofence-asn",
+            },
+            {
+              text: "SaaS Admin Console with Live IP Allowlists",
+              link: "/examples/saas-admin-live-ip-allowlist",
+            },
+            {
+              text: "Bot-Resistant Signup & Trial Forms",
+              link: "/examples/signup-bot-shield",
+            },
+            {
+              text: "Geofenced Store Tablets & Kiosks",
+              link: "/examples/store-tablet-geo-ua",
+            },
+          ],
+        },
+        {
           text: "Analysis Controllers",
           items: [
             { text: "Overview", link: "/analysis-controllers/" },
@@ -91,40 +138,6 @@ const defaultConfiguration = defineConfig({
               text: "IP Match Database",
               link: "/match-controllers/ip-match-database",
             },
-          ],
-        },
-        {
-          text: "Guides",
-          items: [
-            { text: "Docker Deployment", link: "/guides/docker" },
-            { text: "Kubernetes Deployment", link: "/guides/kubernetes" },
-            { text: "Observability", link: "/guides/observability" },
-          ],
-        },
-        {
-          text: "Examples",
-          items: [
-            { text: "Overview", link: "/examples/" },
-            {
-              text: "Zero-Trust Partner Webhooks",
-              link: "/examples/partner-webhooks-zero-trust",
-            },
-            {
-              text: "Regional Compliance with Geofences and ISP Guardrails",
-              link: "/examples/regional-compliance-geofence-asn",
-            },
-            {
-              text: "SaaS Admin Console with Live IP Allowlists",
-              link: "/examples/saas-admin-live-ip-allowlist",
-            },
-            {
-              text: "Bot-Resistant Signup & Trial Forms",
-              link: "/examples/signup-bot-shield",
-            },
-            {
-              text: "Geofenced Store Tablets & Kiosks",
-              link: "/examples/store-tablet-geo-ua",
-            }
           ],
         },
         {

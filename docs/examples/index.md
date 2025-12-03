@@ -1,6 +1,6 @@
-# Examples Overview
+# Use Cases
 
-Practical configuration examples for common authorization scenarios.
+Practical configuration examples for common scenarios.
 
 ## SaaS Product Scenarios
 
