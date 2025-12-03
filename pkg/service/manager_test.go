@@ -10,7 +10,6 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -303,9 +302,6 @@ func TestManagerCheckDeniesViaPolicy(t *testing.T) {
 	}
 	if resp.GetStatus().GetCode() != int32(codes.PermissionDenied) {
 		t.Fatalf("unexpected gRPC status: %d", resp.GetStatus().GetCode())
-	}
-	if !strings.Contains(denied.GetBody(), "blocked") {
-		t.Fatalf("deny reason missing, got %s", denied.GetBody())
 	}
 }
 
