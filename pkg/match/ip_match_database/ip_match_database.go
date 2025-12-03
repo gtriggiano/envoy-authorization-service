@@ -135,7 +135,7 @@ func (c *ipMatchDatabaseController) queryDatabase(ctx context.Context, authority
 func (c *ipMatchDatabaseController) createVerdict(isMatch bool, description string) *controller.MatchVerdict {
 	return &controller.MatchVerdict{
 		Controller:     c.name,
-		ControllerKind: ControllerKind,
+		ControllerType: ControllerKind,
 		DenyCode:       codes.PermissionDenied,
 		Description:    description,
 		IsMatch:        isMatch,

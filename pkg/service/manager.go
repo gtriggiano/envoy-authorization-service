@@ -85,8 +85,8 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 		logFields := append(
 			logFields,
 			zap.String("verdict", metrics.DENY),
+			zap.String("culprit_controller_type", denyVerdict.ControllerType),
 			zap.String("culprit_controller_name", denyVerdict.Controller),
-			zap.String("culprit_controller_type", denyVerdict.ControllerKind),
 			zap.String("culprit_description", denyVerdict.Description),
 			zap.Bool("policy_bypass", m.policyBypass),
 		)
@@ -110,7 +110,7 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 		m.instrumentation.ObserveDenyDecision(reqCtx.Authority, culpritName, culpritKind, culpritVerdict, culpritResult, time.Since(start))
 		return m.denyResponse(
 			denyVerdict.DenyCode,
-			denyVerdict.Description,
+			denyVerdict.DenyMessage,
 			sanitizedHeaders(denyVerdict.DenyDownstreamHeaders),
 		), nil
 	}
@@ -207,8 +207,8 @@ func (m *Manager) runMatch(ctx context.Context, req *runtime.RequestContext, rep
 			}
 
 			verdict.Controller = matchController.Name()
-			verdict.ControllerKind = matchController.Kind()
-			m.instrumentation.ObserveMatchVerdict(req.Authority, verdict.Controller, verdict.ControllerKind, verdict.IsMatch)
+			verdict.ControllerType = matchController.Kind()
+			m.instrumentation.ObserveMatchVerdict(req.Authority, verdict.Controller, verdict.ControllerType, verdict.IsMatch)
 			mu.Lock()
 			verdicts[matchController.Name()] = verdict
 			mu.Unlock()
@@ -227,7 +227,7 @@ func (m *Manager) evaluatePolicy(matchVerdicts controller.MatchVerdicts) (bool, 
 	if m.authorizationPolicy == nil {
 		return true, &controller.MatchVerdict{
 			Controller:     "policy",
-			ControllerKind: "policy",
+			ControllerType: "policy",
 			IsMatch:        true,
 			DenyCode:       codes.OK,
 			Description:    "no policy configured, allowing by default",
@@ -242,7 +242,7 @@ func (m *Manager) evaluatePolicy(matchVerdicts controller.MatchVerdicts) (bool, 
 	if allowed, denyerControllerName := m.authorizationPolicy.Evaluate(verdictsPredicates); allowed {
 		return true, &controller.MatchVerdict{
 			Controller:     "policy",
-			ControllerKind: "policy",
+			ControllerType: "policy",
 			IsMatch:        true,
 			DenyCode:       codes.OK,
 			Description:    "request allowed by policy",
@@ -257,7 +257,7 @@ func (m *Manager) evaluatePolicy(matchVerdicts controller.MatchVerdicts) (bool, 
 		}
 		return false, &controller.MatchVerdict{
 			Controller:     "policy",
-			ControllerKind: "policy",
+			ControllerType: "policy",
 			DenyCode:       codes.PermissionDenied,
 			Description:    fmt.Sprintf("request denied by controller '%s'", denyerControllerName),
 		}
@@ -267,7 +267,7 @@ func (m *Manager) evaluatePolicy(matchVerdicts controller.MatchVerdicts) (bool, 
 // culpritLabelsFromVerdict extracts the label values to be attached to request-level metrics
 // when a policy denial is caused by a specific match controller.
 func culpritLabelsFromVerdict(denyVerdict *controller.MatchVerdict) (string, string, string, string) {
-	if denyVerdict == nil || denyVerdict.ControllerKind == "policy" || denyVerdict.Controller == "" || denyVerdict.ControllerKind == "" {
+	if denyVerdict == nil || denyVerdict.ControllerType == "policy" || denyVerdict.Controller == "" || denyVerdict.ControllerType == "" {
 		return metrics.NotAvailable, metrics.NotAvailable, metrics.NotAvailable, metrics.NotAvailable
 	}
 
@@ -277,7 +277,7 @@ func culpritLabelsFromVerdict(denyVerdict *controller.MatchVerdict) (string, str
 	}
 
 	// If a verdict reached policy evaluation, the controller returned successfully.
-	return denyVerdict.Controller, denyVerdict.ControllerKind, controllerVerdict, metrics.OK
+	return denyVerdict.Controller, denyVerdict.ControllerType, controllerVerdict, metrics.OK
 }
 
 // okResponse wraps an OK authorization result with optional upstream headers.

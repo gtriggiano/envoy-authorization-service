@@ -27,8 +27,9 @@ type AnalysisReports map[string]*AnalysisReport
 // MatchVerdict represents the outcome of a match controller.
 type MatchVerdict struct {
 	Controller            string
-	ControllerKind        string
+	ControllerType        string
 	DenyCode              codes.Code
+	DenyMessage           string
 	Description           string
 	IsMatch               bool
 	DenyDownstreamHeaders map[string]string
@@ -124,7 +125,7 @@ func BuildAnalysisControllers(ctx context.Context, logger *zap.Logger, configura
 			return nil, fmt.Errorf("analysis controller '%s' is of unknown type '%s'", configuration.Name, configuration.Type)
 		}
 
-		controller, err := factory(ctx, logger.With(zap.String("controller_name", configuration.Name), zap.String("controller_type", configuration.Type)), configuration)
+		controller, err := factory(ctx, logger.With(zap.String("controller_type", configuration.Type), zap.String("controller_name", configuration.Name)), configuration)
 		if err != nil {
 			return nil, fmt.Errorf("could not build analysis controller '%s' of type '%s': %w", configuration.Name, configuration.Type, err)
 		}
@@ -146,7 +147,7 @@ func BuildMatchControllers(ctx context.Context, logger *zap.Logger, configuratio
 			return nil, fmt.Errorf("match controller '%s' is of unknown type '%s'", configuration.Name, configuration.Type)
 		}
 
-		controller, err := factory(ctx, logger.With(zap.String("controller_name", configuration.Name), zap.String("controller_type", configuration.Type)), configuration)
+		controller, err := factory(ctx, logger.With(zap.String("controller_type", configuration.Type), zap.String("controller_name", configuration.Name)), configuration)
 		if err != nil {
 			return nil, fmt.Errorf("could not build match controller '%s' of type '%s': %w", configuration.Name, configuration.Type, err)
 		}

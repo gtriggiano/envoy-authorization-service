@@ -76,7 +76,7 @@ func (c *geofenceMatchController) Match(ctx context.Context, req *runtime.Reques
 
 	return &controller.MatchVerdict{
 		Controller:           c.name,
-		ControllerKind:       ControllerKind,
+		ControllerType:       ControllerKind,
 		DenyCode:             codes.PermissionDenied,
 		Description:          description,
 		IsMatch:              isMatch,

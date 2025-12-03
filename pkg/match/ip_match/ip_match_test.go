@@ -43,7 +43,7 @@ func TestMatchController_MatchResults(t *testing.T) {
 			if verdict.Description == "" {
 				t.Fatal("expected non-empty description")
 			}
-			if verdict.Controller != "test-controller" || verdict.ControllerKind != ControllerKind {
+			if verdict.Controller != "test-controller" || verdict.ControllerType != ControllerKind {
 				t.Fatalf("unexpected controller metadata: %+v", verdict)
 			}
 		})

@@ -121,7 +121,7 @@ func TestRunMatchPopulatesVerdicts(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected verdict from controller")
 	}
-	if verdict.Controller != "auth" || verdict.ControllerKind != "auth-kind" {
+	if verdict.Controller != "auth" || verdict.ControllerType != "auth-kind" {
 		t.Fatalf("controller metadata not populated: %+v", verdict)
 	}
 }

@@ -42,7 +42,7 @@ func (c *asnMatchController) Match(ctx context.Context, req *runtime.RequestCont
 
 	return &controller.MatchVerdict{
 		Controller:     c.name,
-		ControllerKind: ControllerKind,
+		ControllerType: ControllerKind,
 		DenyCode:       codes.PermissionDenied,
 		Description:    description,
 		IsMatch:        isMatch,

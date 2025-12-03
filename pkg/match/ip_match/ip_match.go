@@ -43,7 +43,7 @@ func (c *ipMatchController) Match(ctx context.Context, req *runtime.RequestConte
 	if !req.IpAddress.IsValid() {
 		return &controller.MatchVerdict{
 			Controller:     c.name,
-			ControllerKind: ControllerKind,
+			ControllerType: ControllerKind,
 			DenyCode:       codes.PermissionDenied,
 			Description:    "unable to determine source IP address",
 			IsMatch:        false,
@@ -59,7 +59,7 @@ func (c *ipMatchController) Match(ctx context.Context, req *runtime.RequestConte
 
 	return &controller.MatchVerdict{
 		Controller:     c.name,
-		ControllerKind: ControllerKind,
+		ControllerType: ControllerKind,
 		DenyCode:       codes.PermissionDenied,
 		Description:    description,
 		IsMatch:        isMatch,

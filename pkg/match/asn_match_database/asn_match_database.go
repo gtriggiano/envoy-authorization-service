@@ -148,7 +148,7 @@ func (c *asnMatchDatabaseController) queryDatabase(ctx context.Context, authorit
 func (c *asnMatchDatabaseController) createVerdict(isMatch bool, description string) *controller.MatchVerdict {
 	return &controller.MatchVerdict{
 		Controller:     c.name,
-		ControllerKind: ControllerKind,
+		ControllerType: ControllerKind,
 		DenyCode:       codes.PermissionDenied,
 		Description:    description,
 		IsMatch:        isMatch,
