@@ -7,7 +7,7 @@ require (
 	github.com/envoyproxy/go-control-plane/envoy v1.36.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/mileusna/useragent v1.3.5
-	github.com/oschwald/geoip2-golang/v2 v2.0.1
+	github.com/oschwald/geoip2-golang/v2 v2.1.0
 	github.com/paulmach/orb v0.12.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
