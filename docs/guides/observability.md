@@ -95,7 +95,7 @@ spec:
             /
             sum by (authority) (rate(envoy_authz_match_database_cache_requests_total[5m]))
 
-        # Verdict and geo ratios (optional; watch cardinality for country_iso)
+        # Verdict and geo ratios (optional; watch cardinality for country_iso and country_name)
         - record: envoy_authz:authority:verdict_ratio
           expr: |
             sum by (authority, verdict) (rate(envoy_authz_requests_total[5m]))
@@ -115,6 +115,13 @@ spec:
         - record: envoy_authz:authority:country_ratio
           expr: |
             sum by (authority, country_iso) (rate(envoy_authz_requests_total[5m]))
+            /
+            sum by (authority) (rate(envoy_authz_requests_total[5m]))
+        - record: envoy_authz:authority:country_name_rate
+          expr: sum by (authority, country_name) (rate(envoy_authz_requests_total[5m]))
+        - record: envoy_authz:authority:country_name_ratio
+          expr: |
+            sum by (authority, country_name) (rate(envoy_authz_requests_total[5m]))
             /
             sum by (authority) (rate(envoy_authz_requests_total[5m]))
 

@@ -57,13 +57,13 @@ func NewInstrumentation(reg prometheus.Registerer, opts TrackOptions) *Instrumen
 			Namespace: "envoy_authz",
 			Name:      "requests_total",
 			Help:      "Total authorization decisions by result",
-		}, []string{"authority", "verdict", "policy_verdict", "country_iso", "continent", "culprit_controller_name", "culprit_controller_kind", "culprit_controller_verdict", "culprit_controller_result"}),
+		}, []string{"authority", "verdict", "policy_verdict", "country_iso", "country_name", "continent", "culprit_controller_name", "culprit_controller_kind", "culprit_controller_verdict", "culprit_controller_result"}),
 		requestDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: "envoy_authz",
 			Name:      "request_duration_seconds",
 			Help:      "End-to-end authorization latency",
 			Buckets:   []float64{.00005, .0001, .0005, .001, .002, .005, .01, .025, .05, .1, .25, .5},
-		}, []string{"authority", "verdict", "policy_verdict", "country_iso", "continent", "culprit_controller_name", "culprit_controller_kind", "culprit_controller_verdict", "culprit_controller_result"}),
+		}, []string{"authority", "verdict", "policy_verdict", "country_iso", "country_name", "continent", "culprit_controller_name", "culprit_controller_kind", "culprit_controller_verdict", "culprit_controller_result"}),
 		controllerDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: "envoy_authz",
 			Name:      "controller_duration_seconds",
@@ -169,36 +169,37 @@ func (i *Instrumentation) InFlight(authority string, delta float64) {
 }
 
 // ObserveDenyDecision records a deny decision and duration with policy/geo/culprit labels.
-func (i *Instrumentation) ObserveDenyDecision(authority, policyVerdict, countryISO, continent, controllerName, controllerKind, controllerVerdict, controllerResult string, duration time.Duration) {
+func (i *Instrumentation) ObserveDenyDecision(authority, policyVerdict, countryISO, countryName, continent, controllerName, controllerKind, controllerVerdict, controllerResult string, duration time.Duration) {
 	if i == nil {
 		return
 	}
 
-	i.recordDecision(authority, DENY, policyVerdict, countryISO, continent, controllerName, controllerKind, controllerVerdict, controllerResult, duration)
+	i.recordDecision(authority, DENY, policyVerdict, countryISO, countryName, continent, controllerName, controllerKind, controllerVerdict, controllerResult, duration)
 }
 
 // ObserveAllowDecision records an allow decision and duration with policy/geo/culprit labels.
-func (i *Instrumentation) ObserveAllowDecision(authority, policyVerdict, countryISO, continent, controllerName, controllerKind, controllerVerdict, controllerResult string, duration time.Duration) {
+func (i *Instrumentation) ObserveAllowDecision(authority, policyVerdict, countryISO, countryName, continent, controllerName, controllerKind, controllerVerdict, controllerResult string, duration time.Duration) {
 	if i == nil {
 		return
 	}
 
-	i.recordDecision(authority, ALLOW, policyVerdict, countryISO, continent, controllerName, controllerKind, controllerVerdict, controllerResult, duration)
+	i.recordDecision(authority, ALLOW, policyVerdict, countryISO, countryName, continent, controllerName, controllerKind, controllerVerdict, controllerResult, duration)
 }
 
 // recordDecision emits both the counter and latency histogram for a request-level decision.
-func (i *Instrumentation) recordDecision(authority, verdict, policyVerdict, countryISO, continent, controllerName, controllerKind, controllerVerdict, controllerResult string, duration time.Duration) {
+func (i *Instrumentation) recordDecision(authority, verdict, policyVerdict, countryISO, countryName, continent, controllerName, controllerKind, controllerVerdict, controllerResult string, duration time.Duration) {
 	if i == nil {
 		return
 	}
 
 	if !i.trackOptions.TrackCountry {
 		countryISO = NotAvailable
+		countryName = NotAvailable
 		continent = NotAvailable
 	}
 
-	i.requestTotals.WithLabelValues(authority, verdict, policyVerdict, countryISO, continent, controllerName, controllerKind, controllerVerdict, controllerResult).Inc()
-	i.requestDuration.WithLabelValues(authority, verdict, policyVerdict, countryISO, continent, controllerName, controllerKind, controllerVerdict, controllerResult).Observe(duration.Seconds())
+	i.requestTotals.WithLabelValues(authority, verdict, policyVerdict, countryISO, countryName, continent, controllerName, controllerKind, controllerVerdict, controllerResult).Inc()
+	i.requestDuration.WithLabelValues(authority, verdict, policyVerdict, countryISO, countryName, continent, controllerName, controllerKind, controllerVerdict, controllerResult).Observe(duration.Seconds())
 }
 
 // RequestTotals exposes the requestTotals counter (primarily for testing).
