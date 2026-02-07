@@ -71,7 +71,7 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 
 	// Run analysis phase
 	analysisReports := m.runAnalysis(ctx, reqCtx)
-	countryISO, continent := geoLabelsFromReports(analysisReports)
+	countryISO, countryName, continent := geoLabelsFromReports(analysisReports)
 
 	// Run match phase
 	matchVerdicts := m.runMatch(ctx, reqCtx, analysisReports)
@@ -95,6 +95,7 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 	logFields := append(
 		reqCtx.LogFields(),
 		zap.String("country_iso", countryISO),
+		zap.String("country_name", countryName),
 		zap.String("continent", continent),
 	)
 
@@ -128,7 +129,7 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 
 	if !finalAllowed {
 		m.logger.Warn("DENY", logFields...)
-		m.instrumentation.ObserveDenyDecision(reqCtx.Authority, policyVerdict, countryISO, continent, culpritName, culpritKind, culpritVerdict, culpritResult, time.Since(start))
+		m.instrumentation.ObserveDenyDecision(reqCtx.Authority, policyVerdict, countryISO, countryName, continent, culpritName, culpritKind, culpritVerdict, culpritResult, time.Since(start))
 		return m.denyResponse(
 			denyVerdict.DenyCode,
 			denyVerdict.DenyMessage,
@@ -151,7 +152,7 @@ func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.
 		)
 	}
 
-	m.instrumentation.ObserveAllowDecision(reqCtx.Authority, policyVerdict, countryISO, continent, culpritName, culpritKind, culpritVerdict, culpritResult, time.Since(start))
+	m.instrumentation.ObserveAllowDecision(reqCtx.Authority, policyVerdict, countryISO, countryName, continent, culpritName, culpritKind, culpritVerdict, culpritResult, time.Since(start))
 	return m.okResponse(upstreamHeaders), nil
 }
 
@@ -305,9 +306,10 @@ func culpritLabelsFromVerdict(policyAllowed bool, denyVerdict *controller.MatchV
 	return denyVerdict.Controller, denyVerdict.ControllerType, controllerVerdict, metrics.OK
 }
 
-// geoLabelsFromReports pulls country and continent labels from GeoIP analysis reports.
-func geoLabelsFromReports(reports controller.AnalysisReports) (string, string) {
+// geoLabelsFromReports pulls country, country name, and continent labels from GeoIP analysis reports.
+func geoLabelsFromReports(reports controller.AnalysisReports) (string, string, string) {
 	country := metrics.NotAvailable
+	countryName := metrics.NotAvailable
 	continent := metrics.NotAvailable
 
 	for _, report := range reports {
@@ -317,14 +319,17 @@ func geoLabelsFromReports(reports controller.AnalysisReports) (string, string) {
 		if iso, ok := report.UpstreamHeaders["X-GeoIP-CountryISO"]; ok && iso != "" {
 			country = iso
 		}
+		if name, ok := report.UpstreamHeaders["X-GeoIP-Country"]; ok && name != "" {
+			countryName = name
+		}
 		if cont, ok := report.UpstreamHeaders["X-GeoIP-Continent"]; ok && cont != "" {
 			continent = cont
 		}
-		if country != metrics.NotAvailable || continent != metrics.NotAvailable {
+		if country != metrics.NotAvailable || countryName != metrics.NotAvailable || continent != metrics.NotAvailable {
 			break
 		}
 	}
-	return country, continent
+	return country, countryName, continent
 }
 
 // okResponse wraps an OK authorization result with optional upstream headers.
