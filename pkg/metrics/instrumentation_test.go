@@ -12,13 +12,13 @@ func TestObserveDecisionCounters(t *testing.T) {
 	reg := prometheus.NewRegistry()
 	inst := NewInstrumentation(reg, TrackOptions{TrackCountry: false, TrackGeofence: true})
 
-	inst.ObserveAllowDecision("allow.example", ALLOW, NotAvailable, NotAvailable, NotAvailable, NotAvailable, NotAvailable, NotAvailable, 10*time.Millisecond)
-	inst.ObserveDenyDecision("deny.example", DENY, NotAvailable, NotAvailable, "c1", "kind", MATCH_VERDICT, OK, 20*time.Millisecond)
+	inst.ObserveAllowDecision("allow.example", ALLOW, NotAvailable, NotAvailable, NotAvailable, NotAvailable, NotAvailable, NotAvailable, NotAvailable, 10*time.Millisecond)
+	inst.ObserveDenyDecision("deny.example", DENY, NotAvailable, NotAvailable, NotAvailable, "c1", "kind", MATCH_VERDICT, OK, 20*time.Millisecond)
 
-	if v := testutil.ToFloat64(inst.requestTotals.WithLabelValues("allow.example", ALLOW, ALLOW, NotAvailable, NotAvailable, NotAvailable, NotAvailable, NotAvailable, NotAvailable)); v != 1 {
+	if v := testutil.ToFloat64(inst.requestTotals.WithLabelValues("allow.example", ALLOW, ALLOW, NotAvailable, NotAvailable, NotAvailable, NotAvailable, NotAvailable, NotAvailable, NotAvailable)); v != 1 {
 		t.Fatalf("expected 1 allow decision, got %v", v)
 	}
-	if v := testutil.ToFloat64(inst.requestTotals.WithLabelValues("deny.example", DENY, DENY, NotAvailable, NotAvailable, "c1", "kind", MATCH_VERDICT, OK)); v != 1 {
+	if v := testutil.ToFloat64(inst.requestTotals.WithLabelValues("deny.example", DENY, DENY, NotAvailable, NotAvailable, NotAvailable, "c1", "kind", MATCH_VERDICT, OK)); v != 1 {
 		t.Fatalf("expected 1 deny decision, got %v", v)
 	}
 

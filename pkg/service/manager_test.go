@@ -46,12 +46,13 @@ func (s stubAnalysisController) Analyze(ctx context.Context, _ *runtime.RequestC
 func (s stubAnalysisController) HealthCheck(context.Context) error { return nil }
 
 // geoAnalysisReport builds a minimal GeoIP analysis report with upstream headers populated.
-func geoAnalysisReport(countryISO, continent string) *controller.AnalysisReport {
+func geoAnalysisReport(countryISO, countryName, continent string) *controller.AnalysisReport {
 	return &controller.AnalysisReport{
 		Controller:     "geo",
 		ControllerKind: maxmind_geoip.ControllerKind,
 		UpstreamHeaders: map[string]string{
 			"X-GeoIP-CountryISO": countryISO,
+			"X-GeoIP-Country":    countryName,
 			"X-GeoIP-Continent":  continent,
 		},
 	}
@@ -362,7 +363,7 @@ func TestRequestMetricsIncludeGeoAndPolicyVerdict(t *testing.T) {
 			stubAnalysisController{
 				name:   "geo",
 				kind:   maxmind_geoip.ControllerKind,
-				report: geoAnalysisReport("US", "North America"),
+				report: geoAnalysisReport("US", "United States", "North America"),
 			},
 		},
 		matchControllers: []controller.MatchController{
@@ -389,12 +390,12 @@ func TestRequestMetricsIncludeGeoAndPolicyVerdict(t *testing.T) {
 
 	// Expect a single metric with verdict ALLOW (final), policy_verdict DENY, geo labels, and culprit labels.
 	val := testutil.ToFloat64(inst.RequestTotals().WithLabelValues(
-		"-", metrics.ALLOW, metrics.DENY, "US", "North America", "auth-one", "auth", metrics.NO_MATCH_VERDICT, metrics.OK,
+		"-", metrics.ALLOW, metrics.DENY, "US", "United States", "North America", "auth-one", "auth", metrics.NO_MATCH_VERDICT, metrics.OK,
 	))
 	if val == 0 {
 		// Fall back to the non-enriched combination to surface clearer failures.
 		val = testutil.ToFloat64(inst.RequestTotals().WithLabelValues(
-			"-", metrics.ALLOW, metrics.DENY, metrics.NotAvailable, metrics.NotAvailable, "auth-one", "auth", metrics.NO_MATCH_VERDICT, metrics.OK,
+			"-", metrics.ALLOW, metrics.DENY, metrics.NotAvailable, metrics.NotAvailable, metrics.NotAvailable, "auth-one", "auth", metrics.NO_MATCH_VERDICT, metrics.OK,
 		))
 	}
 	if val != 1 {

@@ -32,6 +32,7 @@ Total number of authorization requests processed by the service.
 | `verdict` | `ALLOW` | Final response sent to Envoy (`ALLOW`/`DENY`). Can be `ALLOW` even when policy wanted `DENY` if `policyBypass` is enabled. |
 | `policy_verdict` | `DENY` | Result of policy evaluation before bypass. |
 | `country_iso` | `US` | 2-letter ISO from GeoIP analysis, or `-` if unavailable. Populated only when `metrics.trackCountry` is true. |
+| `country_name` | `United States` | Country name from GeoIP analysis, or `-` if unavailable. Populated only when `metrics.trackCountry` is true. |
 | `continent` | `North America` | Continent from GeoIP analysis, or `-` if unavailable. Populated only when `metrics.trackCountry` is true. |
 | `culprit_controller_name` | `partner-ip` | Match controller name that policy used to deny (`-` when policy allowed). |
 | `culprit_controller_kind` | `ip-match-database` | Match controller kind for the culprit (`-` when policy allowed). |
@@ -50,6 +51,7 @@ End-to-end authorization request latency in seconds.
 | `verdict` | `DENY` | Final response sent to Envoy (`ALLOW`/`DENY`). |
 | `policy_verdict` | `DENY` | Policy evaluation result prior to bypass. |
 | `country_iso` | `US` | 2-letter ISO from GeoIP analysis, or `-` if unavailable. Populated only when `metrics.trackCountry` is true. |
+| `country_name` | `United States` | Country name from GeoIP analysis, or `-` if unavailable. Populated only when `metrics.trackCountry` is true. |
 | `continent` | `North America` | Continent from GeoIP analysis, or `-` if unavailable. Populated only when `metrics.trackCountry` is true. |
 | `culprit_controller_name` | `scraper-ip` | Match controller name that caused the denial (`-` when policy allowed). |
 | `culprit_controller_kind` | `ip-match` | Match controller kind that caused the denial (`-` when policy allowed). |
