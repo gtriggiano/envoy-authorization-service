@@ -15,6 +15,7 @@ const (
 	ERROR            = "ERROR"
 	NotAvailable     = "-"
 	POSTGRES         = "POSTGRES"
+	SQLSERVER        = "SQLSERVER"
 	REDIS            = "REDIS"
 	FOUND            = "FOUND"
 	NOTFOUND         = "NOT_FOUND"

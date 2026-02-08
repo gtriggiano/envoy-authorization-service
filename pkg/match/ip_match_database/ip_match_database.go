@@ -226,6 +226,17 @@ func newIpMatchDatabaseController(ctx context.Context, logger *zap.Logger, cfg c
 			zap.Int("port", controllerConfig.Database.Postgres.Port),
 			zap.String("database", controllerConfig.Database.Postgres.DatabaseName),
 		)
+	case "sqlserver":
+		dataSource, err = NewSQLServerDataSource(initCtx, controllerConfig.Database.SQLServer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create SQL Server data source: %w", err)
+		}
+		dbType = metrics.SQLSERVER
+		logger.Info("connected to SQL Server",
+			zap.String("host", controllerConfig.Database.SQLServer.Host),
+			zap.Int("port", controllerConfig.Database.SQLServer.Port),
+			zap.String("database", controllerConfig.Database.SQLServer.DatabaseName),
+		)
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", controllerConfig.Database.Type)
 	}
