@@ -269,8 +269,10 @@ func startPostgres(t *testing.T, ctx context.Context) (testcontainers.Container,
 			"POSTGRES_USER":     "postgres",
 			"POSTGRES_DB":       "security",
 		},
-		WaitingFor: wait.ForListeningPort("5432/tcp").
-			WithStartupTimeout(2 * time.Minute),
+		WaitingFor: wait.ForAll(
+			wait.ForListeningPort("5432/tcp"),
+			wait.ForLog("database system is ready to accept connections"),
+		).WithDeadline(2 * time.Minute),
 	}
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -303,8 +305,7 @@ func startSQLServer(t *testing.T, ctx context.Context) (testcontainers.Container
 		WaitingFor: wait.ForAll(
 			wait.ForListeningPort("1433/tcp"),
 			wait.ForLog("SQL Server is now ready for client connections"),
-		).
-			WithStartupTimeout(4 * time.Minute),
+		).WithDeadline(4 * time.Minute),
 	}
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
