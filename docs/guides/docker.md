@@ -222,7 +222,7 @@ services:
     platform: linux/amd64
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "sqlserver_password"
+      MSSQL_SA_PASSWORD: "sqlServer_P4ssword!"
       MSSQL_PID: "Developer"
     ports:
       - "1433:1433"
