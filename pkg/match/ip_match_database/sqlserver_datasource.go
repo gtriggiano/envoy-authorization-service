@@ -36,12 +36,9 @@ func NewSQLServerDataSource(ctx context.Context, config *SQLServerConfig) (*SQLS
 		}
 		// Note: database/sql does not support a minimum pool size. We use
 		// MaxIdleConnections to set the maximum number of idle connections via SetMaxIdleConns.
+		// Validation already ensures MaxIdleConnections does not exceed MaxConnections.
 		if config.Pool.MaxIdleConnections >= 0 {
-			if config.Pool.MaxIdleConnections > maxOpenConns {
-				maxIdleConns = maxOpenConns
-			} else {
-				maxIdleConns = config.Pool.MaxIdleConnections
-			}
+			maxIdleConns = config.Pool.MaxIdleConnections
 		}
 		if config.Pool.MaxIdleTime != "" {
 			if parsed, err := time.ParseDuration(config.Pool.MaxIdleTime); err == nil && parsed >= 0 {
