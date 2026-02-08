@@ -171,7 +171,7 @@ const defaultConfiguration = defineConfig({
     footer: {
       message:
         "Released under the MIT License<br />Envoy Proxy is a project of the Cloud Native Computing Foundation (CNCF)",
-      copyright: "Copyright © 2025 Giacomo Triggiano",
+      copyright: "Copyright © 2026 Giacomo Triggiano",
     },
 
     lastUpdated: {
