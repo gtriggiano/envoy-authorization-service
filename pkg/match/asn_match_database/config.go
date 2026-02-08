@@ -13,6 +13,7 @@ import (
 const (
 	DefaultDatabaseConnectionTimeout = 500 * time.Millisecond
 	defaultPostgresPort              = 5432
+	defaultSQLServerPort             = 1433
 	defaultRedisPort                 = 6379
 )
 
@@ -30,16 +31,18 @@ type CacheConfig struct {
 
 // DatabaseConfig represents the database configuration
 type DatabaseConfig struct {
-	Type              string          `yaml:"type"`
-	ConnectionTimeout string          `yaml:"connectionTimeout"`
-	Redis             *RedisConfig    `yaml:"redis"`
-	Postgres          *PostgresConfig `yaml:"postgres"`
+	Type              string           `yaml:"type"`
+	ConnectionTimeout string           `yaml:"connectionTimeout"`
+	Redis             *RedisConfig     `yaml:"redis"`
+	Postgres          *PostgresConfig  `yaml:"postgres"`
+	SQLServer         *SQLServerConfig `yaml:"sqlserver"`
 }
 
 // ApplyDefaults sets default values for the configuration
 func (c *ASNMatchDatabaseConfig) ApplyDefaults() {
 	c.Database.Redis.ApplyDefaults()
 	c.Database.Postgres.ApplyDefaults()
+	c.Database.SQLServer.ApplyDefaults()
 }
 
 // Validate checks the configuration for completeness and correctness
@@ -79,8 +82,12 @@ func (c *ASNMatchDatabaseConfig) Validate() error {
 		if err := c.validatePostgresConfig(); err != nil {
 			return err
 		}
+	case "sqlserver":
+		if err := c.validateSQLServerConfig(); err != nil {
+			return err
+		}
 	default:
-		return fmt.Errorf("database.type must be 'redis' or 'postgres', got '%s'", c.Database.Type)
+		return fmt.Errorf("database.type must be 'redis', 'postgres', or 'sqlserver', got '%s'", c.Database.Type)
 	}
 
 	return nil

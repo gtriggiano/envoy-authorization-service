@@ -1,0 +1,42 @@
+logging:
+  level: info
+
+authorizationPolicy: "trusted"
+
+analysisControllers:
+  - name: asn-detect
+    type: maxmind-asn
+    settings:
+      databasePath: config/GeoLite2-ASN.mmdb
+  - name: geoip-detect
+    type: maxmind-geoip
+    settings:
+      databasePath: config/GeoLite2-City.mmdb
+
+matchControllers:
+  - name: trusted
+    type: ip-match-database
+    settings:
+      action: allow
+      cache:
+        ttl: 5m
+      database:
+        type: sqlserver
+        sqlserver:
+          query: "SELECT 1 FROM trusted_ips WHERE ip = @p1"
+          # host defaults to localhost, port defaults to 1433
+          databaseName: security
+          usernameEnv: SQLSERVER_USER
+          passwordEnv: SQLSERVER_PASSWORD
+          # Optional failover routing
+          # failoverPartner: localhost
+          # failoverPort: 1434
+          # Optional direct connection string mode
+          # connectionStringEnv: SQLSERVER_DSN
+          # Optional TLS configuration
+          # tls:
+          #   encrypt: strict
+          #   trustServerCertificate: false
+          #   caCert: /path/to/ca.crt
+          #   hostNameInCertificate: localhost
+          #   tlsMin: "1.2"

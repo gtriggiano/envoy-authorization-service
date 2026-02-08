@@ -54,12 +54,12 @@ make fetch-maxmind
 **When referencing the databases in the configuration**, mind what will be `current working directory` when you'll launch the service and move from there.
 :::
 
-::: tip Redis and PostgreSQL Available
-The `docker-compose.yaml` includes Redis and PostgreSQL services for testing database-backed controllers like `ip-match-database` and `asn-match-database`:
+::: tip Redis, PostgreSQL, and SQL Server Available
+The `docker-compose.yaml` includes Redis, PostgreSQL, and SQL Server services for testing database-backed controllers like `ip-match-database` and `asn-match-database`:
 
 ```bash
 # Start all services including databases
-docker compose up -d postgres redis
+docker compose up -d postgres redis sqlserver
 ```
 
 **The services have default ports mapped on host**, so you can reference them in controllers just setting `host: localhost`.

@@ -107,7 +107,7 @@ Every metric shares these base labels:
 | `authority` | `api.service.com` | HTTP host/:authority value (or `-`) |
 | `controller_name` | `partner-ip` | Controller instance name |
 | `controller_kind` | `ip-match-database` | Controller type |
-| `db_type` | `POSTGRES` | Backend database type (`POSTGRES`, `REDIS`) |
+| `db_type` | `POSTGRES` | Backend database type (`POSTGRES`, `SQLSERVER`, `REDIS`) |
 
 ### `envoy_authz_match_database_requests_total` `Counter`
 Authorization verdicts emitted by database-backed match controllers.
