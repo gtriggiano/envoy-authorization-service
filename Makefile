@@ -8,7 +8,7 @@ RELEASE_BUMP ?= auto
 POSTGRES_USER ?= postgres
 POSTGRES_PASSWORD ?= postgres
 SQLSERVER_USER ?= sa
-SQLSERVER_PASSWORD ?= sqlserver_password
+SQLSERVER_PASSWORD ?= sqlServer_P4ssword!
 
 .PHONY: all build build-all clean test test-e2e tidy run run-redis run-postgres run-sqlserver fetch-maxmind seed-postgres seed-redis seed-sqlserver fmt docker release compose-up compose-down
 

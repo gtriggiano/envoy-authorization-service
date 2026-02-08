@@ -158,13 +158,13 @@ func TestSQLServerIpMatchDatabase(t *testing.T) {
 	}
 
 	t.Setenv("SQLSERVER_USER", "sa")
-	t.Setenv("SQLSERVER_PASSWORD", "sqlserver_password")
+	t.Setenv("SQLSERVER_PASSWORD", "sqlServer_P4ssword!")
 
 	ctx := context.Background()
 	container, host, port := startSQLServer(t, ctx)
 	defer func() { _ = container.Terminate(ctx) }()
 
-	dsn := fmt.Sprintf("server=%s;port=%d;user id=sa;password=sqlserver_password;database=master;encrypt=disable", host, port)
+	dsn := fmt.Sprintf("server=%s;port=%d;user id=sa;password=sqlServer_P4ssword!;database=master;encrypt=disable", host, port)
 	db, err := sql.Open("sqlserver", dsn)
 	requireNoErr(t, err)
 	t.Cleanup(func() { _ = db.Close() })
@@ -299,7 +299,7 @@ func startSQLServer(t *testing.T, ctx context.Context) (testcontainers.Container
 		ExposedPorts: []string{"1433/tcp"},
 		Env: map[string]string{
 			"ACCEPT_EULA":       "Y",
-			"MSSQL_SA_PASSWORD": "sqlserver_password",
+			"MSSQL_SA_PASSWORD": "sqlServer_P4ssword!",
 			"MSSQL_PID":         "Developer",
 		},
 		WaitingFor: wait.ForAll(
