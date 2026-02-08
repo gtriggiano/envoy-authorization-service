@@ -366,6 +366,40 @@ func TestValidateSQLServerConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("connectionString mode rejects host field", func(t *testing.T) {
+		config := &ASNMatchDatabaseConfig{
+			Database: DatabaseConfig{
+				Type: "sqlserver",
+				SQLServer: &SQLServerConfig{
+					Query:            "SELECT 1 FROM trusted_asns WHERE asn = @p1",
+					ConnectionString: "sqlserver://sa:secret@localhost:1433?database=security&encrypt=strict",
+					Host:             "example.com",
+				},
+			},
+		}
+
+		if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "structured connection fields cannot be combined") {
+			t.Fatalf("expected raw-connection/structured-fields validation error, got: %v", err)
+		}
+	})
+
+	t.Run("connectionString mode rejects port field", func(t *testing.T) {
+		config := &ASNMatchDatabaseConfig{
+			Database: DatabaseConfig{
+				Type: "sqlserver",
+				SQLServer: &SQLServerConfig{
+					Query:            "SELECT 1 FROM trusted_asns WHERE asn = @p1",
+					ConnectionString: "sqlserver://sa:secret@localhost:1433?database=security&encrypt=strict",
+					Port:             1433,
+				},
+			},
+		}
+
+		if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "structured connection fields cannot be combined") {
+			t.Fatalf("expected raw-connection/structured-fields validation error, got: %v", err)
+		}
+	})
+
 	t.Run("failoverPort requires failoverPartner", func(t *testing.T) {
 		setEnv(t, "MSSQL_USER", "sa")
 		setEnv(t, "MSSQL_PASS", "secret")
