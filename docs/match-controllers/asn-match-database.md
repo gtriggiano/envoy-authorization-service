@@ -88,6 +88,13 @@ matchControllers:
             tlsMin: "1.2"
 ```
 
+## SQL Placeholder Type
+
+For SQL-based backends, the controller passes the ASN to the query placeholder as an **integer** (`int64` in Go).
+
+- PostgreSQL (`$1`): use numeric columns such as `BIGINT` (or cast, e.g. `$1::bigint`).
+- SQL Server (`@p1`): use numeric columns such as `BIGINT`.
+
 ## Key Settings
 
 - **`matchesOnFailure`** (bool, default: `false`): Controls `IsMatch` if database query fails.
