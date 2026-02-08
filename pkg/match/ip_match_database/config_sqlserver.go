@@ -103,9 +103,10 @@ func (c *IpMatchDatabaseConfig) validateSQLServerConfig() error {
 		if sqlServer.TLS != nil {
 			return fmt.Errorf("database.sqlserver.tls cannot be used with connectionString/connectionStringEnv; include TLS options directly in the raw connection string")
 		}
-		if sqlServer.Instance != "" || sqlServer.DatabaseName != "" || sqlServer.UsernameEnv != "" || sqlServer.PasswordEnv != "" ||
-			sqlServer.FailoverPartner != "" || sqlServer.FailoverPort != 0 || sqlServer.MultiSubnetFailover != nil ||
-			sqlServer.ApplicationIntent != "" || sqlServer.Protocol != "" || sqlServer.AppName != "" {
+		if sqlServer.Host != "" || sqlServer.Port != 0 || sqlServer.Instance != "" || sqlServer.DatabaseName != "" ||
+			sqlServer.UsernameEnv != "" || sqlServer.PasswordEnv != "" || sqlServer.FailoverPartner != "" ||
+			sqlServer.FailoverPort != 0 || sqlServer.MultiSubnetFailover != nil || sqlServer.ApplicationIntent != "" ||
+			sqlServer.Protocol != "" || sqlServer.AppName != "" {
 			return fmt.Errorf("database.sqlserver structured connection fields cannot be combined with connectionString/connectionStringEnv")
 		}
 	}
