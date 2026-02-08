@@ -115,6 +115,13 @@ Example `SQLSERVER_DSN` values:
 - ADO: `server=host\\INSTANCE;user id=user;password=pass;database=security;encrypt=strict`
 - ODBC: `odbc:server=host;user id=user;password={pass};database=security;encrypt=true`
 
+## SQL Placeholder Type
+
+For SQL-based backends, the controller passes the request IP to the query placeholder as a **string** (example: `203.0.113.10` or `2001:db8::1`).
+
+- PostgreSQL (`$1`): parameter type is text-like; if your column is `inet`, prefer explicit cast, e.g. `... WHERE ip = $1::inet`.
+- SQL Server (`@p1`): parameter type is string; store/compare against `VARCHAR`/`NVARCHAR` columns.
+
 ## Key Settings
 
 - **`matchesOnFailure`** (bool, default: `false`): Controls `IsMatch` if database query fails.
