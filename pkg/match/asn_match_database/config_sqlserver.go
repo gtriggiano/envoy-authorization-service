@@ -32,11 +32,15 @@ type SQLServerConfig struct {
 }
 
 // SQLServerPoolConfig represents connection pool configuration.
+// Note: database/sql (used for SQL Server) does not support a minimum pool size.
+// MaxIdleConnections sets the maximum number of idle connections kept in the pool
+// (via SetMaxIdleConns), which differs from backends like pgx where a minimum
+// pool size can be enforced.
 type SQLServerPoolConfig struct {
-	MaxConnections    int    `yaml:"maxConnections"`
-	MinConnections    int    `yaml:"minConnections"`
-	MaxIdleTime       string `yaml:"maxIdleTime"`
-	ConnectionTimeout string `yaml:"connectionTimeout"`
+	MaxConnections     int    `yaml:"maxConnections"`
+	MaxIdleConnections int    `yaml:"maxIdleConnections"`
+	MaxIdleTime        string `yaml:"maxIdleTime"`
+	ConnectionTimeout  string `yaml:"connectionTimeout"`
 }
 
 // SQLServerTLSConfig represents TLS configuration for SQL Server.
@@ -194,11 +198,11 @@ func validateSQLServerPoolConfig(pool *SQLServerPoolConfig) error {
 	if pool.MaxConnections <= 0 {
 		return fmt.Errorf("pool.maxConnections must be greater than 0")
 	}
-	if pool.MinConnections < 0 {
-		return fmt.Errorf("pool.minConnections must be non-negative")
+	if pool.MaxIdleConnections < 0 {
+		return fmt.Errorf("pool.maxIdleConnections must be non-negative")
 	}
-	if pool.MinConnections > pool.MaxConnections {
-		return fmt.Errorf("pool.minConnections (%d) must not exceed pool.maxConnections (%d)", pool.MinConnections, pool.MaxConnections)
+	if pool.MaxIdleConnections > pool.MaxConnections {
+		return fmt.Errorf("pool.maxIdleConnections (%d) must not exceed pool.maxConnections (%d)", pool.MaxIdleConnections, pool.MaxConnections)
 	}
 
 	if pool.MaxIdleTime != "" {
