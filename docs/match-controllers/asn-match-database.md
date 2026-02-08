@@ -79,6 +79,12 @@ matchControllers:
           databaseName: security
           usernameEnv: SQLSERVER_USER
           passwordEnv: SQLSERVER_PASSWORD
+          # Optional connection pool configuration
+          pool:
+            maxConnections: 10
+            maxIdleConnections: 2  # Maximum idle connections (SetMaxIdleConns)
+            maxIdleTime: 5m
+            connectionTimeout: 5s
           # Optional SQL Server TLS
           tls:
             encrypt: strict
@@ -87,6 +93,10 @@ matchControllers:
             hostNameInCertificate: sqlserver.example.com
             tlsMin: "1.2"
 ```
+
+::: info SQL Server Pool Configuration
+SQL Server uses Go's `database/sql` package, which does not support a minimum pool size like PostgreSQL's pgx driver. The `maxIdleConnections` setting controls the maximum number of idle connections kept in the pool via `SetMaxIdleConns`, not a minimum guaranteed pool size.
+:::
 
 ## SQL Placeholder Type
 

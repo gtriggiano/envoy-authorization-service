@@ -35,10 +35,10 @@ func TestValidateSQLServerConfig(t *testing.T) {
 					UsernameEnv:  "MSSQL_USER",
 					PasswordEnv:  "MSSQL_PASS",
 					Pool: &SQLServerPoolConfig{
-						MaxConnections:    10,
-						MinConnections:    1,
-						MaxIdleTime:       "5m",
-						ConnectionTimeout: "1s",
+						MaxConnections:     10,
+						MaxIdleConnections: 1,
+						MaxIdleTime:        "5m",
+						ConnectionTimeout:  "1s",
 					},
 					TLS: &SQLServerTLSConfig{
 						Encrypt:                "strict",
@@ -220,7 +220,7 @@ func TestValidateSQLServerConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("pool minConnections cannot exceed maxConnections", func(t *testing.T) {
+	t.Run("pool maxIdleConnections cannot exceed maxConnections", func(t *testing.T) {
 		setEnv(t, "MSSQL_USER", "sa")
 		setEnv(t, "MSSQL_PASS", "secret")
 
@@ -235,15 +235,15 @@ func TestValidateSQLServerConfig(t *testing.T) {
 					UsernameEnv:  "MSSQL_USER",
 					PasswordEnv:  "MSSQL_PASS",
 					Pool: &SQLServerPoolConfig{
-						MaxConnections: 5,
-						MinConnections: 10,
+						MaxConnections:     5,
+						MaxIdleConnections: 10,
 					},
 				},
 			},
 		}
 
 		if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "must not exceed") {
-			t.Fatalf("expected minConnections validation error, got: %v", err)
+			t.Fatalf("expected maxIdleConnections validation error, got: %v", err)
 		}
 	})
 
