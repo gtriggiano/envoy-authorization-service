@@ -1,7 +1,33 @@
 # Changelog
 
 
+## [v1.4.0](https://github.com/gtriggiano/envoy-authorization-service/compare/v1.3.1...v1.4.0) - 2026-02-10
+
+### Chores
+- remove redundant build constraint comments from e2e test files
+- update copyright year to 2026 in LICENSE and site footer
+- bump google.golang.org/grpc from 1.77.0 to 1.78.0 ([#18](https://github.com/gtriggiano/envoy-authorization-service/issues/18))
+- bump [@types](https://github.com/types)/node from 24.10.1 to 25.2.0 in /docs ([#23](https://github.com/gtriggiano/envoy-authorization-service/issues/23))
+- bump actions/upload-artifact from 4 to 5 ([#10](https://github.com/gtriggiano/envoy-authorization-service/issues/10))
+- bump actions/github-script from 7 to 8 ([#9](https://github.com/gtriggiano/envoy-authorization-service/issues/9))
+- bump github.com/spf13/cobra from 1.10.1 to 1.10.2 ([#7](https://github.com/gtriggiano/envoy-authorization-service/issues/7))
+- bump vue from 3.5.25 to 3.5.27 in /docs ([#20](https://github.com/gtriggiano/envoy-authorization-service/issues/20))
+- bump github.com/oschwald/geoip2-golang/v2 ([#17](https://github.com/gtriggiano/envoy-authorization-service/issues/17))
+- bump golang.org/x/sync from 0.18.0 to 0.19.0 ([#12](https://github.com/gtriggiano/envoy-authorization-service/issues/12))
+- bump github.com/jackc/pgx/v5 from 5.7.6 to 5.8.0 ([#16](https://github.com/gtriggiano/envoy-authorization-service/issues/16))
+- bump mermaid from 11.12.1 to 11.12.2 in /docs ([#8](https://github.com/gtriggiano/envoy-authorization-service/issues/8))
+
+
+### Features
+- add country_name label to authorization metrics ([#24](https://github.com/gtriggiano/envoy-authorization-service/issues/24))
+
+
+
 ## [v1.3.1](https://github.com/gtriggiano/envoy-authorization-service/compare/v1.3.0...v1.3.1) - 2025-12-03
+
+### Chores
+- v1.3.1
+
 
 ### Documentation
 - reorganize navigation and update examples section for clarity
@@ -14,6 +40,7 @@
 - bump actions/upload-pages-artifact from 3 to 4 ([#4](https://github.com/gtriggiano/envoy-authorization-service/issues/4))
 - bump actions/checkout from 4 to 6 ([#6](https://github.com/gtriggiano/envoy-authorization-service/issues/6))
 - bump actions/setup-go from 5 to 6 ([#5](https://github.com/gtriggiano/envoy-authorization-service/issues/5))
+- v1.3.0
 
 
 ### Documentation
