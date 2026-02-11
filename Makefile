@@ -7,8 +7,10 @@ LDFLAGS ?=
 RELEASE_BUMP ?= auto
 POSTGRES_USER ?= postgres
 POSTGRES_PASSWORD ?= postgres
+SQLSERVER_USER ?= sa
+SQLSERVER_PASSWORD ?= sqlServer_P4ssword!
 
-.PHONY: all build build-all clean test test-e2e tidy run run-redis run-postgres fetch-maxmind seed-postgres seed-redis fmt docker release compose-up compose-down
+.PHONY: all build build-all clean test test-e2e tidy run run-redis run-postgres run-sqlserver fetch-maxmind seed-postgres seed-redis seed-sqlserver fmt docker release compose-up compose-down
 
 all: clean tidy fmt test build-all
 
@@ -64,7 +66,10 @@ run-redis: fetch-maxmind compose-up seed-redis
 run-postgres: fetch-maxmind compose-up seed-postgres
 	POSTGRES_USER=$(POSTGRES_USER) POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) $(GO) run . start --config config/config.postgres.yaml
 
-seed-databases: seed-postgres seed-redis
+run-sqlserver: fetch-maxmind compose-up seed-sqlserver
+	SQLSERVER_USER=$(SQLSERVER_USER) SQLSERVER_PASSWORD=$(SQLSERVER_PASSWORD) $(GO) run . start --config config/config.sqlserver.yaml
+
+seed-databases: seed-postgres seed-redis seed-sqlserver
 
 seed-postgres: compose-up
 	@echo "Waiting for Postgres to be ready..."
@@ -85,6 +90,16 @@ seed-redis: compose-up
 	done
 	$(DOCKER) compose exec redis redis-cli set trusted:203.0.113.10 1
 	$(DOCKER) compose exec redis redis-cli set scraper:211.0.27.6 1
+
+seed-sqlserver: compose-up
+	@echo "Waiting for SQL Server to be ready..."
+	@for i in $$(seq 1 60); do \
+		$(DOCKER) compose exec -T sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$(SQLSERVER_PASSWORD)" -C -Q "SELECT 1" >/dev/null 2>&1 && break; \
+		echo "  sqlserver not ready yet... ($$i/60)"; \
+		sleep 2; \
+	done
+	@echo "Seeding SQL Server database..."
+	$(DOCKER) compose exec -T sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$(SQLSERVER_PASSWORD)" -C -i /seed.sql
 
 fetch-maxmind:
 	@./scripts/fetch-maxmind.sh

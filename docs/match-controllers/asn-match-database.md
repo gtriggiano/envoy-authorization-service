@@ -1,6 +1,6 @@
 # ASN Match Database
 
-The `asn-match-database` controller matches the client ASN against an external data source: Redis or PostgreSQL.
+The `asn-match-database` controller matches the client ASN against an external data source: Redis, PostgreSQL, or SQL Server.
 
 ## Redis Example
 
@@ -61,13 +61,48 @@ matchControllers:
             clientKey: /path/to/client.key
 ```
 
+## SQL Server Example
+
+Checks if the controller's SQL query, when executed with the client ASN as parameter, returns any rows.
+
+```yaml
+matchControllers:
+  - name: trusted-asn
+    type: asn-match-database
+    settings:
+      matchesOnFailure: false # Default
+      database:
+        type: sqlserver
+        sqlserver:
+          query: "SELECT 1 FROM trusted_asns WHERE asn = @p1"
+          # host defaults to localhost and port defaults to 1433
+          databaseName: security
+          usernameEnv: SQLSERVER_USER
+          passwordEnv: SQLSERVER_PASSWORD
+          # Optional SQL Server TLS
+          tls:
+            encrypt: strict
+            trustServerCertificate: false
+            caCert: /path/to/ca.crt
+            hostNameInCertificate: sqlserver.example.com
+            tlsMin: "1.2"
+```
+
+## SQL Placeholder Type
+
+For SQL-based backends, the controller passes the ASN to the query placeholder as an **integer** (`int64` in Go).
+
+- PostgreSQL (`$1`): use numeric columns such as `BIGINT` (or cast, e.g. `$1::bigint`).
+- SQL Server (`@p1`): use numeric columns such as `BIGINT`.
+
 ## Key Settings
 
 - **`matchesOnFailure`** (bool, default: `false`): Controls `IsMatch` if database query fails.
 - **`cache.ttl`** (duration): Enables in-memory caching of ASN lookups.
-- **`database.type`**: `redis` or `postgres`.
+- **`database.type`**: `redis`, `postgres`, or `sqlserver`.
 - **`database.redis`**: redis-specific configuration.
 - **`database.postgres`**: postgres-specific configuration.
+- **`database.sqlserver`**: sqlserver-specific configuration.
 - **`database.connectionTimeout`**: Initialization connection timeout (default `500ms`).
 
 ## Metrics

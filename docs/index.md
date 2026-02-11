@@ -50,7 +50,7 @@ features:
 
   - icon: 🗄️
     title: External Data Sources
-    details: Redis and PostgreSQL integrations for dynamic IP/ASN lists and threat-intel driven decisions.
+    details: Redis, PostgreSQL and SQL Server integrations for dynamic IP/ASN lists and threat-intel driven decisions.
 
   
 ---

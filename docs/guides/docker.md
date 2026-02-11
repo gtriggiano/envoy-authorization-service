@@ -203,6 +203,31 @@ networks:
   envoy-net:
 ```
 
+## With SQL Server
+
+Add SQL Server for database-backed IP matching:
+
+```yaml
+services:
+  authz-service:
+    image: ghcr.io/gtriggiano/envoy-authorization-service:{{VERSION}}
+    volumes:
+      - ./config.yaml:/config.yaml:ro
+    command: start --config /config.yaml
+    depends_on:
+      - sqlserver
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "sqlServer_P4ssword!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+```
+
 ## Next Steps
 
 - [Configure Match Controllers](/match-controllers/)
