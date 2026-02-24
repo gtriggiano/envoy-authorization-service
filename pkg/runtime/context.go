@@ -189,7 +189,7 @@ func requestAuthority(req *authv3.CheckRequest) string {
 	if authority == "" {
 		for k, v := range http.GetHeaders() {
 			if strings.ToLower(k) == "host" {
-				authority = v
+				authority = strings.ToLower(v)
 				break
 			}
 		}
