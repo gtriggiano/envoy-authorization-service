@@ -16,6 +16,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
 	"github.com/testcontainers/testcontainers-go"
+	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
+	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"go.uber.org/zap/zaptest"
 	"google.golang.org/grpc/codes"
@@ -157,13 +159,10 @@ func seedPostgresAllowlist(t *testing.T, ctx context.Context, host string, port 
 
 func startRedis(t *testing.T, ctx context.Context) (testcontainers.Container, string, int) {
 	t.Helper()
-	req := testcontainers.ContainerRequest{
-		Image:        "redis:7-alpine",
-		ExposedPorts: []string{"6379/tcp"},
-		WaitingFor:   wait.ForLog("Ready to accept connections"),
-	}
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{ContainerRequest: req, Started: true})
+
+	container, err := tcredis.Run(ctx, "redis:7-alpine")
 	requireNoErr(t, err)
+
 	endpoint, err := container.Endpoint(ctx, "")
 	requireNoErr(t, err)
 	host, portStr, err := net.SplitHostPort(endpoint)
@@ -175,19 +174,22 @@ func startRedis(t *testing.T, ctx context.Context) (testcontainers.Container, st
 
 func startPostgres(t *testing.T, ctx context.Context) (testcontainers.Container, string, int) {
 	t.Helper()
-	req := testcontainers.ContainerRequest{
-		Image:        "postgres:16-alpine",
-		ExposedPorts: []string{"5432/tcp"},
-		Env: map[string]string{
-			"POSTGRES_PASSWORD": "postgres",
-			"POSTGRES_USER":     "postgres",
-			"POSTGRES_DB":       "security",
-		},
-		WaitingFor: wait.ForListeningPort("5432/tcp").
-			WithStartupTimeout(2 * time.Minute),
-	}
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{ContainerRequest: req, Started: true})
+
+	container, err := tcpostgres.Run(ctx,
+		"postgres:16-alpine",
+		tcpostgres.WithDatabase("security"),
+		tcpostgres.WithUsername("postgres"),
+		tcpostgres.WithPassword("postgres"),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(2*time.Minute),
+			wait.ForExec([]string{"pg_isready", "-U", "postgres", "-d", "security"}).
+				WithStartupTimeout(2*time.Minute),
+		),
+	)
 	requireNoErr(t, err)
+
 	endpoint, err := container.Endpoint(ctx, "")
 	requireNoErr(t, err)
 	host, portStr, err := net.SplitHostPort(endpoint)
