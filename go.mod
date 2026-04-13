@@ -5,7 +5,7 @@ go 1.25.4
 require (
 	github.com/allir/zap-logfmt v1.6.0
 	github.com/envoyproxy/go-control-plane/envoy v1.37.0
-	github.com/jackc/pgx/v5 v5.8.0
+	github.com/jackc/pgx/v5 v5.9.1
 	github.com/mileusna/useragent v1.3.5
 	github.com/oschwald/geoip2-golang/v2 v2.1.0
 	github.com/paulmach/orb v0.12.0
