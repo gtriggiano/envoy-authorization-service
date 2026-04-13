@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +18,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 	"github.com/testcontainers/testcontainers-go"
+	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
+	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -81,8 +85,15 @@ func TestRedisIpMatchDatabase(t *testing.T) {
 }
 
 func TestPostgresIpMatchDatabase(t *testing.T) {
-	t.Setenv("POSTGRES_USER", "postgres")
-	t.Setenv("POSTGRES_PASSWORD", "postgres")
+	t.Parallel()
+
+	// Use test-unique env var names so parallel tests cannot clobber each
+	// other's credentials. t.Setenv is incompatible with t.Parallel, so we
+	// manage the env directly with a Cleanup to restore prior state.
+	userEnv := "IP_PG_USER_" + sanitizeEnvName(t.Name())
+	passEnv := "IP_PG_PASS_" + sanitizeEnvName(t.Name())
+	setEnvForTest(t, userEnv, "postgres")
+	setEnvForTest(t, passEnv, "postgres")
 
 	ctx := context.Background()
 	container, host, port := startPostgres(t, ctx)
@@ -113,8 +124,8 @@ func TestPostgresIpMatchDatabase(t *testing.T) {
 					"host":         host,
 					"port":         port,
 					"databaseName": "security",
-					"usernameEnv":  "POSTGRES_USER",
-					"passwordEnv":  "POSTGRES_PASSWORD",
+					"usernameEnv":  userEnv,
+					"passwordEnv":  passEnv,
 					"pool": map[string]any{
 						"maxConnections":    5,
 						"minConnections":    1,
@@ -153,16 +164,7 @@ func TestPostgresIpMatchDatabase(t *testing.T) {
 func startRedis(t *testing.T, ctx context.Context) (testcontainers.Container, string, int) {
 	t.Helper()
 
-	req := testcontainers.ContainerRequest{
-		Image:        "redis:7-alpine",
-		ExposedPorts: []string{"6379/tcp"},
-		WaitingFor:   wait.ForLog("Ready to accept connections"),
-	}
-
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
+	container, err := tcredis.Run(ctx, "redis:7-alpine")
 	requireNoErr(t, err)
 
 	endpoint, err := container.Endpoint(ctx, "")
@@ -178,22 +180,19 @@ func startRedis(t *testing.T, ctx context.Context) (testcontainers.Container, st
 func startPostgres(t *testing.T, ctx context.Context) (testcontainers.Container, string, int) {
 	t.Helper()
 
-	req := testcontainers.ContainerRequest{
-		Image:        "postgres:16-alpine",
-		ExposedPorts: []string{"5432/tcp"},
-		Env: map[string]string{
-			"POSTGRES_PASSWORD": "postgres",
-			"POSTGRES_USER":     "postgres",
-			"POSTGRES_DB":       "security",
-		},
-		WaitingFor: wait.ForListeningPort("5432/tcp").
-			WithStartupTimeout(2 * time.Minute),
-	}
-
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
+	container, err := tcpostgres.Run(ctx,
+		"postgres:16-alpine",
+		tcpostgres.WithDatabase("security"),
+		tcpostgres.WithUsername("postgres"),
+		tcpostgres.WithPassword("postgres"),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(2*time.Minute),
+			wait.ForExec([]string{"pg_isready", "-U", "postgres", "-d", "security"}).
+				WithStartupTimeout(2*time.Minute),
+		),
+	)
 	requireNoErr(t, err)
 
 	endpoint, err := container.Endpoint(ctx, "")
@@ -238,4 +237,37 @@ func requireNoErr(t *testing.T, err error) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+}
+
+// setEnvForTest sets an environment variable for the duration of the test and
+// restores its prior value on cleanup. Unlike t.Setenv, it is safe to use with
+// t.Parallel, provided the env var name is unique per test (so parallel tests
+// do not race on the same key).
+func setEnvForTest(t *testing.T, key, value string) {
+	t.Helper()
+	prev, hadPrev := os.LookupEnv(key)
+	if err := os.Setenv(key, value); err != nil {
+		t.Fatalf("os.Setenv(%q) failed: %v", key, err)
+	}
+	t.Cleanup(func() {
+		if hadPrev {
+			_ = os.Setenv(key, prev)
+		} else {
+			_ = os.Unsetenv(key)
+		}
+	})
+}
+
+// sanitizeEnvName maps a test name into a fragment that is valid in an env var.
+func sanitizeEnvName(name string) string {
+	return strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+			return r
+		case r >= 'a' && r <= 'z':
+			return r - ('a' - 'A')
+		default:
+			return '_'
+		}
+	}, name)
 }
