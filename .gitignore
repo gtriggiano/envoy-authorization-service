@@ -39,3 +39,6 @@ docs/node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 envoy-authorization-service
+
+# Oh My Claude
+.omc
