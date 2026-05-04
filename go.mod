@@ -17,7 +17,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.42.0
 	github.com/testcontainers/testcontainers-go/modules/redis v0.42.0
 	github.com/ua-parser/uap-go v0.0.0-20250917011043-9c86a9b0f8f0
-	go.uber.org/zap v1.27.1
+	go.uber.org/zap v1.28.0
 	go.yaml.in/yaml/v2 v2.4.4
 	golang.org/x/sync v0.20.0
 	google.golang.org/grpc v1.80.0
