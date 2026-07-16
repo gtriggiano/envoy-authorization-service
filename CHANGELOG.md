@@ -1,21 +1,39 @@
 # Changelog
 
 
+## [v1.4.3](https://github.com/gtriggiano/envoy-authorization-service/compare/v1.4.2...v1.4.3) - 2026-07-16
+
+### Chores
+- bump github.com/paulmach/orb from 0.12.0 to 0.13.0 ([#57](https://github.com/gtriggiano/envoy-authorization-service/issues/57))
+- bump actions/configure-pages from 4 to 6 ([#11](https://github.com/gtriggiano/envoy-authorization-service/issues/11))
+- bump actions/upload-artifact from 5 to 6 ([#28](https://github.com/gtriggiano/envoy-authorization-service/issues/28))
+- bump actions/setup-node from 4 to 6 ([#29](https://github.com/gtriggiano/envoy-authorization-service/issues/29))
+- bump go.uber.org/zap from 1.27.1 to 1.28.0 ([#59](https://github.com/gtriggiano/envoy-authorization-service/issues/59))
+- bump google.golang.org/grpc from 1.80.0 to 1.81.0 ([#61](https://github.com/gtriggiano/envoy-authorization-service/issues/61))
+- bump github.com/redis/go-redis/v9 from 9.18.0 to 9.19.0 ([#60](https://github.com/gtriggiano/envoy-authorization-service/issues/60))
+- bump github.com/jackc/pgx/v5 from 5.9.1 to 5.9.2 ([#56](https://github.com/gtriggiano/envoy-authorization-service/issues/56))
+- bump mermaid from 11.14.0 to 11.16.0 in /docs ([#72](https://github.com/gtriggiano/envoy-authorization-service/issues/72))
+- bump vue from 3.5.32 to 3.5.39 in /docs ([#74](https://github.com/gtriggiano/envoy-authorization-service/issues/74))
+- bump [@types](https://github.com/types)/node from 25.6.0 to 26.1.1 in /docs ([#76](https://github.com/gtriggiano/envoy-authorization-service/issues/76))
+
+
+
 ## [v1.4.2](https://github.com/gtriggiano/envoy-authorization-service/compare/v1.4.1...v1.4.2) - 2026-04-13
 
 ### Chores
+- add VSCode settings for gopls with e2e build flags [skip ci]
 - add .omc to .gitignore for Oh My Claude [skip ci]
 - refactor Redis and Postgres container setup in e2e tests
-- add VSCode settings for gopls with e2e build flags [skip ci]
+- bump google.golang.org/grpc from 1.79.1 to 1.79.3 ([#50](https://github.com/gtriggiano/envoy-authorization-service/issues/50))
 - add testcontainers modules for Postgres and Redis, update test environment handling
 - bump github.com/jackc/pgx/v5 from 5.8.0 to 5.9.1 ([#49](https://github.com/gtriggiano/envoy-authorization-service/issues/49))
-- bump google.golang.org/grpc from 1.79.1 to 1.79.3 ([#50](https://github.com/gtriggiano/envoy-authorization-service/issues/50))
 - bump github.com/testcontainers/testcontainers-go ([#45](https://github.com/gtriggiano/envoy-authorization-service/issues/45))
 - bump go.yaml.in/yaml/v2 from 2.4.3 to 2.4.4 ([#44](https://github.com/gtriggiano/envoy-authorization-service/issues/44))
 - bump golang.org/x/sync from 0.19.0 to 0.20.0 ([#41](https://github.com/gtriggiano/envoy-authorization-service/issues/41))
-- bump [@types](https://github.com/types)/node from 25.3.0 to 25.6.0 in /docs ([#55](https://github.com/gtriggiano/envoy-authorization-service/issues/55))
 - bump mermaid from 11.12.3 to 11.14.0 in /docs ([#54](https://github.com/gtriggiano/envoy-authorization-service/issues/54))
+- bump [@types](https://github.com/types)/node from 25.3.0 to 25.6.0 in /docs ([#55](https://github.com/gtriggiano/envoy-authorization-service/issues/55))
 - bump vue from 3.5.28 to 3.5.32 in /docs ([#53](https://github.com/gtriggiano/envoy-authorization-service/issues/53))
+- v1.4.2
 
 
 
