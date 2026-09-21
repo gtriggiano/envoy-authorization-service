@@ -1,6 +1,27 @@
 # Changelog
 
 
+## [v1.4.4](https://github.com/gtriggiano/envoy-authorization-service/compare/v1.4.3...v1.4.4) - 2026-09-21
+
+### Chores
+- bump docker/login-action from 3 to 4 ([#78](https://github.com/gtriggiano/envoy-authorization-service/issues/78))
+- bump docker/build-push-action from 6 to 7 ([#77](https://github.com/gtriggiano/envoy-authorization-service/issues/77))
+- bump github.com/testcontainers/testcontainers-go/modules/redis ([#99](https://github.com/gtriggiano/envoy-authorization-service/issues/99))
+- bump github.com/testcontainers/testcontainers-go/modules/postgres ([#101](https://github.com/gtriggiano/envoy-authorization-service/issues/101))
+- upgrade Go to 1.27 and pin the coverage merge tool
+- bump github.com/redis/go-redis/v9 from 9.21.0 to 9.22.0 ([#100](https://github.com/gtriggiano/envoy-authorization-service/issues/100))
+- bump golang.org/x/sync from 0.22.0 to 0.23.0 ([#96](https://github.com/gtriggiano/envoy-authorization-service/issues/96))
+- bump docker/setup-qemu-action from 3 to 4 ([#79](https://github.com/gtriggiano/envoy-authorization-service/issues/79))
+- bump github.com/oschwald/geoip2-golang/v2 ([#83](https://github.com/gtriggiano/envoy-authorization-service/issues/83))
+- bump google.golang.org/grpc from 1.81.0 to 1.84.0 ([#95](https://github.com/gtriggiano/envoy-authorization-service/issues/95))
+- bump github.com/jackc/pgx/v5 from 5.9.2 to 5.10.0 ([#80](https://github.com/gtriggiano/envoy-authorization-service/issues/80))
+- bump github.com/redis/go-redis/v9 from 9.19.0 to 9.21.0 ([#84](https://github.com/gtriggiano/envoy-authorization-service/issues/84))
+- bump vue from 3.5.39 to 3.5.42 in /docs ([#93](https://github.com/gtriggiano/envoy-authorization-service/issues/93))
+- bump [@types](https://github.com/types)/node from 26.1.1 to 26.6.1 in /docs ([#102](https://github.com/gtriggiano/envoy-authorization-service/issues/102))
+- bump vue from 3.5.42 to 3.5.43 in /docs ([#103](https://github.com/gtriggiano/envoy-authorization-service/issues/103))
+
+
+
 ## [v1.4.3](https://github.com/gtriggiano/envoy-authorization-service/compare/v1.4.2...v1.4.3) - 2026-07-16
 
 ### Chores
@@ -15,6 +36,7 @@
 - bump mermaid from 11.14.0 to 11.16.0 in /docs ([#72](https://github.com/gtriggiano/envoy-authorization-service/issues/72))
 - bump vue from 3.5.32 to 3.5.39 in /docs ([#74](https://github.com/gtriggiano/envoy-authorization-service/issues/74))
 - bump [@types](https://github.com/types)/node from 25.6.0 to 26.1.1 in /docs ([#76](https://github.com/gtriggiano/envoy-authorization-service/issues/76))
+- v1.4.3
 
 
 
