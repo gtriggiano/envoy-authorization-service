@@ -32,10 +32,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .cache/go-build .cache/go-tmp
-          go install github.com/wadey/gocovmerge@latest
           GOCACHE=$(pwd)/.cache/go-build GOTMPDIR=$(pwd)/.cache/go-tmp go test -covermode=atomic -coverprofile=coverage-e2e.out -tags=e2e ./... 2>&1 | grep -v "no test files" || true
           GOCACHE=$(pwd)/.cache/go-build GOTMPDIR=$(pwd)/.cache/go-tmp go test -covermode=atomic -coverprofile=coverage-regular.out ./... 2>&1 | grep -v "no test files" || true
-          gocovmerge coverage-e2e.out coverage-regular.out > coverage.out
+          go tool gocovmerge coverage-e2e.out coverage-regular.out > coverage.out
           rm -f coverage-e2e.out coverage-regular.out
           go tool cover -func=coverage.out | tee coverage.txt
           total="$(awk '/^total:/{print $3}' coverage.txt)"

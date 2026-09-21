@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.6
 
-ARG GO_IMAGE=golang:1.25
+ARG GO_IMAGE=golang:1.27
 
 FROM ${GO_IMAGE} AS builder
 WORKDIR /src
