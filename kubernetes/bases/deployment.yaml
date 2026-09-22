@@ -11,12 +11,30 @@ spec:
       labels:
         app: envoy-authorization-service
     spec:
+      # The service only talks to Envoy, Redis/PostgreSQL and the metrics scraper; it never calls the API server.
+      automountServiceAccountToken: false
+      # The image runs as the distroless "nonroot" user (uid/gid 65532). The same identity is applied to the
+      # init container so both can write the shared emptyDir. Compatible with the "restricted" Pod Security Standard.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: envoy-authorization-service
           image: ghcr.io/gtriggiano/envoy-authorization-service:latest
           args:
             - start
             - --config=/config/config.yaml
+          # The binary writes nothing to disk: configuration is mounted read-only and logs go to stdout.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
           - name: grpc
             containerPort: 9001
@@ -53,6 +71,12 @@ spec:
       initContainers:
         - name: maxmind-db-downloader
           image: curlimages/curl:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           command:
             - sh
             - -c
@@ -68,4 +92,3 @@ spec:
             name: envoy-authorization-service-config
         - name: maxmind-dbs
           emptyDir: {}
-          

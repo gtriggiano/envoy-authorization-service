@@ -55,9 +55,23 @@ spec:
       labels:
         app: envoy-authorization-service
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       initContainers:
         - name: maxmind-db-downloader
           image: curlimages/curl:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           command:
             - sh
             - -c
@@ -73,6 +87,12 @@ spec:
           args:
             - start
             - --config=/config/config.yaml
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - name: grpc
               containerPort: 9001
@@ -154,6 +174,7 @@ kubectl logs -l app=envoy-authorization-service
 2. **Shared Volume**: An `emptyDir` volume shares the downloaded databases between init and main containers
 3. **Analysis Controllers**: The service analyzes requests and adds GeoIP and ASN metadata to request headers
 4. **No Authorization**: This configuration performs analysis only without enforcing any authorization policies
+5. **Hardened Pod**: The image runs as the distroless `nonroot` user (uid 65532), so the pod enforces `runAsNonRoot`, drops every capability, forbids privilege escalation, uses the runtime default seccomp profile and mounts the root filesystem read-only. The binary writes nothing to disk and never talks to the Kubernetes API, so the service account token is not mounted. The manifest satisfies the [`restricted` Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted); `fsGroup` lets both containers use the shared `emptyDir` volume
 
 ## Next Steps
 
