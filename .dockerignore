@@ -1,0 +1,18 @@
+# Keep the build context down to what the Go build needs.
+.git
+.github
+.cache
+.omc
+.vscode
+bin
+docs
+kubernetes
+scripts
+config
+coverage.*
+*.out
+*.test
+*.md
+docker-compose.yaml
+Dockerfile
+.dockerignore

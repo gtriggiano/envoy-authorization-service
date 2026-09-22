@@ -1,17 +1,43 @@
-# syntax=docker/dockerfile:1.6
+# syntax=docker/dockerfile:1
 
 ARG GO_IMAGE=golang:1.27
 
-FROM ${GO_IMAGE} AS builder
+FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS builder
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /src
-COPY go.mod go.sum ./
-RUN go mod download
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+	--mount=type=bind,source=go.mod,target=go.mod \
+	--mount=type=bind,source=go.sum,target=go.sum \
+	go mod download
+
 COPY . .
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+RUN --mount=type=cache,target=/go/pkg/mod \
+	--mount=type=cache,target=/root/.cache/go-build \
+	CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
 	go build -trimpath -ldflags="-s -w" -o /out/envoy-authorization-service .
 
 FROM gcr.io/distroless/static:nonroot
-LABEL org.opencontainers.image.source=https://github.com/gtriggiano/envoy-authorization-service
+
+ARG VERSION=dev
+ARG REVISION=
+ARG CREATED=
+
+LABEL org.opencontainers.image.title="envoy-authorization-service" \
+	org.opencontainers.image.description="External authorization service implementing the Envoy ext_authz gRPC API" \
+	org.opencontainers.image.source="https://github.com/gtriggiano/envoy-authorization-service" \
+	org.opencontainers.image.url="https://gtriggiano.github.io/envoy-authorization-service/" \
+	org.opencontainers.image.documentation="https://gtriggiano.github.io/envoy-authorization-service/" \
+	org.opencontainers.image.licenses="MIT" \
+	org.opencontainers.image.version="${VERSION}" \
+	org.opencontainers.image.revision="${REVISION}" \
+	org.opencontainers.image.created="${CREATED}"
+
 COPY --from=builder /out/envoy-authorization-service /usr/local/bin/envoy-authorization-service
+
+# gRPC ext_authz listener and metrics/health HTTP server (defaults; configurable)
+EXPOSE 9001 9090
+
 ENTRYPOINT ["/usr/local/bin/envoy-authorization-service"]
 CMD ["start", "--config", "/config/config.yaml"]

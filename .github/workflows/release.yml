@@ -54,9 +54,6 @@ jobs:
             coverage.out
             coverage.txt
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -71,6 +68,8 @@ jobs:
         id: vars
         run: |
           version="${GITHUB_REF_NAME#v}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
           echo "images=${IMAGE_NAME}:${version},${IMAGE_NAME}:latest" >> "$GITHUB_OUTPUT"
 
       - name: Build and push image
@@ -80,6 +79,12 @@ jobs:
           push: true
           platforms: linux/amd64, linux/arm64
           tags: ${{ steps.vars.outputs.images }}
+          build-args: |
+            VERSION=${{ steps.vars.outputs.version }}
+            REVISION=${{ github.sha }}
+            CREATED=${{ steps.vars.outputs.created }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   release:
     name: Create GitHub Release

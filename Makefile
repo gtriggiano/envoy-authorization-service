@@ -96,7 +96,11 @@ release: clean tidy fmt test build-all
 	@./scripts/release.sh $(RELEASE_BUMP)
 
 docker:
-	docker build -t $(BINARY):dev .
+	$(DOCKER) build \
+		--build-arg VERSION=$$(cat VERSION)-dev \
+		--build-arg REVISION=$$(git rev-parse --short HEAD 2>/dev/null || echo unknown) \
+		--build-arg CREATED=$$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+		-t $(BINARY):dev .
 
 compose-up:
 	$(DOCKER) compose up -d
