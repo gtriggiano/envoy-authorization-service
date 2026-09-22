@@ -15,7 +15,7 @@ envoy-authorization-service start [flags]
 ### Flags
 
 ```
---config string   Path to configuration file (required)
+--config string   Path to the configuration file (default "config.yaml", resolved from the current working directory)
 ```
 
 ### Example
@@ -23,6 +23,8 @@ envoy-authorization-service start [flags]
 ```bash
 envoy-authorization-service start --config /etc/auth-service/config.yaml
 ```
+
+The process exits with status `1` when the configuration cannot be loaded or validated, or when a controller cannot be built.
 
 ## `synthesize-cidr-list`
 
@@ -58,23 +60,34 @@ envoy-authorization-service synthesize-cidr-list \
 
 ### Optimization Rules
 
-- Removes duplicate entries
+- Removes duplicate entries (the first occurrence is kept)
 - Removes CIDRs contained within larger CIDRs
-- Sorts output for consistency
+- Preserves the original order of the surviving entries
+- Preserves `#` comments: a comment line applies to the entries that follow it, up to the next blank line
+- Drops lines that are not valid IPv4 addresses or IPv4 CIDRs (IPv6 is not supported)
 
-**Example**:
+**Example** (inline comments are not supported; the annotations below are explanatory only):
+
+Input file:
 ```txt
-# Before
-10.0.0.0/24
-10.0.0.0/25  # Removed (contained in /24)
-10.0.0.50/32 # Removed (contained in /24)
 192.168.1.0/24
-192.168.1.0/24 # Removed (duplicate)
-
-# After
+# Office
 10.0.0.0/24
+10.0.0.0/25
+10.0.0.50/32
 192.168.1.0/24
+2001:db8::/32
 ```
+
+Output:
+```txt
+192.168.1.0/24
+
+# Office
+10.0.0.0/24
+```
+
+`10.0.0.0/25` and `10.0.0.50/32` are removed because `10.0.0.0/24` contains them, the second `192.168.1.0/24` is a duplicate, and `2001:db8::/32` is dropped because IPv6 is not supported.
 
 ## `synthesize-asn-list`
 
@@ -110,23 +123,30 @@ envoy-authorization-service synthesize-asn-list \
 
 ### Deduplication Rules
 
-- Removes duplicate ASN entries
-- Sorts output numerically
-- Preserves comments
+- Removes duplicate ASN entries (the first occurrence is kept)
+- Preserves the original order of the surviving entries
+- Accepts `15169`, `AS15169` and `AS 15169`; output is normalised to `AS 15169`
+- Preserves `#` comments: a comment line applies to the entries that follow it, up to the next blank line
+- Drops lines that are not valid AS numbers
 
-**Example**:
+**Example**
+
+Input file:
 ```txt
-# Before
 15169
-16509
-15169  # Removed (duplicate)
-14618
-
-# After
-14618
+AS16509
 15169
-16509
+AS 14618
 ```
+
+Output:
+```txt
+AS 15169
+AS 16509
+AS 14618
+```
+
+The second `15169` is removed as a duplicate; the remaining entries keep their original order and are normalised to the `AS <number>` form.
 
 ## `validate-geojson`
 

@@ -24,20 +24,17 @@ matchControllers:
   - name: trusted-partners
     type: ip-match
     settings:
-      action: allow
       cidrList: /config/trusted-partners-ips.txt
 
   - name: blocked-networks
     type: ip-match
     settings:
-      action: deny
       cidrList: /config/blocked-networks-ips.txt
 
   - name: cloud-providers
     type: asn-match
     settings:
-      action: allow
-      asList: /config/cloud-provider-asns.txt
+      asnList: /config/cloud-provider-asns.txt
 
 # Complex policy:
 # 1. Allow if from trusted partner network AND not in blocked list

@@ -229,13 +229,11 @@ matchControllers:
   - name: corporate
     type: ip-match
     settings:
-      action: allow
       cidrList: corporate-ips.txt
   
   - name: partners
     type: ip-match-database
     settings:
-      action: allow
       # database config...
 
 authorizationPolicy: "corporate || partners"
@@ -257,13 +255,11 @@ matchControllers:
   - name: allowlist
     type: ip-match
     settings:
-      action: allow
       cidrList: allowed-ips.txt
   
   - name: blocklist
     type: ip-match
     settings:
-      action: deny
       cidrList: blocked-ips.txt
 
 authorizationPolicy: "allowlist && !blocklist"
@@ -295,11 +291,13 @@ authorizationPolicy: "corporate partners"         # Missing operator
 authorizationPolicy: "corporate &&& partners"     # Invalid operator
 ```
 
-❌ **Invalid** (unknown controller):
+❌ **Invalid** (unknown or disabled controller):
 ```yaml
 authorizationPolicy: "corporate && undefined-controller"
 ```
-Error: `controller "undefined-controller" referenced in policy but not configured`
+Error: `authorization policy references an unknown controller: undefined-controller`
+
+Only match controllers that are configured **and** enabled (`enabled` not set to `false`) can be referenced.
 
 ### Empty Policy
 

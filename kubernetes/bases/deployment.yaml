@@ -13,10 +13,10 @@ spec:
     spec:
       containers:
         - name: envoy-authorization-service
-          image: gtriggiano/envoy-authorization-service:latest
+          image: ghcr.io/gtriggiano/envoy-authorization-service:latest
           args:
             - start
-            - --config=/config.yaml
+            - --config=/config/config.yaml
           ports:
           - name: grpc
             containerPort: 9001

@@ -57,5 +57,5 @@ matchControllers:
 - Analytics can segment adoption by city/country while retaining privacy (no PII stored).
 
 ## Operations Tips
-- Version GeoJSON in Git; validate with `envoy-authz validate-geojson` before deploys.
+- Version GeoJSON in Git; validate with `envoy-authorization-service validate-geojson --file config/eu-uk.geojson` before deploys.
 - Refresh MaxMind databases weekly.

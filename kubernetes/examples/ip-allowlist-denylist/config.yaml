@@ -14,12 +14,10 @@ matchControllers:
   - name: allowed-ips
     type: ip-match
     settings:
-      action: allow
       cidrList: /config/allowed-ips.txt
   - name: blocked-ips
     type: ip-match
     settings:
-      action: deny
       cidrList: /config/blocked-ips.txt
 
 # Allow only IPs in the allowlist that are NOT in the blocklist

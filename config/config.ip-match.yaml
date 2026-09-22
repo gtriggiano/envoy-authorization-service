@@ -17,11 +17,9 @@ matchControllers:
   - name: trusted
     type: ip-match
     settings:
-      action: deny
       cidrList: config/whitelisted-cidrs.txt
 
   - name: scraper
     type: ip-match
     settings:
-      action: deny
       cidrList: config/scrapers-cidrs.txt

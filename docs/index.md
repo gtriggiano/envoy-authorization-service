@@ -82,25 +82,25 @@ Download the build for your arch:
 ::: code-group
 
 ```bash [Linux AMD64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-linux-amd64
+curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/download/v{{VERSION}}/envoy-authorization-service-linux-amd64
 chmod +x envoy-authorization-service-linux-amd64
 mv envoy-authorization-service-linux-amd64 /usr/local/bin/envoy-authorization-service
 ```
 
 ```bash [Linux ARM64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-linux-arm64
+curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/download/v{{VERSION}}/envoy-authorization-service-linux-arm64
 chmod +x envoy-authorization-service-linux-arm64
 mv envoy-authorization-service-linux-arm64 /usr/local/bin/envoy-authorization-service
 ```
 
 ```bash [macOS AMD64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-darwin-amd64
+curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/download/v{{VERSION}}/envoy-authorization-service-darwin-amd64
 chmod +x envoy-authorization-service-darwin-amd64
 mv envoy-authorization-service-darwin-amd64 /usr/local/bin/envoy-authorization-service
 ```
 
 ```bash [macOS ARM64]
-curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/v{{VERSION}}/download/envoy-authorization-service-darwin-arm64
+curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/download/v{{VERSION}}/envoy-authorization-service-darwin-arm64
 chmod +x envoy-authorization-service-darwin-arm64
 mv envoy-authorization-service-darwin-arm64 /usr/local/bin/envoy-authorization-service
 ```
@@ -130,5 +130,5 @@ analysisControllers:
   - name: geoip-analysis
     type: maxmind-geoip
     settings:
-      databasePath: GeoLite2-ASN.mmdb
+      databasePath: GeoLite2-City.mmdb
 ```

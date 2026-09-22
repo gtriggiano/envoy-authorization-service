@@ -65,7 +65,7 @@ spec:
               mountPath: /maxmind
       containers:
         - name: envoy-authorization-service
-          image: gtriggiano/envoy-authorization-service:{{VERSION}}
+          image: ghcr.io/gtriggiano/envoy-authorization-service:{{VERSION}}
           args:
             - start
             - --config=/config/config.yaml

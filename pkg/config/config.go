@@ -1,5 +1,5 @@
 // Package config provides configuration loading, validation, and management for the
-// Contour Authorization Server. It supports YAML-based configuration files with
+// Envoy Authorization Service. It supports YAML-based configuration files with
 // validation and default value application.
 package config
 

@@ -17,7 +17,6 @@ matchControllers:
   - name: scraper
     type: ip-match-database
     settings:
-      action: deny
       cache:
         ttl: 5m
       database:

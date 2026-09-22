@@ -48,7 +48,7 @@ networks:
 
 Start services:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ## With Envoy
@@ -70,7 +70,7 @@ services:
       - envoy-net
 
   envoy:
-    image: envoyproxy/envoy:v1.28-latest
+    image: envoyproxy/envoy:v1.36.2
     ports:
       - "8080:8080"
     volumes:
@@ -131,7 +131,11 @@ static_resources:
     - name: authz_service
       connect_timeout: 1s
       type: STRICT_DNS
-      http2_protocol_options: {}
+      typed_extension_protocol_options:
+        envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+          "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+          explicit_http_config:
+            http2_protocol_options: {}
       load_assignment:
         cluster_name: authz_service
         endpoints:
@@ -186,7 +190,7 @@ services:
       - envoy-net
 
   envoy:
-    image: envoyproxy/envoy:v1.28-latest
+    image: envoyproxy/envoy:v1.36.2
     ports:
       - "8080:8080"
     volumes:

@@ -52,7 +52,7 @@ docker run -p 9001:9001 -p 9090:9090 \
 Download from [releases](https://github.com/gtriggiano/envoy-authorization-service/releases):
 
 ```bash
-# Example for Linux AMD64
+# Example for Linux AMD64 (assets are named envoy-authorization-service-<os>-<arch>)
 curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/latest/download/envoy-authorization-service-linux-amd64
 chmod +x envoy-authorization-service-linux-amd64
 ./envoy-authorization-service-linux-amd64 start --config config.yaml

@@ -1,4 +1,4 @@
-// Package main serves as the entry point for the Contour Authorization Server.
+// Package main serves as the entry point for the Envoy Authorization Service.
 // It initializes the CLI and delegates execution to the cmd package.
 package main
 

@@ -20,9 +20,8 @@ matchControllers:
   - name: allowed-asn
     type: asn-match
     settings:
-      action: allow
-      asList: /config/allowed-asns.txt
+      asnList: /config/allowed-asns.txt
 
-# Allow only ASNs in the allowlist that are NOT in the blocklist
+# Allow only requests whose client ASN is in the allowlist
 authorizationPolicy: allowed-asn
 authorizationPolicyBypass: false

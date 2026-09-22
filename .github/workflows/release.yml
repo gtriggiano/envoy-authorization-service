@@ -113,7 +113,7 @@ jobs:
           mkdir -p "$dist_dir"
           for platform in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
             os="${platform%/*}"; arch="${platform#*/}"
-            outfile="${dist_dir}/envoy-authorization-service_${os}_${arch}"
+            outfile="${dist_dir}/envoy-authorization-service-${os}-${arch}"
             env CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w" -o "$outfile" .
           done
 
