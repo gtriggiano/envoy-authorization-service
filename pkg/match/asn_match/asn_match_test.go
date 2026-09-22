@@ -48,7 +48,7 @@ func TestASNMatchController_Match(t *testing.T) {
 
 func TestASNMatchController_NoReport(t *testing.T) {
 	ctrl := createTestController(t, "64500 ExampleNet")
-	req := runtime.NewRequestContext(minimalCheckRequest("198.51.100.1"))
+	req := runtime.NewRequestContext(minimalCheckRequest("198.51.100.1"), nil)
 	verdict, err := ctrl.Match(context.Background(), req, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -95,7 +95,7 @@ func createTestController(t *testing.T, asnList string) controller.MatchControll
 
 func matchASN(t *testing.T, ctrl controller.MatchController, asn uint) *controller.MatchVerdict {
 	t.Helper()
-	req := runtime.NewRequestContext(minimalCheckRequest("198.51.100.1"))
+	req := runtime.NewRequestContext(minimalCheckRequest("198.51.100.1"), nil)
 	reports := controller.AnalysisReports{
 		"asn": {
 			ControllerKind: maxmind_asn.ControllerKind,

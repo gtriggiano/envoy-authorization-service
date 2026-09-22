@@ -32,6 +32,10 @@ data:
           databasePath: /maxmind/GeoLite2-ASN.mmdb
 ```
 
+::: warning Which address gets evaluated?
+On Kubernetes, Envoy usually sits behind a cloud load balancer or an ingress tier, and by default the service evaluates the address of the peer connected to Envoy, which is then the load balancer rather than the client. Configure Envoy with `use_remote_address: true` and the right `xff_num_trusted_hops`, and add a `clientIp` section that reads `x-envoy-external-address`, as explained in [Client IP Resolution](/guides/client-ip). Without it, allow-lists deny everyone and deny-lists block nobody.
+:::
+
 ### Deployment
 
 Create a Deployment with an **init container** to download MaxMind databases:

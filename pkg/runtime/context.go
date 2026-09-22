@@ -23,8 +23,11 @@ type RequestContext struct {
 	ReceivedAt time.Time
 	// Authority is the Host/:authority value extracted from the incoming request.
 	Authority string
-	// IpAddress contains the parsed downstream client IP address extracted from the request.
+	// IpAddress contains the client IP address resolved by the configured ClientIPResolver.
+	// It is the zero value (IsValid() == false) when no trusted source yielded an address.
 	IpAddress netip.Addr
+	// IpSource names the source the IP address was taken from (see ClientIPResolver.Resolve).
+	IpSource string
 
 	// mu protects concurrent access to logFields.
 	mu sync.RWMutex
@@ -32,19 +35,22 @@ type RequestContext struct {
 	logFields []zap.Field
 }
 
-// NewRequestContext constructs a RequestContext with the provided values.
-func NewRequestContext(req *authv3.CheckRequest) *RequestContext {
+// NewRequestContext constructs a RequestContext resolving the client IP
+// address through the provided resolver. A nil resolver behaves like the default one.
+func NewRequestContext(req *authv3.CheckRequest, resolver *ClientIPResolver) *RequestContext {
 	authority := requestAuthority(req)
-	ipAddress := requestIpAddress(req)
+	ipAddress, ipSource := resolver.Resolve(req)
 
 	return &RequestContext{
 		Request:    req,
 		ReceivedAt: time.Now(),
 		Authority:  authority,
 		IpAddress:  ipAddress,
+		IpSource:   ipSource,
 		logFields: []zap.Field{
 			zap.String("authority", authority),
 			zap.String("ip", ipAddress.String()),
+			zap.String("ip_source", ipSource),
 		},
 	}
 }
@@ -57,7 +63,7 @@ func (r *RequestContext) AddLogFields(fields ...zap.Field) {
 
 	sanitizedFields := make([]zap.Field, 0, len(fields))
 	for _, f := range fields {
-		if f.Key == "ip" || f.Key == "authority" {
+		if f.Key == "ip" || f.Key == "ip_source" || f.Key == "authority" {
 			continue
 		}
 		// Here you could add logic to sanitize fields if necessary.
@@ -80,87 +86,6 @@ func (r *RequestContext) LogFields() []zap.Field {
 	out := make([]zap.Field, len(r.logFields))
 	copy(out, r.logFields)
 	return out
-}
-
-// Standard HTTP headers that may contain the client IP address.
-var ipAddressHeadersCandidates = []string{"x-client-ip", "x-forwarded-for", "cf-connecting-ip", "fastly-client-ip", "true-client-ip", "x-real-ip", "x-cluster-client-ip", "x-forwarded", "forwarded-for", "forwarded"}
-
-// requestIpAddress extracts the downstream client IP address from the CheckRequest.
-// It navigates through the Envoy AttributeContext to retrieve the source address
-// and returns the zero-value netip.Addr when the IP cannot be determined.
-func requestIpAddress(req *authv3.CheckRequest) netip.Addr {
-	defaultIp := netip.Addr{}
-
-	if req == nil {
-		return defaultIp
-	}
-
-	// Collect request headers in a case-insensitive map
-	requestHeaders := map[string]string{}
-	for k, v := range req.GetAttributes().GetRequest().GetHttp().GetHeaders() {
-		requestHeaders[strings.ToLower(k)] = v
-	}
-
-	for _, candidateHeader := range ipAddressHeadersCandidates {
-		switch candidateHeader {
-		case "x-forwarded-for": // Load-balancers (AWS ELB) or proxies.
-			if headerValue, ok := requestHeaders[candidateHeader]; ok {
-				if clientIP, ok := getClientIPFromXForwardedFor(headerValue); ok {
-					return clientIP
-				}
-			}
-
-		default:
-			if headerValue, ok := requestHeaders[candidateHeader]; ok {
-				if clientIP, err := netip.ParseAddr(headerValue); err == nil {
-					return clientIP
-				}
-			}
-		}
-	}
-
-	// Fallback to Envoy AttributeContext source address
-	attr := req.GetAttributes()
-	if attr == nil {
-		return netip.Addr{}
-	}
-	source := attr.GetSource()
-	if source == nil {
-		return netip.Addr{}
-	}
-	address := source.GetAddress()
-	if address == nil {
-		return netip.Addr{}
-	}
-	socketAddr := address.GetSocketAddress()
-	if socketAddr == nil {
-		return netip.Addr{}
-	}
-
-	ip, _ := netip.ParseAddr(socketAddr.Address)
-
-	return ip
-}
-
-// getClientIPFromXForwardedFor  - returns first known ip address else return empty string
-func getClientIPFromXForwardedFor(headerValue string) (clientIP netip.Addr, validIP bool) {
-	if headerValue == "" {
-		return netip.Addr{}, false
-	}
-	// x-forwarded-for may return multiple IP addresses in the format: "client IP, proxy 1 IP, proxy 2 IP"
-	// Therefore, the right-most IP address is the IP address of the most recent proxy
-	// and the left-most IP address is the IP address of the originating client.
-	forwardedIps := strings.Split(headerValue, ",")
-	if len(forwardedIps) > 0 {
-		ip := strings.TrimSpace(forwardedIps[0])
-		if splitted := strings.Split(ip, ":"); len(splitted) == 2 {
-			ip = splitted[0]
-		}
-		clientIP, err := netip.ParseAddr(ip)
-		return clientIP, err == nil
-	}
-
-	return netip.Addr{}, false
 }
 
 // requestAuthority extracts the :authority/Host value from the CheckRequest.

@@ -25,6 +25,7 @@ import (
 
 // Manager coordinates controllers through the Envoy authorization lifecycle.
 type Manager struct {
+	clientIPResolver    *runtime.ClientIPResolver
 	analysisControllers []controller.AnalysisController
 	matchControllers    []controller.MatchController
 	instrumentation     *metrics.Instrumentation
@@ -33,8 +34,16 @@ type Manager struct {
 	logger              *zap.Logger
 }
 
+// Labels used for the culprit when a request is denied because the client IP could not be resolved.
+const (
+	clientIPCulpritName = "client-ip"
+	clientIPCulpritKind = "client-ip"
+	clientIPDenyMessage = "client IP address could not be resolved"
+)
+
 // NewManager instantiates a controller manager.
 func NewManager(
+	clientIPResolver *runtime.ClientIPResolver,
 	analysisControllers []controller.AnalysisController,
 	matchControllers []controller.MatchController,
 	instrumentation *metrics.Instrumentation,
@@ -42,6 +51,10 @@ func NewManager(
 	policyBypass bool,
 	logger *zap.Logger,
 ) *Manager {
+	if clientIPResolver == nil {
+		clientIPResolver = runtime.DefaultClientIPResolver()
+	}
+
 	for _, matchController := range matchControllers {
 		if instrumented, ok := matchController.(interface {
 			SetInstrumentation(*metrics.Instrumentation)
@@ -51,6 +64,7 @@ func NewManager(
 	}
 
 	return &Manager{
+		clientIPResolver:    clientIPResolver,
 		analysisControllers: analysisControllers,
 		matchControllers:    matchControllers,
 		instrumentation:     instrumentation,
@@ -62,12 +76,28 @@ func NewManager(
 
 // Check executes analysis + match phases and evaluates the configured authorization policy.
 func (m *Manager) Check(ctx context.Context, req *authv3.CheckRequest) (*authv3.CheckResponse, error) {
-	reqCtx := runtime.NewRequestContext(req)
+	reqCtx := runtime.NewRequestContext(req, m.clientIPResolver)
 	start := time.Now()
 
 	// Track in-flight requests
 	m.instrumentation.InFlight(reqCtx.Authority, 1)
 	defer m.instrumentation.InFlight(reqCtx.Authority, -1)
+
+	// Fail closed when the client address is required but no trusted source provided one.
+	if m.clientIPResolver.RequireValid() && !reqCtx.IpAddress.IsValid() {
+		logFields := append(reqCtx.LogFields(), zap.String("reason", clientIPDenyMessage))
+		if !m.policyBypass {
+			m.logger.Warn("DENY", append(logFields, zap.String("verdict", metrics.DENY))...)
+			m.instrumentation.ObserveDenyDecision(
+				reqCtx.Authority, metrics.DENY,
+				metrics.NotAvailable, metrics.NotAvailable, metrics.NotAvailable,
+				clientIPCulpritName, clientIPCulpritKind, metrics.NotAvailable, metrics.ERROR,
+				time.Since(start),
+			)
+			return m.denyResponse(codes.PermissionDenied, clientIPDenyMessage, nil), nil
+		}
+		m.logger.Warn("BYPASS", logFields...)
+	}
 
 	// Run analysis phase
 	analysisReports := m.runAnalysis(ctx, reqCtx)

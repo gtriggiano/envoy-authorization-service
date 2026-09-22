@@ -23,7 +23,7 @@ func TestMatchWithoutASNReportRespectsMatchesOnFailure(t *testing.T) {
 		logger:           zap.NewNop(),
 	}
 
-	req := runtime.NewRequestContext(nil)
+	req := runtime.NewRequestContext(nil, nil)
 	verdict, err := ctrl.Match(context.Background(), req, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -52,7 +52,7 @@ func TestMatchDatabaseErrorUsesMatchesOnFailure(t *testing.T) {
 		},
 	}
 
-	req := runtime.NewRequestContext(nil)
+	req := runtime.NewRequestContext(nil, nil)
 	verdict, err := ctrl.Match(context.Background(), req, reports)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -78,7 +78,7 @@ func TestCachePreventsRepeatedQueries(t *testing.T) {
 
 	reports := asnReports(64500)
 
-	req := runtime.NewRequestContext(nil)
+	req := runtime.NewRequestContext(nil, nil)
 	if _, err := ctrl.Match(context.Background(), req, reports); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

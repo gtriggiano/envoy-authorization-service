@@ -1,6 +1,14 @@
 logging:
   level: info
 
+# Client IP resolution. The default (envoySource only) uses the address of the peer
+# connected to Envoy. config/envoy.yaml sets use_remote_address: true, so Envoy computes
+# the client address and stores it in x-envoy-external-address; read that header first.
+clientIp:
+  sources:
+    - header: x-envoy-external-address
+    - envoySource
+
 authorizationPolicy: "trusted"
 
 analysisControllers:

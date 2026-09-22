@@ -79,7 +79,7 @@ matchControllers:
 ## Request Flow
 1. Analysis controllers emit headers so upstream webhook handlers can log ASN + location for each delivery.
 2. Static partner CIDRs cover official ranges; `partner-live` catches ad-hoc ranges partners add temporarily.
-3. `partner-asns` ensures traffic originates from the partner’s network, defending against spoofed IP headers.
+3. `partner-asns` adds a second, independent list to satisfy: the client IP must also resolve to one of the partner's ASNs. Note that all IP-based controllers evaluate the same client IP, so this is not a defence against a forged address; the defence is resolving the address from a source the client cannot influence. By default that is the peer connected to Envoy; when a load balancer sits in front of Envoy, configure `clientIp.sources` as described in [Client IP Resolution](/guides/client-ip).
 4. `incident-block` gives SOC instant deny capability via Redis without reloading Envoy.
 
 ## Value Delivered

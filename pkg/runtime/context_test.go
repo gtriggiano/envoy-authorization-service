@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"net/netip"
 	"testing"
 	"time"
 
@@ -29,7 +28,7 @@ func TestNewRequestContextInitializesFields(t *testing.T) {
 		},
 	}
 
-	ctx := NewRequestContext(req)
+	ctx := NewRequestContext(req, nil)
 
 	if ctx.Request != req {
 		t.Fatalf("request should be preserved on context")
@@ -47,11 +46,15 @@ func TestNewRequestContextInitializesFields(t *testing.T) {
 		t.Fatalf("expected ip %s, got %s", ip, ctx.IpAddress.String())
 	}
 
-	fields := ctx.LogFields()
-	if len(fields) != 2 {
-		t.Fatalf("expected 2 log fields, got %d", len(fields))
+	if ctx.IpSource != IPSourceEnvoy {
+		t.Fatalf("expected ip source %q, got %q", IPSourceEnvoy, ctx.IpSource)
 	}
-	want := map[string]string{"authority": "example.com", "ip": ip}
+
+	fields := ctx.LogFields()
+	if len(fields) != 3 {
+		t.Fatalf("expected 3 log fields, got %d", len(fields))
+	}
+	want := map[string]string{"authority": "example.com", "ip": ip, "ip_source": IPSourceEnvoy}
 	for _, f := range fields {
 		if want[f.Key] != f.String {
 			t.Fatalf("unexpected log field %q -> %q", f.Key, f.String)
@@ -71,16 +74,16 @@ func TestAddLogFieldsSkipsIPAndCopies(t *testing.T) {
 			},
 		},
 	}
-	ctx := NewRequestContext(req)
+	ctx := NewRequestContext(req, nil)
 
-	ctx.AddLogFields(zap.String("user", "alice"), zap.String("ip", "ignored"))
+	ctx.AddLogFields(zap.String("user", "alice"), zap.String("ip", "ignored"), zap.String("ip_source", "ignored"), zap.String("authority", "ignored"))
 
 	fields := ctx.LogFields()
-	if len(fields) != 3 {
-		t.Fatalf("expected 3 log fields, got %d", len(fields))
+	if len(fields) != 4 {
+		t.Fatalf("expected 4 log fields, got %d", len(fields))
 	}
-	if fields[2].Key != "user" || fields[2].String != "alice" {
-		t.Fatalf("unexpected user field: %+v", fields[2])
+	if fields[3].Key != "user" || fields[3].String != "alice" {
+		t.Fatalf("unexpected user field: %+v", fields[3])
 	}
 
 	// Mutating the returned slice must not affect internal storage.
@@ -93,64 +96,6 @@ func TestAddLogFieldsSkipsIPAndCopies(t *testing.T) {
 func TestAddLogFieldsNilReceiverDoesNotPanic(t *testing.T) {
 	var ctx *RequestContext
 	ctx.AddLogFields(zap.String("foo", "bar"))
-}
-
-func TestRequestIpAddressExtraction(t *testing.T) {
-	tests := []struct {
-		name string
-		req  *authv3.CheckRequest
-		want netip.Addr
-	}{
-		{
-			name: "nil request",
-			req:  nil,
-			want: netip.Addr{},
-		},
-		{
-			name: "missing attributes",
-			req:  &authv3.CheckRequest{},
-			want: netip.Addr{},
-		},
-		{
-			name: "invalid ip string",
-			req: &authv3.CheckRequest{
-				Attributes: &authv3.AttributeContext{
-					Source: &authv3.AttributeContext_Peer{
-						Address: &corev3.Address{
-							Address: &corev3.Address_SocketAddress{
-								SocketAddress: &corev3.SocketAddress{Address: "not-an-ip"},
-							},
-						},
-					},
-				},
-			},
-			want: netip.Addr{},
-		},
-		{
-			name: "valid ip",
-			req: &authv3.CheckRequest{
-				Attributes: &authv3.AttributeContext{
-					Source: &authv3.AttributeContext_Peer{
-						Address: &corev3.Address{
-							Address: &corev3.Address_SocketAddress{
-								SocketAddress: &corev3.SocketAddress{Address: "192.0.2.7"},
-							},
-						},
-					},
-				},
-			},
-			want: netip.MustParseAddr("192.0.2.7"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := requestIpAddress(tt.req)
-			if got != tt.want {
-				t.Fatalf("expected %v, got %v", tt.want, got)
-			}
-		})
-	}
 }
 
 func TestRequestAuthorityExtraction(t *testing.T) {

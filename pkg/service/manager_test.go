@@ -100,7 +100,7 @@ func TestRunAnalysisCollectsReports(t *testing.T) {
 		logger:          logger,
 	}
 
-	reports := mgr.runAnalysis(context.Background(), runtime.NewRequestContext(minimalCheckRequestUnit("203.0.113.1")))
+	reports := mgr.runAnalysis(context.Background(), runtime.NewRequestContext(minimalCheckRequestUnit("203.0.113.1"), nil))
 
 	if len(reports) != 2 {
 		t.Fatalf("expected 2 reports, got %d", len(reports))
@@ -129,7 +129,7 @@ func TestRunMatchPopulatesVerdicts(t *testing.T) {
 		logger:          logger,
 	}
 
-	verdicts := mgr.runMatch(context.Background(), runtime.NewRequestContext(minimalCheckRequestUnit("203.0.113.3")), nil)
+	verdicts := mgr.runMatch(context.Background(), runtime.NewRequestContext(minimalCheckRequestUnit("203.0.113.3"), nil), nil)
 
 	verdict, ok := verdicts["auth"]
 	if !ok {
@@ -525,3 +525,100 @@ func writeSelfSignedCert(t *testing.T, dir string) (string, string) {
 
 	return certPath, keyPath
 }
+
+// --- client IP resolution ---------------------------------------------------
+
+func TestCheckDeniesWhenClientIPRequiredButUnresolved(t *testing.T) {
+	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{})
+	resolver := runtime.NewClientIPResolver(config.ClientIPConfig{
+		Sources:      []config.ClientIPSource{{Header: "x-envoy-external-address"}},
+		RequireValid: true,
+	})
+	match := stubMatchController{name: "allow-all", kind: "stub", verdict: &controller.MatchVerdict{IsMatch: true}}
+	pol, err := policy.Parse("allow-all", []string{"allow-all"})
+	if err != nil {
+		t.Fatalf("parse policy: %v", err)
+	}
+	mgr := NewManager(resolver, nil, []controller.MatchController{match}, inst, pol, false, zaptest.NewLogger(t))
+
+	// No header: the request must be denied even though the policy would allow it.
+	resp, err := mgr.Check(context.Background(), minimalCheckRequestUnit("10.0.0.5"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.GetStatus().GetCode() != int32(codes.PermissionDenied) {
+		t.Fatalf("expected PermissionDenied, got %v", resp.GetStatus())
+	}
+	denied := resp.GetDeniedResponse()
+	if denied == nil || denied.GetStatus().GetCode() != typev3.StatusCode_Forbidden {
+		t.Fatalf("expected HTTP 403 denied response, got %+v", resp.GetHttpResponse())
+	}
+	if denied.GetBody() != clientIPDenyMessage {
+		t.Fatalf("unexpected body %q", denied.GetBody())
+	}
+
+	// With the trusted header present the same request is allowed.
+	req := minimalCheckRequestUnit("10.0.0.5")
+	req.Attributes.Request = &authv3.AttributeContext_Request{
+		Http: &authv3.AttributeContext_HttpRequest{Headers: map[string]string{"x-envoy-external-address": "203.0.113.10"}},
+	}
+	resp, err = mgr.Check(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.GetStatus().GetCode() != int32(codes.OK) {
+		t.Fatalf("expected OK, got %v", resp.GetStatus())
+	}
+}
+
+func TestCheckBypassSkipsClientIPRequirement(t *testing.T) {
+	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{})
+	resolver := runtime.NewClientIPResolver(config.ClientIPConfig{
+		Sources:      []config.ClientIPSource{{XFF: &config.XFFSource{TrustedHops: 1}}},
+		RequireValid: true,
+	})
+	mgr := NewManager(resolver, nil, nil, inst, nil, true, zaptest.NewLogger(t))
+
+	resp, err := mgr.Check(context.Background(), minimalCheckRequestUnit("10.0.0.5"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.GetStatus().GetCode() != int32(codes.OK) {
+		t.Fatalf("expected bypass to allow the request, got %v", resp.GetStatus())
+	}
+}
+
+func TestCheckWithoutRequireValidRunsControllersWithInvalidIP(t *testing.T) {
+	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{})
+	resolver := runtime.NewClientIPResolver(config.ClientIPConfig{
+		Sources: []config.ClientIPSource{{Header: "x-envoy-external-address"}},
+	})
+	seen := make(chan bool, 1)
+	match := recordingMatchController{seen: seen}
+	pol, err := policy.Parse("rec", []string{"rec"})
+	if err != nil {
+		t.Fatalf("parse policy: %v", err)
+	}
+	mgr := NewManager(resolver, nil, []controller.MatchController{match}, inst, pol, false, zaptest.NewLogger(t))
+
+	resp, err := mgr.Check(context.Background(), minimalCheckRequestUnit("10.0.0.5"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.GetStatus().GetCode() != int32(codes.OK) {
+		t.Fatalf("expected OK, got %v", resp.GetStatus())
+	}
+	if valid := <-seen; valid {
+		t.Fatalf("controller should have observed an invalid IP address")
+	}
+}
+
+type recordingMatchController struct{ seen chan bool }
+
+func (r recordingMatchController) Name() string { return "rec" }
+func (r recordingMatchController) Kind() string { return "rec" }
+func (r recordingMatchController) Match(_ context.Context, req *runtime.RequestContext, _ controller.AnalysisReports) (*controller.MatchVerdict, error) {
+	r.seen <- req.IpAddress.IsValid()
+	return &controller.MatchVerdict{IsMatch: true}, nil
+}
+func (r recordingMatchController) HealthCheck(context.Context) error { return nil }

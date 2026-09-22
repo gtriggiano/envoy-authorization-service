@@ -46,10 +46,10 @@ func TestMaxMindASNHeaders(t *testing.T) {
 
 	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{TrackCountry: false, TrackGeofence: true})
 	// No auth controllers, no policy: analysis headers should flow into OK response.
-	mgr := service.NewManager(analysisControllers, nil, inst, nil, false, logger)
+	mgr := service.NewManager(nil, analysisControllers, nil, inst, nil, false, logger)
 
 	ip := "1.1.1.1" // Cloudflare AS13335
-	req := runtime.NewRequestContext(minimalCheckRequest(ip))
+	req := runtime.NewRequestContext(minimalCheckRequest(ip), nil)
 	resp, err := mgr.Check(ctx, req.Request)
 	requireNoErr(t, err)
 

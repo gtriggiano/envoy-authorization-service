@@ -12,8 +12,13 @@ static_resources:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           stat_prefix: ingress_http
           codec_type: AUTO
-          # Trust X-Forwarded-For header from 1 hop (useful for testing with spoofed IPs)
-          # In production behind a load balancer, set this to the number of trusted proxies
+          # Let Envoy determine the client address and publish it in x-envoy-external-address.
+          # use_remote_address: true makes Envoy overwrite that header on every request, so
+          # clients cannot inject it. xff_num_trusted_hops: 1 trusts ONE X-Forwarded-For entry,
+          # which is what lets you simulate client IPs locally with `curl -H "X-Forwarded-For: ..."`.
+          # In production set xff_num_trusted_hops to the number of trusted proxies in front of
+          # Envoy (0 when Envoy is the edge). See docs/guides/client-ip.md.
+          use_remote_address: true
           xff_num_trusted_hops: 1
           access_log:
           - name: envoy.access_loggers.file

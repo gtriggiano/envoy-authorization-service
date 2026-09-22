@@ -45,10 +45,10 @@ func TestMaxMindGeoIPHeaders(t *testing.T) {
 	requireNoErr(t, err)
 
 	inst := metrics.NewInstrumentation(prometheus.NewRegistry(), metrics.TrackOptions{TrackCountry: false, TrackGeofence: true})
-	mgr := service.NewManager(analysisControllers, nil, inst, nil, false, logger)
+	mgr := service.NewManager(nil, analysisControllers, nil, inst, nil, false, logger)
 
 	ip := "8.8.8.8"
-	req := runtime.NewRequestContext(minimalCheckRequest(ip))
+	req := runtime.NewRequestContext(minimalCheckRequest(ip), nil)
 	resp, err := mgr.Check(ctx, req.Request)
 	requireNoErr(t, err)
 

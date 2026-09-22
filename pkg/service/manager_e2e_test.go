@@ -126,9 +126,9 @@ func runManagerCheck(t *testing.T, ctx context.Context, authControllers []contro
 	pol, err := policy.Parse(policyExpr, []string{authControllers[0].Name()})
 	requireNoErr(t, err)
 
-	mgr := NewManager(nil, authControllers, inst, pol, false, zaptest.NewLogger(t))
+	mgr := NewManager(nil, nil, authControllers, inst, pol, false, zaptest.NewLogger(t))
 
-	req := runtime.NewRequestContext(minimalCheckRequest(ip))
+	req := runtime.NewRequestContext(minimalCheckRequest(ip), nil)
 	resp, err := mgr.Check(ctx, req.Request)
 	requireNoErr(t, err)
 	return resp.GetStatus().GetCode() == int32(codes.OK)

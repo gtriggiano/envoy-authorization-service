@@ -53,7 +53,7 @@ func TestMatchController_MatchResults(t *testing.T) {
 func TestMatchController_InvalidIP(t *testing.T) {
 	ctrl := createTestController(t, "192.168.1.0/24")
 
-	req := runtime.NewRequestContext(&authv3.CheckRequest{})
+	req := runtime.NewRequestContext(&authv3.CheckRequest{}, nil)
 
 	verdict, err := ctrl.Match(context.Background(), req, nil)
 	if err != nil {
@@ -141,7 +141,7 @@ func createTestController(t *testing.T, cidrList string) controller.MatchControl
 
 func matchIP(t *testing.T, ctrl controller.MatchController, ip string) *controller.MatchVerdict {
 	t.Helper()
-	req := runtime.NewRequestContext(minimalCheckRequest(ip))
+	req := runtime.NewRequestContext(minimalCheckRequest(ip), nil)
 	verdict, err := ctrl.Match(context.Background(), req, nil)
 	if err != nil {
 		t.Fatalf("match returned error: %v", err)

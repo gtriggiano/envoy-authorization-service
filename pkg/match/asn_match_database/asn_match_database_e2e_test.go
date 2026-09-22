@@ -61,7 +61,7 @@ func TestRedisAsnMatchDatabase(t *testing.T) {
 		},
 	})
 
-	request := runtime.NewRequestContext(minimalCheckRequest("203.0.113.10"))
+	request := runtime.NewRequestContext(minimalCheckRequest("203.0.113.10"), nil)
 	request.ReceivedAt = time.Now()
 
 	verdict, err := ctrl.Match(ctx, request, asnReports(13335))
@@ -130,7 +130,7 @@ func TestPostgresAsnMatchDatabase(t *testing.T) {
 		},
 	})
 
-	request := runtime.NewRequestContext(minimalCheckRequest("203.0.113.10"))
+	request := runtime.NewRequestContext(minimalCheckRequest("203.0.113.10"), nil)
 	request.ReceivedAt = time.Now()
 
 	verdict, err := ctrl.Match(ctx, request, asnReports(13335))

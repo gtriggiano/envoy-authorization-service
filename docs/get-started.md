@@ -90,13 +90,21 @@ curl -v http://localhost:8080
 
 ## Testing with Custom Source IPs
 
-The provided `config/envoy.yaml` is configured with `xff_num_trusted_hops: 1`, which makes Envoy trust the `X-Forwarded-For` header to determine the client IP. This allows you to simulate requests from different IP addresses for testing your authorization policies.
+By default the service evaluates the address of the peer connected to Envoy (`AttributeContext.source.address`) and ignores every request header, so a client cannot pick the IP it is evaluated as. For local testing that is inconvenient: every request would come from the Docker bridge address.
 
-::: warning Mind what you do in Production
-The `xff_num_trusted_hops: 1` setting is intended for development and testing. In production, set this value to match the actual number of trusted proxies in front of Envoy, or set it to `0` if Envoy is the edge proxy and should not trust `X-Forwarded-For` headers.
-:::
+The development setup therefore lets **Envoy** compute the client address and hands it to the service through a header only Envoy can write:
 
-Use the `X-Forwarded-For` header to test how your policies behave with different client IPs:
+- `config/envoy.yaml` sets `use_remote_address: true` and `xff_num_trusted_hops: 1`, so Envoy trusts one `X-Forwarded-For` entry and writes the result to `x-envoy-external-address`, overwriting any value a client sent.
+- The sample service configurations read that header first and fall back to the peer address:
+
+```yaml
+clientIp:
+  sources:
+    - header: x-envoy-external-address
+    - envoySource
+```
+
+Use `X-Forwarded-For` to test how your policies behave with different client IPs:
 
 ```bash
 curl -H "X-Forwarded-For: 1.1.1.100" http://localhost:8080
@@ -104,11 +112,16 @@ curl -H "X-Forwarded-For: 1.1.1.100" http://localhost:8080
 curl -H "X-Forwarded-For: 8.8.8.8" http://localhost:8080
 ```
 
-You can do the same thing with the `host` (for `authority`) and `user-agent` headers.
+Other headers (`X-Real-IP`, `X-Client-IP`, a client-supplied `X-Envoy-External-Address`, …) have no effect. You can do the same thing with the `host` (for `authority`) and `user-agent` headers.
+
+::: warning Mind what you do in Production
+`xff_num_trusted_hops: 1` is right only when exactly one trusted proxy sits in front of Envoy. If Envoy is the edge, remove the `clientIp` section (or keep `envoySource` alone) and set `xff_num_trusted_hops: 0`. The [Client IP Resolution](/guides/client-ip) guide covers the common topologies and the Envoy settings that go with each.
+:::
 
 ## Next Steps
 
 - [Learn about the architecture](/architecture)
+- [Decide how the client IP is resolved](/guides/client-ip)
 - [Configure analysis controllers](/analysis-controllers/)
 - [Set up match controllers](/match-controllers/)
 - [Write policy expressions](/policy-dsl)

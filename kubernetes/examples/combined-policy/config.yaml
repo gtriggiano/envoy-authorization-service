@@ -10,6 +10,14 @@ server:
 metrics:
   address: ":9090"
 
+# Client IP resolution (default: the peer connected to Envoy, request headers ignored).
+# Behind a load balancer, configure Envoy with use_remote_address: true and read the
+# address Envoy computed. See docs/guides/client-ip.md.
+# clientIp:
+#   sources:
+#     - header: x-envoy-external-address
+#     - envoySource
+
 analysisControllers:
   - name: asn-detect
     type: maxmind-asn

@@ -92,7 +92,7 @@ func TestGeofenceMatchController_Match(t *testing.T) {
 
 func TestGeofenceMatchController_NoGeoIPReport(t *testing.T) {
 	ctrl := createTestController(t, testPolygonsGeoJSON)
-	req := runtime.NewRequestContext(minimalCheckRequest("198.51.100.1"))
+	req := runtime.NewRequestContext(minimalCheckRequest("198.51.100.1"), nil)
 
 	verdict, err := ctrl.Match(context.Background(), req, nil)
 	if err != nil {
@@ -108,7 +108,7 @@ func TestGeofenceMatchController_NoGeoIPReport(t *testing.T) {
 
 func TestGeofenceMatchController_ZeroCoordinates(t *testing.T) {
 	ctrl := createTestController(t, testPolygonsGeoJSON)
-	req := runtime.NewRequestContext(minimalCheckRequest("198.51.100.1"))
+	req := runtime.NewRequestContext(minimalCheckRequest("198.51.100.1"), nil)
 
 	reports := controller.AnalysisReports{
 		"geoip": {
@@ -463,7 +463,7 @@ func createTestControllerWithError(t *testing.T, geojsonContent string) (control
 
 func matchCoords(t *testing.T, ctrl controller.MatchController, lat, lon float64) *controller.MatchVerdict {
 	t.Helper()
-	req := runtime.NewRequestContext(minimalCheckRequest("198.51.100.1"))
+	req := runtime.NewRequestContext(minimalCheckRequest("198.51.100.1"), nil)
 	reports := controller.AnalysisReports{
 		"geoip": {
 			ControllerKind: maxmind_geoip.ControllerKind,

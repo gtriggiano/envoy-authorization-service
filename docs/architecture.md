@@ -55,6 +55,10 @@ sequenceDiagram
     end
 ```
 
+## Client IP Resolution
+
+Before any controller runs, the service builds a request context holding the `:authority` and the **client IP address**. The address is resolved by walking the configured `clientIp.sources` in order; by default only Envoy's `AttributeContext.source.address` (the peer connected to Envoy) is consulted and request headers are ignored. Every IP-, ASN- and geo-based controller reads this single address, so the trust decision is made once, centrally, and is visible in logs as `ip_source`. See [Client IP Resolution](/guides/client-ip) for the sources and the matching Envoy settings.
+
 ## Analysis Phase
 
 Extract and enrich request metadata without blocking the request.

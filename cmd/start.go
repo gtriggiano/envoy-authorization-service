@@ -18,6 +18,7 @@ import (
 	"github.com/gtriggiano/envoy-authorization-service/pkg/logging"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/metrics"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/policy"
+	"github.com/gtriggiano/envoy-authorization-service/pkg/runtime"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/service"
 
 	// Register analysis controllers
@@ -84,12 +85,19 @@ var startCmd = &cobra.Command{
 			return err
 		}
 
+		clientIPResolver := runtime.NewClientIPResolver(cfg.ClientIP)
+		logger.Info("client IP resolution configured",
+			zap.Strings("sources", clientIPResolver.Sources()),
+			zap.Bool("require_valid", clientIPResolver.RequireValid()),
+		)
+
 		metricsServer := metrics.NewServer(cfg.Metrics, baseLogger.With(zap.String("component", "metrics-server")), analysisControllers, matchControllers)
 		metricsServer.SetReady(false)
 
 		serviceServer, err := service.NewServer(
 			cfg.Server,
 			service.NewManager(
+				clientIPResolver,
 				analysisControllers,
 				matchControllers,
 				metricsServer.Instrumentation(),

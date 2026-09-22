@@ -39,6 +39,8 @@ Total number of authorization requests processed by the service.
 | `culprit_controller_verdict` | `MATCH` | Controller verdict (`MATCH`/`NO_MATCH` or `-` when policy allowed). |
 | `culprit_controller_result` | `OK` | Execution result of the culprit controller (`OK`/`ERROR` or `-` when policy allowed). |
 
+**Denials without a culprit controller:** when `clientIp.requireValid` is `true` and no configured source yields an address, the request is denied before any controller runs and recorded with `culprit_controller_name="client-ip"`, `culprit_controller_kind="client-ip"`, `culprit_controller_verdict="-"`, `culprit_controller_result="ERROR"` (see [Client IP Resolution](/guides/client-ip)).
+
 **Verdict vs policy_verdict:** `verdict` is what Envoy sees; `policy_verdict` is the raw policy evaluation result. They differ when `policyBypass` lets a denied request pass, letting you distinguish “should have been denied” from “actually denied.” Geo labels default to `-` when GeoIP analysis is not configured or did not return data.
 
 ### `envoy_authz_request_duration_seconds` `Histogram`

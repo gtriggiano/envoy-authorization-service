@@ -42,6 +42,16 @@ authorizationPolicyBypass: false
 shutdown:
   timeout: 25s # Default: 20s
 
+# Optional: where the client IP address is read from. Only listed sources are consulted, in order.
+# Default is [envoySource], i.e. the address of the peer connected to Envoy. See the Client IP Resolution guide.
+clientIp:
+  sources:
+    - header: x-envoy-external-address # Single address written by Envoy when use_remote_address: true
+    - xff: # X-Forwarded-For parsed right-to-left; trustedHops right-most entries are skipped (default 0)
+        trustedHops: 1
+    - envoySource # AttributeContext.source.address
+  requireValid: false # Optional (default false). true denies requests whose IP could not be resolved
+
 # gRPC authorization server
 server:
   address: ":9001" # Optional listen address (default ":9001")
@@ -84,10 +94,15 @@ matchControllers:
 `enabled: false` keeps the controller definition in the file but skips it entirely. A policy that references a disabled controller fails validation at startup, so remove it from `authorizationPolicy` as well.
 :::
 
+## Client IP resolution
+
+All IP-, ASN- and geo-based controllers evaluate the address resolved through `clientIp.sources`. By default that is Envoy's `AttributeContext.source.address`, the peer that opened the connection to Envoy, which request headers cannot influence. When proxies sit in front of Envoy you must tell the service which header to trust; how to do that safely, and the Envoy settings that go with it, is covered in the [Client IP Resolution](/guides/client-ip) guide.
+
 ## Next Steps
 
 - [Analysis Controllers](/analysis-controllers/)
 - [Match Controllers](/match-controllers/)
 - [Authorization Policy DSL](/policy-dsl)
+- [Client IP Resolution](/guides/client-ip)
 - [Metrics Reference](/reference/metrics)
 - [Configuration Examples](/examples/)

@@ -23,6 +23,7 @@ const defaultConfiguration = defineConfig({
           { text: "Docker Deployment", link: "/guides/docker" },
           { text: "Kubernetes Deployment", link: "/guides/kubernetes" },
           { text: "Observability", link: "/guides/observability" },
+          { text: "Client IP Resolution", link: "/guides/client-ip" },
         ],
       },
       { text: "Use Cases", link: "/examples/" },
@@ -77,6 +78,7 @@ const defaultConfiguration = defineConfig({
             { text: "Docker Deployment", link: "/guides/docker" },
             { text: "Kubernetes Deployment", link: "/guides/kubernetes" },
             { text: "Observability", link: "/guides/observability" },
+            { text: "Client IP Resolution", link: "/guides/client-ip" },
           ],
         },
         {

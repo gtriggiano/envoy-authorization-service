@@ -13,7 +13,7 @@ import (
 
 func TestExtractUserAgentFromRequest(t *testing.T) {
 	t.Run("missing headers returns empty string", func(t *testing.T) {
-		req := runtime.NewRequestContext(&authv3.CheckRequest{})
+		req := runtime.NewRequestContext(&authv3.CheckRequest{}, nil)
 		if got := extractUserAgentFromRequest(req); got != "" {
 			t.Fatalf("expected empty string, got %q", got)
 		}
@@ -21,7 +21,7 @@ func TestExtractUserAgentFromRequest(t *testing.T) {
 
 	t.Run("finds header case-insensitively", func(t *testing.T) {
 		const ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
-		req := runtime.NewRequestContext(newCheckRequestWithHeader("User-Agent", ua))
+		req := runtime.NewRequestContext(newCheckRequestWithHeader("User-Agent", ua), nil)
 		if got := extractUserAgentFromRequest(req); got != ua {
 			t.Fatalf("expected %q, got %q", ua, got)
 		}
@@ -65,7 +65,7 @@ func TestUADetectAnalysisController_Analyze(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := runtime.NewRequestContext(newCheckRequestWithHeader("user-agent", tt.userAgent))
+			req := runtime.NewRequestContext(newCheckRequestWithHeader("user-agent", tt.userAgent), nil)
 			report, err := ctrl.Analyze(context.Background(), req)
 			if err != nil {
 				t.Fatalf("Analyze returned error: %v", err)
@@ -108,7 +108,7 @@ func TestUADetectAnalysisController_Analyze(t *testing.T) {
 
 func TestUADetectAnalysisController_Analyze_NoUserAgent(t *testing.T) {
 	ctrl := newTestController(t)
-	req := runtime.NewRequestContext(&authv3.CheckRequest{})
+	req := runtime.NewRequestContext(&authv3.CheckRequest{}, nil)
 
 	report, err := ctrl.Analyze(context.Background(), req)
 	if err != nil {

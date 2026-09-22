@@ -109,7 +109,7 @@ func buildManager(t *testing.T, ctx context.Context, logger *zap.Logger, authCfg
 	pol, err := policy.Parse(authCfg.Name, []string{authCfg.Name})
 	requireNoErr(t, err)
 
-	return service.NewManager(analysisControllers, authControllers, inst, pol, false, logger)
+	return service.NewManager(nil, analysisControllers, authControllers, inst, pol, false, logger)
 }
 
 func runCheck(t *testing.T, mgr *service.Manager, ip string) bool {
