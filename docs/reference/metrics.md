@@ -22,6 +22,14 @@ Current number of authorization requests being processed.
 | `authority` | `api.service.com` | HTTP host/:authority value of the downstream request (or `-` when absent) |
 
 
+### `envoy_authz_policy_configured` `Gauge`
+
+`1` when an `authorizationPolicy` is configured, `0` when it is empty and every request is allowed. No labels.
+
+### `envoy_authz_policy_bypass_enabled` `Gauge`
+
+`1` when `authorizationPolicyBypass` is enabled and requests denied by the policy are allowed anyway, `0` otherwise. No labels. Alert on either gauge being in the fail-open state in production.
+
 ### `envoy_authz_requests_total` `Counter`
 
 Total number of authorization requests processed by the service.
@@ -90,7 +98,7 @@ Final verdicts produced by each match controller.
 
 ### `envoy_authz_geofence_match_totals` `Counter`
 Feature matches detected by the configured `geofence-match` controllers.
-Emitted only when `metrics.trackGeofence` is true (default).
+Emitted only when `metrics.trackGeofence` is `true` (default `false`, because the `feature` label grows with the number of geofence features).
 
 | Label Name | Example Value | Description |
 |------------|---------------|-------------|

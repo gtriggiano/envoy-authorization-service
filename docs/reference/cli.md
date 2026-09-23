@@ -18,13 +18,83 @@ envoy-authorization-service start [flags]
 --config string   Path to the configuration file (default "config.yaml", resolved from the current working directory)
 ```
 
+Relative paths **inside** the configuration file are resolved from the directory that contains the file, not from the working directory.
+
 ### Example
 
 ```bash
 envoy-authorization-service start --config /etc/auth-service/config.yaml
 ```
 
-The process exits with status `1` when the configuration cannot be loaded or validated, or when a controller cannot be built.
+The process exits with status `1` when the configuration cannot be loaded or validated, or when a controller cannot be built. A configuration with an empty `authorizationPolicy` or with `authorizationPolicyBypass: true` starts, and logs a `warn` line for each at startup.
+
+## `validate`
+
+Validate a configuration file exactly as `start` would load it, then exit.
+
+### Usage
+
+```bash
+envoy-authorization-service validate [flags]
+```
+
+### Flags
+
+```
+--config string   Path to the configuration file (default "config.yaml")
+--offline         Do not use the deployment environment: skip database connections and report missing credential and data files as warnings
+```
+
+### What is checked
+
+- environment references (`${NAME}`) resolve, in both modes: give CI the variables or use `${NAME:-default}`
+- strict YAML: unknown keys, duplicate keys, wrong types and invalid durations are errors
+- every top-level field (listeners, TLS material, `clientIp`, `logging.level`, `shutdown.timeout`)
+- the authorization policy: syntax and references to configured, enabled match controllers
+- every enabled controller is built: unknown settings keys rejected, CIDR and ASN lists parsed, MaxMind databases opened, GeoJSON validated, database settings checked and, without `--offline`, databases connected to
+
+With `--offline` the deployment environment is assumed to be unavailable. No connection is attempted, and credential files, certificate files and data files that cannot be found are reported as **warnings** rather than errors; files that exist are still parsed. This makes the flag suitable for validating a ConfigMap in CI, where `/config/...` and `/maxmind/...` only exist inside the pod.
+
+The exit status is `0` when the configuration is valid and `1` otherwise.
+
+### Examples
+
+**Full validation on the target host**:
+```bash
+envoy-authorization-service validate --config /etc/auth-service/config.yaml
+```
+
+**Output on success**:
+```
+✓ configuration is valid: /etc/auth-service/config.yaml
+  analysis controllers: asn-detect (maxmind-asn), geoip-detect (maxmind-geoip)
+  match controllers: trusted (ip-match), scraper (ip-match)
+  authorization policy: trusted || !scraper
+  client IP sources: header:x-envoy-external-address, envoySource
+```
+
+**Offline validation in CI**:
+```bash
+envoy-authorization-service validate --offline --config kubernetes/examples/combined-policy/config.yaml
+```
+
+```
+✓ configuration is valid: kubernetes/examples/combined-policy/config.yaml
+  mode: offline (no database connections; missing credential and data files reported as warnings)
+  analysis controllers: (none)
+  match controllers: (none)
+  controllers not fully built (offline): 5
+  authorization policy: (trusted-partners && !blocked-networks) || (cloud-providers && !blocked-networks)
+  client IP sources: envoySource
+  warnings:
+    - databasePath: file /maxmind/GeoLite2-ASN.mmdb not found, its content was not checked
+    - cidrList: file /config/trusted-partners-ips.txt not found, its content was not checked
+```
+
+**Output on failure**:
+```
+✗ configuration is invalid: could not parse the configuration file: line 12: unknown key "cidrLst"
+```
 
 ## `synthesize-cidr-list`
 

@@ -3,8 +3,6 @@ package ip_match
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"go.uber.org/zap"
@@ -121,7 +119,7 @@ func (c *ipMatchController) deriveMatch(ipAddress string, matchedCIDR *cidrlist.
 
 // newIpMatchController constructs a match controller from
 // configuration by loading the CIDR list file and preparing the evaluation cache.
-func newIpMatchController(_ context.Context, logger *zap.Logger, cfg config.ControllerConfig) (controller.MatchController, error) {
+func newIpMatchController(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (controller.MatchController, error) {
 	var matchConfig IpMatchConfig
 	if err := controller.DecodeControllerSettings(cfg.Settings, &matchConfig); err != nil {
 		return nil, err
@@ -131,14 +129,14 @@ func newIpMatchController(_ context.Context, logger *zap.Logger, cfg config.Cont
 		return nil, fmt.Errorf("cidrList is required, check your configuration")
 	}
 
-	cidrListFilePath, err := filepath.Abs(matchConfig.CIDRList)
+	cidrListFilePath, err := cfg.ResolvePath(matchConfig.CIDRList)
 	if err != nil {
 		return nil, fmt.Errorf("cidrList path is not valid: %w", err)
 	}
 
-	cidrListFileContent, err := os.ReadFile(cidrListFilePath)
+	cidrListFileContent, err := controller.ReadFile(ctx, cidrListFilePath, "cidrList")
 	if err != nil {
-		return nil, fmt.Errorf("could not read cidrList file: %w", err)
+		return nil, err
 	}
 
 	return &ipMatchController{

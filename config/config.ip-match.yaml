@@ -15,19 +15,19 @@ analysisControllers:
   - name: asn-detect
     type: maxmind-asn
     settings:
-      databasePath: config/GeoLite2-ASN.mmdb
+      databasePath: GeoLite2-ASN.mmdb
   - name: geoip-detect
     type: maxmind-geoip
     settings:
-      databasePath: config/GeoLite2-City.mmdb
+      databasePath: GeoLite2-City.mmdb
 
 matchControllers:
   - name: trusted
     type: ip-match
     settings:
-      cidrList: config/whitelisted-cidrs.txt
+      cidrList: whitelisted-cidrs.txt
 
   - name: scraper
     type: ip-match
     settings:
-      cidrList: config/scrapers-cidrs.txt
+      cidrList: scrapers-cidrs.txt

@@ -36,7 +36,6 @@ func TestASNMatchAllowList(t *testing.T) {
 		Type: ControllerKind,
 		Settings: map[string]any{
 			"asnList": asnListPath,
-			"action":  "allow",
 		},
 	})
 
@@ -64,7 +63,6 @@ func TestASNMatchDenyList(t *testing.T) {
 		Type: ControllerKind,
 		Settings: map[string]any{
 			"asnList": asnListPath,
-			"action":  "deny",
 		},
 	})
 

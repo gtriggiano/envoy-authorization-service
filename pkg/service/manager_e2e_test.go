@@ -73,9 +73,6 @@ func TestManagerWithPostgresController(t *testing.T) {
 
 	seedPostgresAllowlist(t, ctx, host, port, "203.0.113.10")
 
-	t.Setenv("POSTGRES_USER", "postgres")
-	t.Setenv("POSTGRES_PASSWORD", "postgres")
-
 	authControllers, policyExpr := buildIPMatchDatabaseControllers(t, ctx, config.ControllerConfig{
 		Name: "ip-db-postgres",
 		Type: "ip-match-database",
@@ -88,8 +85,8 @@ func TestManagerWithPostgresController(t *testing.T) {
 					"host":         host,
 					"port":         port,
 					"databaseName": "security",
-					"usernameEnv":  "POSTGRES_USER",
-					"passwordEnv":  "POSTGRES_PASSWORD",
+					"username":     "postgres",
+					"password":     "postgres",
 				},
 			},
 		},

@@ -42,8 +42,8 @@ func NewServer(
 ) *Server {
 	reg := prometheus.NewRegistry()
 	inst := NewInstrumentation(reg, TrackOptions{
-		TrackCountry:  cfg.TrackCountry,
-		TrackGeofence: cfg.TrackGeofence != nil && *cfg.TrackGeofence,
+		TrackCountry:  cfg.TrackCountryEnabled(),
+		TrackGeofence: cfg.TrackGeofenceEnabled(),
 	})
 
 	return &Server{

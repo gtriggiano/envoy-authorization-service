@@ -306,14 +306,23 @@ An empty or missing policy allows all requests:
 authorizationPolicy: ""  # or omit the field
 ```
 
+The service logs `authorizationPolicy is empty: every request is allowed` at `warn` level on startup and sets the `envoy_authz_policy_configured` gauge to `0`. A non-empty policy requires at least one enabled match controller.
+
 ## Debugging Policies
 
 ### Logging
 
-When a request is denied, logs show which controller caused the denial:
+Every denied request produces a `warn` line (`msg=DENY`) with the request fields (authority, client IP and the source it was resolved from, GeoIP/ASN/UA fields when those analysis controllers are configured):
 ```
-level=warn msg="Request denied" ip=1.1.1.1 policy="corporate || partners" culprit="partners" reason="IP not in database"
+level=warn msg=DENY component=service-manager authority=api.example.com ip=1.1.1.1 ip_source=envoySource country_iso=- country_name=- continent=-
 ```
+
+The controller that caused the denial is logged at **`debug`** level, one line per request (`msg="POLICY DENY"`), together with one `msg="match controller verdict"` line per match controller:
+```
+level=debug msg="POLICY DENY" component=service-manager authority=api.example.com ip=1.1.1.1 ip_source=envoySource country_iso=- country_name=- continent=- verdict=DENY culprit_controller_type=ip-match-database culprit_controller_name=partners culprit_description="IP 1.1.1.1 not found in 'POSTGRES'"
+```
+
+If `ip_source` is not what you expect (for example `envoySource` behind a load balancer, or `none`), the policy is evaluating the wrong address: see [Client IP Resolution](/guides/client-ip). So set `logging.level: debug` while debugging a policy. Allowed requests are logged at `debug` level (`msg=ALLOW`); with `authorizationPolicyBypass: true` requests that the policy would have denied are logged at `warn` level with `msg=BYPASS`. The culprit controller is always available in metrics through the `culprit_controller_*` labels regardless of log level.
 
 ### Bypass for Testing
 
@@ -321,6 +330,8 @@ Temporarily allow all requests while testing:
 ```yaml
 authorizationPolicyBypass: true
 ```
+
+The service logs `authorizationPolicyBypass is enabled` at `warn` level on startup and sets the `envoy_authz_policy_bypass_enabled` gauge to `1`.
 
 ::: warning
 Be careful in production, using `authorizationPolicyBypass: true` will allow every request
@@ -330,11 +341,13 @@ Be careful in production, using `authorizationPolicyBypass: true` will allow eve
 
 ### Metrics
 
-Policy evaluation metrics show allow/deny counts:
+The policy outcome is the `policy_verdict` label of the request counter (`verdict` is what Envoy actually received, which differs only when bypass is enabled):
 ```prometheus
-authz_policy_evaluations_total{result="allow"} 15234
-authz_policy_evaluations_total{result="deny"} 47
+envoy_authz_requests_total{authority="api.example.com",verdict="ALLOW",policy_verdict="ALLOW",...} 15234
+envoy_authz_requests_total{authority="api.example.com",verdict="DENY",policy_verdict="DENY",culprit_controller_name="partners",...} 47
 ```
+
+See the [Metrics Reference](/reference/metrics) for the full label set.
 
 ## Best Practices
 

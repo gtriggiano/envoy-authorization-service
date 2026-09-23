@@ -1,12 +1,14 @@
 package controller
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
 	"go.uber.org/zap"
-	"go.yaml.in/yaml/v2"
+	"go.yaml.in/yaml/v3"
 	"google.golang.org/grpc/codes"
 
 	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
@@ -127,6 +129,9 @@ func BuildAnalysisControllers(ctx context.Context, logger *zap.Logger, configura
 
 		controller, err := factory(ctx, logger.With(zap.String("controller_type", configuration.Type), zap.String("controller_name", configuration.Name)), configuration)
 		if err != nil {
+			if skipped(ctx, err) {
+				continue
+			}
 			return nil, fmt.Errorf("could not build analysis controller '%s' of type '%s': %w", configuration.Name, configuration.Type, err)
 		}
 		controllers = append(controllers, controller)
@@ -149,6 +154,9 @@ func BuildMatchControllers(ctx context.Context, logger *zap.Logger, configuratio
 
 		controller, err := factory(ctx, logger.With(zap.String("controller_type", configuration.Type), zap.String("controller_name", configuration.Name)), configuration)
 		if err != nil {
+			if skipped(ctx, err) {
+				continue
+			}
 			return nil, fmt.Errorf("could not build match controller '%s' of type '%s': %w", configuration.Name, configuration.Type, err)
 		}
 		controllers = append(controllers, controller)
@@ -156,8 +164,15 @@ func BuildMatchControllers(ctx context.Context, logger *zap.Logger, configuratio
 	return controllers, nil
 }
 
-// DecodeControllerSettings marshals the untyped settings map into the provided
-// struct pointer using YAML for convenience.
+// skipped reports whether err marks a controller that offline validation could not fully
+// build; the warning was already recorded by the factory.
+func skipped(ctx context.Context, err error) bool {
+	return errors.Is(err, ErrSkipped) && BuildModeFrom(ctx).Offline()
+}
+
+// DecodeControllerSettings decodes the untyped settings map into the provided struct
+// pointer. Decoding is strict: keys that do not correspond to a field of the target are
+// reported as errors, so typos never degrade silently into defaults.
 func DecodeControllerSettings(settings map[string]any, target any) error {
 	if settings == nil {
 		return nil
@@ -166,5 +181,10 @@ func DecodeControllerSettings(settings map[string]any, target any) error {
 	if err != nil {
 		return err
 	}
-	return yaml.Unmarshal(raw, target)
+	decoder := yaml.NewDecoder(bytes.NewReader(raw))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(target); err != nil {
+		return fmt.Errorf("invalid settings: %w", config.FormatYAMLError(err, false))
+	}
+	return nil
 }

@@ -29,15 +29,20 @@ func NewRedisDataSource(ctx context.Context, config *RedisConfig) (*RedisDataSou
 		DB:   config.DB,
 	}
 
-	// Add username if configured
-	if config.UsernameEnv != "" {
-		username := os.Getenv(config.UsernameEnv)
+	// Resolve optional credentials from their inline value or file
+	if config.UsernameSource().IsSet() {
+		username, err := config.UsernameSource().Resolve("database.redis.username")
+		if err != nil {
+			return nil, err
+		}
 		opts.Username = username
 	}
 
-	// Add password if configured
-	if config.PasswordEnv != "" {
-		password := os.Getenv(config.PasswordEnv)
+	if config.PasswordSource().IsSet() {
+		password, err := config.PasswordSource().Resolve("database.redis.password")
+		if err != nil {
+			return nil, err
+		}
 		opts.Password = password
 	}
 

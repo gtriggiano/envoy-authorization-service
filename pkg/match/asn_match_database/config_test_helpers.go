@@ -3,7 +3,16 @@ package asn_match_database
 import (
 	"os"
 	"testing"
+	"time"
+
+	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
 )
+
+// durationPtr builds an optional duration setting.
+func durationPtr(d time.Duration) *config.Duration {
+	v := config.Duration(d)
+	return &v
+}
 
 type tlsFixtures struct {
 	caCertPath     string

@@ -1,19 +1,23 @@
 // Package config provides configuration loading, validation, and management for the
-// Envoy Authorization Service. It supports YAML-based configuration files with
-// validation and default value application.
+// Envoy Authorization Service. It supports YAML-based configuration files with strict
+// key checking, environment variable expansion, validation and default value application.
 package config
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
+	"go.yaml.in/yaml/v3"
+
 	"github.com/gtriggiano/envoy-authorization-service/pkg/logging"
-	"gopkg.in/yaml.v3"
+	"github.com/gtriggiano/envoy-authorization-service/pkg/policy"
 )
 
 const (
@@ -42,6 +46,9 @@ type Config struct {
 	AuthorizationPolicyBypass bool `yaml:"authorizationPolicyBypass"`
 	// Shutdown controls graceful shutdown behavior.
 	Shutdown ShutdownConfig `yaml:"shutdown"`
+	// BaseDir is the absolute directory of the configuration file. Relative paths in the
+	// configuration are resolved against it. It is set by Load and not read from YAML.
+	BaseDir string `yaml:"-"`
 }
 
 // ServerConfig controls the gRPC listener and optional TLS settings.
@@ -74,10 +81,20 @@ type MetricsConfig struct {
 	ReadinessPath string `yaml:"readinessPath"`
 	// DropPrefixes specifies metric name prefixes to filter out from the default Go runtime registry.
 	DropPrefixes []string `yaml:"dropPrefixes"`
-	// TrackCountry enables country/continent labels on request-level metrics (off by default to limit cardinality).
-	TrackCountry bool `yaml:"trackCountry"`
-	// TrackGeofence toggles emission of geofence match counters (default true).
+	// TrackCountry enables country/continent labels on request-level metrics (default false to limit cardinality).
+	TrackCountry *bool `yaml:"trackCountry"`
+	// TrackGeofence toggles emission of geofence match counters (default false to limit cardinality).
 	TrackGeofence *bool `yaml:"trackGeofence"`
+}
+
+// TrackCountryEnabled reports whether country labels are emitted (false when unset).
+func (m MetricsConfig) TrackCountryEnabled() bool {
+	return m.TrackCountry != nil && *m.TrackCountry
+}
+
+// TrackGeofenceEnabled reports whether geofence metrics are emitted (false when unset).
+func (m MetricsConfig) TrackGeofenceEnabled() bool {
+	return m.TrackGeofence != nil && *m.TrackGeofence
 }
 
 // ControllerConfig defines one controller instance with its type and settings.
@@ -90,12 +107,53 @@ type ControllerConfig struct {
 	Enabled *bool `yaml:"enabled"`
 	// Settings contains controller-specific configuration as a map.
 	Settings map[string]any `yaml:"settings"`
+	// BaseDir is the directory relative paths in Settings are resolved against. It is set by
+	// Load to the configuration file's directory; when empty (e.g. in tests) paths are
+	// resolved against the current working directory.
+	BaseDir string `yaml:"-"`
+}
+
+// ResolvePath returns an absolute path for a file referenced by this controller's settings.
+// Relative paths are resolved against BaseDir, or the current working directory when
+// BaseDir is empty.
+func (c ControllerConfig) ResolvePath(path string) (string, error) {
+	return resolvePath(c.BaseDir, path)
+}
+
+// ResolvePath returns an absolute path for a file referenced by the configuration.
+// Relative paths are resolved against BaseDir, or the current working directory when
+// BaseDir is empty.
+func (c *Config) ResolvePath(path string) (string, error) {
+	return resolvePath(c.BaseDir, path)
+}
+
+func resolvePath(baseDir, path string) (string, error) {
+	if path == "" {
+		return "", errors.New("path is empty")
+	}
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path), nil
+	}
+	if baseDir == "" {
+		return filepath.Abs(path)
+	}
+	return filepath.Join(baseDir, path), nil
 }
 
 // ShutdownConfig holds graceful shutdown parameters.
 type ShutdownConfig struct {
-	// Timeout is the maximum duration to wait for graceful shutdown (e.g., "25s").
-	Timeout string `yaml:"timeout"`
+	// Timeout is the maximum duration to wait for graceful shutdown (e.g., "25s"). Default 20s.
+	Timeout *Duration `yaml:"timeout"`
+}
+
+// ShutdownTimeout returns the graceful shutdown deadline, defaulting to 20 seconds.
+func (c ShutdownConfig) ShutdownTimeout() time.Duration {
+	return c.Timeout.Or(defaultShutdownTimeout)
+}
+
+// validate rejects non-positive shutdown timeouts.
+func (c ShutdownConfig) validate() error {
+	return c.Timeout.validatePositive("shutdown.timeout")
 }
 
 // ClientIPConfig controls how the client IP address is resolved from an Envoy CheckRequest.
@@ -173,7 +231,7 @@ func (s *ClientIPSource) UnmarshalYAML(node *yaml.Node) error {
 		case ClientIPSourceXFF:
 			xff := &XFFSource{}
 			if value.Kind != yaml.ScalarNode || value.Tag != "!!null" {
-				if err := value.Decode(xff); err != nil {
+				if err := decodeStrict(value, xff); err != nil {
 					return fmt.Errorf("clientIp source %q settings are invalid: %w", ClientIPSourceXFF, err)
 				}
 			}
@@ -240,24 +298,39 @@ func (c ClientIPConfig) validate() error {
 // headerNamePattern matches RFC 7230 header field names (tokens).
 var headerNamePattern = regexp.MustCompile(`^[!#$%&'*+\-.^_` + "`" + `|~0-9A-Za-z]+$`)
 
-// Load reads, normalizes, and validates a configuration file from the specified path.
-// It returns a fully validated Config instance or an error if loading or validation fails.
+// Load reads, expands, decodes and validates a configuration file.
+//
+// Loading goes through these steps: "${NAME}" and "${NAME:-default}" references are
+// replaced with environment variables (see ExpandEnv); the YAML is decoded strictly, so
+// unknown or misspelled keys are errors; relative paths are resolved against the file's
+// directory; defaults are applied; finally Validate runs. Controller settings are checked
+// later, when controllers are built.
 func Load(path string) (*Config, error) {
 	if path == "" {
 		return nil, errors.New("a path to a configuration file is required")
 	}
 
-	data, err := os.ReadFile(path)
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("could not resolve the configuration file path: %w", err)
+	}
+
+	data, err := os.ReadFile(absPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read the configuration file: %w", err)
 	}
 
-	cfg := &Config{}
-	if err := yaml.Unmarshal(data, cfg); err != nil {
-		return nil, fmt.Errorf("could not parse the configuration file: %w", err)
+	cfg, err := Parse(data)
+	if err != nil {
+		return nil, err
 	}
 
+	cfg.setBaseDir(filepath.Dir(absPath))
 	cfg.applyDefaults()
+
+	if err := cfg.resolveTLSPaths(); err != nil {
+		return nil, err
+	}
 
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -266,8 +339,42 @@ func Load(path string) (*Config, error) {
 	return cfg, nil
 }
 
-// Validate ensures the configuration is ready for use by checking all required fields
-// and validating nested configurations for servers, metrics, and controllers.
+// Parse expands environment references and strictly decodes a configuration document.
+// It does not apply defaults, resolve paths or validate; Load does.
+func Parse(data []byte) (*Config, error) {
+	expanded, err := ExpandEnv(data, nil)
+	if err != nil {
+		return nil, fmt.Errorf("could not expand the configuration file: %w", err)
+	}
+
+	cfg := &Config{}
+	decoder := yaml.NewDecoder(bytes.NewReader(expanded))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(cfg); err != nil {
+		if errors.Is(err, io.EOF) {
+			return cfg, nil // empty document
+		}
+		return nil, fmt.Errorf("could not parse the configuration file: %w", FormatYAMLError(err, true))
+	}
+	return cfg, nil
+}
+
+// setBaseDir records the configuration directory on the config and every controller.
+func (c *Config) setBaseDir(dir string) {
+	c.BaseDir = dir
+	for i := range c.AnalysisControllers {
+		c.AnalysisControllers[i].BaseDir = dir
+	}
+	for i := range c.MatchControllers {
+		c.MatchControllers[i].BaseDir = dir
+	}
+}
+
+// Validate ensures the configuration is ready for use. It is the single gate for every
+// top-level field: listeners, TLS material, client IP sources, logging level, shutdown
+// timeout, controller declarations and the authorization policy (syntax and references
+// to enabled match controllers). Controller-specific settings are validated by each
+// controller when it is built.
 func (c *Config) Validate() error {
 	if c == nil {
 		return errors.New("config is nil")
@@ -285,6 +392,14 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	if err := c.Logging.Validate(); err != nil {
+		return err
+	}
+
+	if err := c.Shutdown.validate(); err != nil {
+		return err
+	}
+
 	if err := validateControllerSet(c.AnalysisControllers, "analysis"); err != nil {
 		return err
 	}
@@ -292,7 +407,20 @@ func (c *Config) Validate() error {
 		return err
 	}
 
+	if !c.PolicyIsEmpty() && len(c.EnabledMatchControllerNames()) == 0 {
+		return errors.New("configuration 'authorizationPolicy' is invalid: it references match controllers but none is configured and enabled")
+	}
+	if _, err := policy.Parse(c.AuthorizationPolicy, c.EnabledMatchControllerNames()); err != nil {
+		return fmt.Errorf("configuration 'authorizationPolicy' is invalid: %w", err)
+	}
+
 	return nil
+}
+
+// PolicyIsEmpty reports whether no authorization policy is configured, in which case
+// every request is allowed.
+func (c *Config) PolicyIsEmpty() bool {
+	return strings.TrimSpace(c.AuthorizationPolicy) == ""
 }
 
 // validateControllerSet ensures all controllers in the set have unique names and required fields.
@@ -333,21 +461,27 @@ func (c *Config) applyDefaults() {
 	if c.Metrics.DropPrefixes == nil {
 		c.Metrics.DropPrefixes = []string{"go_", "process_", "promhttp_"}
 	}
-	// Default geofence metric emission to true unless explicitly disabled.
+	if c.Metrics.TrackCountry == nil {
+		val := false
+		c.Metrics.TrackCountry = &val
+	}
 	if c.Metrics.TrackGeofence == nil {
-		val := true
+		val := false
 		c.Metrics.TrackGeofence = &val
 	}
 
-	if c.Shutdown.Timeout == "" {
-		c.Shutdown.Timeout = "20s"
+	if c.Logging.Level == "" {
+		c.Logging.Level = "info"
+	}
+
+	if c.Shutdown.Timeout == nil {
+		d := Duration(defaultShutdownTimeout)
+		c.Shutdown.Timeout = &d
 	}
 
 	if len(c.ClientIP.Sources) == 0 {
 		c.ClientIP.Sources = DefaultClientIPSources()
 	}
-
-	c.resolveTLSPaths()
 }
 
 // validate ensures the server address is configured and TLS configuration is complete when TLS is enabled.
@@ -401,19 +535,6 @@ func (c ControllerConfig) IsEnabled() bool {
 	return *c.Enabled
 }
 
-// ShutdownTimeout returns the parsed graceful shutdown deadline. It defaults to 20 seconds
-// if the timeout string is empty or cannot be parsed.
-func (c ShutdownConfig) ShutdownTimeout() time.Duration {
-	if c.Timeout == "" {
-		return defaultShutdownTimeout
-	}
-	d, err := time.ParseDuration(c.Timeout)
-	if err != nil {
-		return defaultShutdownTimeout
-	}
-	return d
-}
-
 // fileExists verifies that a file exists at the specified path.
 // It returns an error if the path is empty or the file is not accessible.
 func fileExists(path string) error {
@@ -426,28 +547,24 @@ func fileExists(path string) error {
 	return nil
 }
 
-// resolveTLSPaths converts relative TLS file paths to absolute paths based on the current
-// working directory. This ensures consistent path resolution regardless of where the
-// server binary is invoked from.
-func (c *Config) resolveTLSPaths() {
+// resolveTLSPaths turns the TLS file paths into absolute paths, resolving relative ones
+// against the configuration file's directory (or the working directory when unknown).
+func (c *Config) resolveTLSPaths() error {
 	if c.Server.TLS == nil {
-		return
+		return nil
 	}
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		return
+	for _, field := range []*string{&c.Server.TLS.CertFile, &c.Server.TLS.KeyFile, &c.Server.TLS.CAFile} {
+		if *field == "" {
+			continue
+		}
+		resolved, err := c.ResolvePath(*field)
+		if err != nil {
+			return fmt.Errorf("configuration 'server.tls': %w", err)
+		}
+		*field = resolved
 	}
-
-	if c.Server.TLS.CertFile != "" && !filepath.IsAbs(c.Server.TLS.CertFile) {
-		c.Server.TLS.CertFile = filepath.Join(cwd, c.Server.TLS.CertFile)
-	}
-	if c.Server.TLS.KeyFile != "" && !filepath.IsAbs(c.Server.TLS.KeyFile) {
-		c.Server.TLS.KeyFile = filepath.Join(cwd, c.Server.TLS.KeyFile)
-	}
-	if c.Server.TLS.CAFile != "" && !filepath.IsAbs(c.Server.TLS.CAFile) {
-		c.Server.TLS.CAFile = filepath.Join(cwd, c.Server.TLS.CAFile)
-	}
+	return nil
 }
 
 // EnabledMatchControllerNames returns the list of enabled match controller names.
@@ -460,4 +577,19 @@ func (c *Config) EnabledMatchControllerNames() []string {
 		}
 	}
 	return names
+}
+
+// decodeStrict decodes a node into target rejecting unknown keys, which yaml.Node.Decode
+// alone does not do.
+func decodeStrict(node *yaml.Node, target any) error {
+	data, err := yaml.Marshal(node)
+	if err != nil {
+		return err
+	}
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(target); err != nil {
+		return FormatYAMLError(err, false)
+	}
+	return nil
 }

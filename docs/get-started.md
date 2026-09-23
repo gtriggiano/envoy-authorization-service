@@ -51,7 +51,7 @@ make fetch-maxmind
 # then GeoLite2-ASN.mmdb and GeoLite2-City.mmdb will be in ./config
 ```
 
-**When referencing the databases in the configuration**, mind what will be `current working directory` when you'll launch the service and move from there.
+Relative paths in a configuration file are resolved from the directory that contains the file, so `databasePath: GeoLite2-ASN.mmdb` in `config/config.ip-match.yaml` finds `config/GeoLite2-ASN.mmdb` whatever the working directory is. Run `envoy-authorization-service validate --config config/config.ip-match.yaml` to check a file without starting the server.
 :::
 
 ::: tip Redis and PostgreSQL Available

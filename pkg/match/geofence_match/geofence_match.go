@@ -182,7 +182,7 @@ func formatMatchedFeatureNames(names []string) string {
 
 // newGeofenceMatchController constructs a match controller from
 // configuration by loading and validating the GeoJSON features file.
-func newGeofenceMatchController(_ context.Context, logger *zap.Logger, cfg config.ControllerConfig) (controller.MatchController, error) {
+func newGeofenceMatchController(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (controller.MatchController, error) {
 	var matchConfig GeofenceMatchConfig
 	if err := controller.DecodeControllerSettings(cfg.Settings, &matchConfig); err != nil {
 		return nil, err
@@ -192,14 +192,14 @@ func newGeofenceMatchController(_ context.Context, logger *zap.Logger, cfg confi
 		return nil, fmt.Errorf("featuresFile is required, check your configuration")
 	}
 
-	featuresFilePath, err := filepath.Abs(matchConfig.FeaturesFile)
+	featuresFilePath, err := cfg.ResolvePath(matchConfig.FeaturesFile)
 	if err != nil {
 		return nil, fmt.Errorf("featuresFile path is not valid: %w", err)
 	}
 
-	featuresFileContent, err := os.ReadFile(featuresFilePath)
+	featuresFileContent, err := controller.ReadFile(ctx, featuresFilePath, "featuresFile")
 	if err != nil {
-		return nil, fmt.Errorf("could not read featuresFile file: %w", err)
+		return nil, err
 	}
 
 	features, err := parseAndValidateGeoJSON(featuresFileContent)

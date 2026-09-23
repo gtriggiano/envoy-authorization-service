@@ -1,9 +1,9 @@
 package ip_match_database
 
 import (
-	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestValidatePostgresConfig(t *testing.T) {
@@ -21,8 +21,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 
 	t.Run("valid postgres config passes", func(t *testing.T) {
 		fixtures := createTLSFixtures(t)
-		setEnv(t, "PG_USER", "testuser")
-		setEnv(t, "PG_PASS", "testpass")
 
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{
@@ -32,13 +30,13 @@ func TestValidatePostgresConfig(t *testing.T) {
 					Host:         "localhost",
 					Port:         5432,
 					DatabaseName: "testdb",
-					UsernameEnv:  "PG_USER",
-					PasswordEnv:  "PG_PASS",
+					Username:     "user",
+					Password:     "pass",
 					Pool: &PostgresPoolConfig{
 						MaxConnections:    10,
 						MinConnections:    1,
-						MaxIdleTime:       "5m",
-						ConnectionTimeout: "1s",
+						MaxIdleTime:       durationPtr(5 * time.Minute),
+						ConnectionTimeout: durationPtr(time.Second),
 					},
 					TLS: &PostgresTLSConfig{
 						Mode:       "require",
@@ -56,8 +54,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 	})
 
 	t.Run("query with zero placeholders fails", func(t *testing.T) {
-		setEnv(t, "PG_USER", "user")
-		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{
@@ -67,8 +63,8 @@ func TestValidatePostgresConfig(t *testing.T) {
 					Host:         "localhost",
 					Port:         5432,
 					DatabaseName: "testdb",
-					UsernameEnv:  "PG_USER",
-					PasswordEnv:  "PG_PASS",
+					Username:     "user",
+					Password:     "pass",
 				},
 			},
 		}
@@ -79,8 +75,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 	})
 
 	t.Run("query with more than one placeholder fails", func(t *testing.T) {
-		setEnv(t, "PG_USER", "user")
-		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{
@@ -90,8 +84,8 @@ func TestValidatePostgresConfig(t *testing.T) {
 					Host:         "localhost",
 					Port:         5432,
 					DatabaseName: "testdb",
-					UsernameEnv:  "PG_USER",
-					PasswordEnv:  "PG_PASS",
+					Username:     "user",
+					Password:     "pass",
 				},
 			},
 		}
@@ -102,8 +96,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 	})
 
 	t.Run("query with exactly one placeholder succeeds", func(t *testing.T) {
-		setEnv(t, "PG_USER", "user")
-		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{
@@ -113,8 +105,8 @@ func TestValidatePostgresConfig(t *testing.T) {
 					Host:         "localhost",
 					Port:         5432,
 					DatabaseName: "testdb",
-					UsernameEnv:  "PG_USER",
-					PasswordEnv:  "PG_PASS",
+					Username:     "user",
+					Password:     "pass",
 				},
 			},
 		}
@@ -124,10 +116,7 @@ func TestValidatePostgresConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("missing username env fails", func(t *testing.T) {
-		_ = os.Unsetenv("PG_USER_MISSING")
-		setEnv(t, "PG_PASS_PRESENT", "secret")
-
+	t.Run("username and usernameFile are mutually exclusive", func(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{
 				Type: "postgres",
@@ -136,21 +125,19 @@ func TestValidatePostgresConfig(t *testing.T) {
 					Host:         "localhost",
 					Port:         5432,
 					DatabaseName: "testdb",
-					UsernameEnv:  "PG_USER_MISSING",
-					PasswordEnv:  "PG_PASS_PRESENT",
+					Username:     "user",
+					UsernameFile: "/secrets/user",
+					Password:     "pass",
 				},
 			},
 		}
 
-		if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "environment variable 'PG_USER_MISSING' not found") {
-			t.Fatalf("expected missing username env error, got: %v", err)
+		if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "database.postgres.username and database.postgres.usernameFile are mutually exclusive") {
+			t.Fatalf("expected mutual exclusion error, got: %v", err)
 		}
 	})
 
-	t.Run("missing password env fails", func(t *testing.T) {
-		setEnv(t, "PG_USER_PRESENT", "user")
-		_ = os.Unsetenv("PG_PASS_MISSING")
-
+	t.Run("password and passwordFile are mutually exclusive", func(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{
 				Type: "postgres",
@@ -159,20 +146,19 @@ func TestValidatePostgresConfig(t *testing.T) {
 					Host:         "localhost",
 					Port:         5432,
 					DatabaseName: "testdb",
-					UsernameEnv:  "PG_USER_PRESENT",
-					PasswordEnv:  "PG_PASS_MISSING",
+					Username:     "user",
+					Password:     "pass",
+					PasswordFile: "/secrets/pass",
 				},
 			},
 		}
 
-		if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "environment variable 'PG_PASS_MISSING' not found") {
-			t.Fatalf("expected missing password env error, got: %v", err)
+		if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "database.postgres.password and database.postgres.passwordFile are mutually exclusive") {
+			t.Fatalf("expected mutual exclusion error, got: %v", err)
 		}
 	})
 
 	t.Run("pool maxConnections must be positive", func(t *testing.T) {
-		setEnv(t, "PG_USER", "user")
-		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{
@@ -182,8 +168,8 @@ func TestValidatePostgresConfig(t *testing.T) {
 					Host:         "localhost",
 					Port:         5432,
 					DatabaseName: "testdb",
-					UsernameEnv:  "PG_USER",
-					PasswordEnv:  "PG_PASS",
+					Username:     "user",
+					Password:     "pass",
 					Pool: &PostgresPoolConfig{
 						MaxConnections: 0,
 						MinConnections: 0,
@@ -198,8 +184,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 	})
 
 	t.Run("pool minConnections cannot exceed maxConnections", func(t *testing.T) {
-		setEnv(t, "PG_USER", "user")
-		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{
@@ -209,8 +193,8 @@ func TestValidatePostgresConfig(t *testing.T) {
 					Host:         "localhost",
 					Port:         5432,
 					DatabaseName: "testdb",
-					UsernameEnv:  "PG_USER",
-					PasswordEnv:  "PG_PASS",
+					Username:     "user",
+					Password:     "pass",
 					Pool: &PostgresPoolConfig{
 						MaxConnections: 5,
 						MinConnections: 10,
@@ -225,8 +209,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 	})
 
 	t.Run("pool duration fields must parse and be positive", func(t *testing.T) {
-		setEnv(t, "PG_USER", "user")
-		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{
@@ -236,26 +218,24 @@ func TestValidatePostgresConfig(t *testing.T) {
 					Host:         "localhost",
 					Port:         5432,
 					DatabaseName: "testdb",
-					UsernameEnv:  "PG_USER",
-					PasswordEnv:  "PG_PASS",
+					Username:     "user",
+					Password:     "pass",
 					Pool: &PostgresPoolConfig{
 						MaxConnections:    5,
 						MinConnections:    1,
-						MaxIdleTime:       "not-a-duration",
-						ConnectionTimeout: "0s",
+						MaxIdleTime:       durationPtr(0),
+						ConnectionTimeout: durationPtr(0),
 					},
 				},
 			},
 		}
 
-		if err := config.Validate(); err == nil || (!strings.Contains(err.Error(), "invalid pool.maxIdleTime") && !strings.Contains(err.Error(), "pool.connectionTimeout")) {
+		if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "pool.maxIdleTime must be positive") {
 			t.Fatalf("expected duration validation error, got: %v", err)
 		}
 	})
 
 	t.Run("invalid TLS mode fails", func(t *testing.T) {
-		setEnv(t, "PG_USER", "user")
-		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{
@@ -265,8 +245,8 @@ func TestValidatePostgresConfig(t *testing.T) {
 					Host:         "localhost",
 					Port:         5432,
 					DatabaseName: "testdb",
-					UsernameEnv:  "PG_USER",
-					PasswordEnv:  "PG_PASS",
+					Username:     "user",
+					Password:     "pass",
 					TLS: &PostgresTLSConfig{
 						Mode: "bad-mode",
 					},
@@ -281,8 +261,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 
 	t.Run("client certificate without key fails", func(t *testing.T) {
 		fixtures := createTLSFixtures(t)
-		setEnv(t, "PG_USER", "user")
-		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{
@@ -292,8 +270,8 @@ func TestValidatePostgresConfig(t *testing.T) {
 					Host:         "localhost",
 					Port:         5432,
 					DatabaseName: "testdb",
-					UsernameEnv:  "PG_USER",
-					PasswordEnv:  "PG_PASS",
+					Username:     "user",
+					Password:     "pass",
 					TLS: &PostgresTLSConfig{
 						Mode:       "require",
 						ClientCert: fixtures.clientCertPath,
@@ -309,8 +287,6 @@ func TestValidatePostgresConfig(t *testing.T) {
 
 	t.Run("invalid PEM client key fails", func(t *testing.T) {
 		fixtures := createTLSFixtures(t)
-		setEnv(t, "PG_USER", "user")
-		setEnv(t, "PG_PASS", "pass")
 
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{
@@ -320,8 +296,8 @@ func TestValidatePostgresConfig(t *testing.T) {
 					Host:         "localhost",
 					Port:         5432,
 					DatabaseName: "testdb",
-					UsernameEnv:  "PG_USER",
-					PasswordEnv:  "PG_PASS",
+					Username:     "user",
+					Password:     "pass",
 					TLS: &PostgresTLSConfig{
 						Mode:       "require",
 						ClientCert: fixtures.clientCertPath,

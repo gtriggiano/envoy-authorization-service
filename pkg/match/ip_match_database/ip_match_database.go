@@ -189,9 +189,19 @@ func newIpMatchDatabaseController(ctx context.Context, logger *zap.Logger, cfg c
 	// Apply defaults
 	controllerConfig.ApplyDefaults()
 
-	// Validate configuration
-	if err := controllerConfig.Validate(); err != nil {
+	// Resolve file paths relative to the configuration file
+	if err := controllerConfig.ResolvePaths(cfg.ResolvePath); err != nil {
 		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	// Validate configuration
+	if err := controllerConfig.ValidateWith(controller.ValidationOptionsFrom(ctx)); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	// Offline validation stops here: connecting would require the deployment environment
+	if controller.BuildModeFrom(ctx).Offline() {
+		return nil, controller.SkipOffline(ctx, "controller '%s': connection to the %s database was not attempted", cfg.Name, controllerConfig.Database.Type)
 	}
 
 	// Create context with timeout for initialization

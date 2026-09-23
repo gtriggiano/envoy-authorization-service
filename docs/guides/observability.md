@@ -20,6 +20,14 @@ logging:
   level: info
 ```
 
+### Startup
+
+Configuration problems are reported before any port is bound and the process exits with status 1. Two fail-open settings are accepted but logged at `warn` level on every start: `authorizationPolicy is empty: every request is allowed` and `authorizationPolicyBypass is enabled: requests denied by the policy are allowed anyway`. The same states are exposed as the `envoy_authz_policy_configured` and `envoy_authz_policy_bypass_enabled` gauges.
+
+### Request fields
+
+Every request-level line carries `authority`, `ip` (the resolved client address, `invalid IP` when none) and `ip_source` (`envoySource`, `header:<name>`, `xff` or `none`), followed by the fields analysis controllers add (ASN, GeoIP, User-Agent). At startup `msg="client IP resolution configured"` lists the configured sources. See [Client IP Resolution](/guides/client-ip) for what each source means.
+
 ## Health Endpoints (on metrics server)
 
 ### Liveness (`/healthz`)
@@ -34,7 +42,9 @@ curl http://localhost:9090/healthz
 
 ### Readiness (`/readyz`)
 
-Returns 200 OK when service is ready.
+Returns `200 OK` once the gRPC listener is bound **and** every configured controller's health check passes. Returns `503 Service Unavailable` otherwise.
+
+Controller health checks are run on every probe call, in parallel, with a 5 second timeout. Only the database-backed controllers (`ip-match-database`, `asn-match-database`) have a real health check (a `PING` / connection ping against Redis or PostgreSQL); all other controllers always report healthy. A database outage therefore makes the pod unready even when `matchesOnFailure: true` is configured.
 
 **Use for**: Kubernetes readiness probes
 

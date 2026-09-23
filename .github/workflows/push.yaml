@@ -36,6 +36,9 @@ jobs:
       - name: Run unit tests
         run: go test -cover ./...
 
+      - name: Validate shipped configurations
+        run: make validate-configs
+
       - name: Run e2e tests (docker + testcontainers)
         env:
           GOCACHE: ${{ runner.temp }}/go-build

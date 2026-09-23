@@ -1,7 +1,6 @@
 package ip_match_database
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
@@ -109,45 +108,41 @@ func TestValidateRedisConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("specified username env must exist", func(t *testing.T) {
-		_ = os.Unsetenv("REDIS_MISSING_USER")
-
+	t.Run("username and usernameFile are mutually exclusive", func(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{
 				Type: "redis",
 				Redis: &RedisConfig{
-					KeyPrefix:   "test:",
-					Host:        "localhost",
-					Port:        6379,
-					UsernameEnv: "REDIS_MISSING_USER",
+					KeyPrefix:    "test:",
+					Host:         "localhost",
+					Port:         6379,
+					Username:     "user",
+					UsernameFile: "/secrets/user",
 				},
 			},
 		}
 
-		if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "environment variable 'REDIS_MISSING_USER' not found") {
-			t.Fatalf("expected username env validation error, got: %v", err)
+		if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "database.redis.username and database.redis.usernameFile are mutually exclusive") {
+			t.Fatalf("expected mutual exclusion error, got: %v", err)
 		}
 	})
 
-	t.Run("specified password env must exist", func(t *testing.T) {
-		setEnv(t, "REDIS_USER_PRESENT", "user")
-		_ = os.Unsetenv("REDIS_MISSING_PASS")
-
+	t.Run("password file must exist when configured", func(t *testing.T) {
 		config := &IpMatchDatabaseConfig{
 			Database: DatabaseConfig{
 				Type: "redis",
 				Redis: &RedisConfig{
-					KeyPrefix:   "test:",
-					Host:        "localhost",
-					Port:        6379,
-					UsernameEnv: "REDIS_USER_PRESENT",
-					PasswordEnv: "REDIS_MISSING_PASS",
+					KeyPrefix:    "test:",
+					Host:         "localhost",
+					Port:         6379,
+					Password:     "",
+					PasswordFile: "/nonexistent/redis-password",
 				},
 			},
 		}
 
-		if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "environment variable 'REDIS_MISSING_PASS' not found") {
-			t.Fatalf("expected password env validation error, got: %v", err)
+		if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "database.redis.passwordFile") {
+			t.Fatalf("expected missing password file error, got: %v", err)
 		}
 	})
 

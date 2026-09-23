@@ -64,6 +64,21 @@ var startCmd = &cobra.Command{
 		defer func() { _ = baseLogger.Sync() }()
 		logger := baseLogger.With(zap.String("component", "cli"))
 
+		// Parse the policy before touching any external dependency so a bad expression fails fast.
+		authorizationPolicy, err := policy.Parse(cfg.AuthorizationPolicy, cfg.EnabledMatchControllerNames())
+		if err != nil {
+			logger.Error("could not parse authorization policy", zap.Error(err))
+			return err
+		}
+
+		// Fail-open configurations are legitimate for testing but must be impossible to miss.
+		if cfg.PolicyIsEmpty() {
+			logger.Warn("authorizationPolicy is empty: every request is allowed")
+		}
+		if cfg.AuthorizationPolicyBypass {
+			logger.Warn("authorizationPolicyBypass is enabled: requests denied by the policy are allowed anyway")
+		}
+
 		runCtx, cancelRunCtx := context.WithCancel(context.Background())
 		defer cancelRunCtx()
 
@@ -79,12 +94,6 @@ var startCmd = &cobra.Command{
 			return err
 		}
 
-		authorizationPolicy, err := policy.Parse(cfg.AuthorizationPolicy, cfg.EnabledMatchControllerNames())
-		if err != nil {
-			logger.Error("could not parse authorization policy", zap.Error(err))
-			return err
-		}
-
 		clientIPResolver := runtime.NewClientIPResolver(cfg.ClientIP)
 		logger.Info("client IP resolution configured",
 			zap.Strings("sources", clientIPResolver.Sources()),
@@ -93,6 +102,7 @@ var startCmd = &cobra.Command{
 
 		metricsServer := metrics.NewServer(cfg.Metrics, baseLogger.With(zap.String("component", "metrics-server")), analysisControllers, matchControllers)
 		metricsServer.SetReady(false)
+		metricsServer.Instrumentation().SetPolicyState(!cfg.PolicyIsEmpty(), cfg.AuthorizationPolicyBypass)
 
 		serviceServer, err := service.NewServer(
 			cfg.Server,

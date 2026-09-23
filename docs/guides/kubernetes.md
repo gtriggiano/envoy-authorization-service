@@ -36,6 +36,10 @@ data:
 On Kubernetes, Envoy usually sits behind a cloud load balancer or an ingress tier, and by default the service evaluates the address of the peer connected to Envoy, which is then the load balancer rather than the client. Configure Envoy with `use_remote_address: true` and the right `xff_num_trusted_hops`, and add a `clientIp` section that reads `x-envoy-external-address`, as explained in [Client IP Resolution](/guides/client-ip). Without it, allow-lists deny everyone and deny-lists block nobody.
 :::
 
+::: tip Validate the ConfigMap before rolling it out
+`envoy-authorization-service validate --offline --config config.yaml` checks the file exactly as the pod will load it, without needing the databases mounted at `/maxmind`, the lists at `/config` or the credentials: those are reported as warnings, everything else fails the check. Run it in CI on the file you feed to the ConfigMap. Database credentials can be read from a Secret mounted as files (`passwordFile: /secrets/postgres/password`) or injected as environment variables and referenced with `password: ${POSTGRES_PASSWORD}`. See the [CLI reference](/reference/cli#validate) and [Configuration](/configuration#environment-variables).
+:::
+
 ### Deployment
 
 Create a Deployment with an **init container** to download MaxMind databases:

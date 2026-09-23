@@ -47,7 +47,6 @@ func TestRedisIpMatchDatabase(t *testing.T) {
 		Name: "ip-db-redis",
 		Type: ControllerKind,
 		Settings: map[string]any{
-			"action": "deny",
 			"cache": map[string]any{
 				"ttl": "1m",
 			},
@@ -87,14 +86,6 @@ func TestRedisIpMatchDatabase(t *testing.T) {
 func TestPostgresIpMatchDatabase(t *testing.T) {
 	t.Parallel()
 
-	// Use test-unique env var names so parallel tests cannot clobber each
-	// other's credentials. t.Setenv is incompatible with t.Parallel, so we
-	// manage the env directly with a Cleanup to restore prior state.
-	userEnv := "IP_PG_USER_" + sanitizeEnvName(t.Name())
-	passEnv := "IP_PG_PASS_" + sanitizeEnvName(t.Name())
-	setEnvForTest(t, userEnv, "postgres")
-	setEnvForTest(t, passEnv, "postgres")
-
 	ctx := context.Background()
 	container, host, port := startPostgres(t, ctx)
 	defer func() { _ = container.Terminate(ctx) }()
@@ -115,7 +106,6 @@ func TestPostgresIpMatchDatabase(t *testing.T) {
 		Name: "ip-db-postgres",
 		Type: ControllerKind,
 		Settings: map[string]any{
-			"action": "allow",
 			"database": map[string]any{
 				"type":              "postgres",
 				"connectionTimeout": "1s",
@@ -124,8 +114,8 @@ func TestPostgresIpMatchDatabase(t *testing.T) {
 					"host":         host,
 					"port":         port,
 					"databaseName": "security",
-					"usernameEnv":  userEnv,
-					"passwordEnv":  passEnv,
+					"username":     "postgres",
+					"password":     "postgres",
 					"pool": map[string]any{
 						"maxConnections":    5,
 						"minConnections":    1,

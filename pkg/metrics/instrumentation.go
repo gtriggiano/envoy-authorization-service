@@ -39,6 +39,8 @@ type Instrumentation struct {
 	matchDbCacheSize    *prometheus.GaugeVec
 	matchDbUnavailable  *prometheus.CounterVec
 	geofenceMatchTotals *prometheus.CounterVec
+	policyConfigured    prometheus.Gauge
+	policyBypassEnabled prometheus.Gauge
 
 	trackOptions TrackOptions
 }
@@ -124,7 +126,20 @@ func NewInstrumentation(reg prometheus.Registerer, opts TrackOptions) *Instrumen
 		}, []string{"authority", "controller_name", "controller_kind", "db_type"}),
 	}
 
+	inst.policyConfigured = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: "envoy_authz",
+		Name:      "policy_configured",
+		Help:      "1 when an authorization policy is configured, 0 when every request is allowed because the policy is empty",
+	})
+	inst.policyBypassEnabled = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: "envoy_authz",
+		Name:      "policy_bypass_enabled",
+		Help:      "1 when authorizationPolicyBypass is enabled and requests denied by the policy are allowed anyway",
+	})
+
 	reg.MustRegister(
+		inst.policyConfigured,
+		inst.policyBypassEnabled,
 		inst.requestTotals,
 		inst.requestDuration,
 		inst.controllerDuration,
@@ -150,6 +165,22 @@ func NewInstrumentation(reg prometheus.Registerer, opts TrackOptions) *Instrumen
 
 	inst.trackOptions = opts
 	return inst
+}
+
+// SetPolicyState publishes whether a policy is configured and whether bypass is enabled.
+func (i *Instrumentation) SetPolicyState(configured, bypass bool) {
+	if i == nil {
+		return
+	}
+	i.policyConfigured.Set(boolGauge(configured))
+	i.policyBypassEnabled.Set(boolGauge(bypass))
+}
+
+func boolGauge(v bool) float64 {
+	if v {
+		return 1
+	}
+	return 0
 }
 
 // InFlight increments or decrements the in-flight gauge.

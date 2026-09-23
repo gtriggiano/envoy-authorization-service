@@ -55,8 +55,8 @@ matchControllers:
           host: postgres.partners.svc.cluster.local
           port: 5432
           databaseName: partners
-          usernameEnv: DB_USER
-          passwordEnv: DB_PASSWORD
+          username: ${DB_USER}
+          password: ${DB_PASSWORD}
 
   - name: partner-asns
     type: asn-match

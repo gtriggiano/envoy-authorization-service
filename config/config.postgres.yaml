@@ -15,11 +15,11 @@ analysisControllers:
   - name: asn-detect
     type: maxmind-asn
     settings:
-      databasePath: config/GeoLite2-ASN.mmdb
+      databasePath: GeoLite2-ASN.mmdb
   - name: geoip-detect
     type: maxmind-geoip
     settings:
-      databasePath: config/GeoLite2-City.mmdb
+      databasePath: GeoLite2-City.mmdb
 
 matchControllers:
   - name: trusted
@@ -34,6 +34,7 @@ matchControllers:
           host: localhost
           port: 5432
           databaseName: security
-          usernameEnv: POSTGRES_USER
-          passwordEnv: POSTGRES_PASSWORD
+          # Expanded from the environment; the defaults match docker-compose.yaml
+          username: ${POSTGRES_USER:-postgres}
+          password: ${POSTGRES_PASSWORD:-postgres}
 

@@ -3,8 +3,6 @@ package asn_match
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -96,7 +94,7 @@ func (c *asnMatchController) deriveMatch(reports controller.AnalysisReports) (bo
 }
 
 // newASNMatchController loads the ASN list from disk and prepares a controller.
-func newASNMatchController(_ context.Context, logger *zap.Logger, cfg config.ControllerConfig) (controller.MatchController, error) {
+func newASNMatchController(ctx context.Context, logger *zap.Logger, cfg config.ControllerConfig) (controller.MatchController, error) {
 	var config ASNMatchConfig
 	if err := controller.DecodeControllerSettings(cfg.Settings, &config); err != nil {
 		return nil, err
@@ -106,14 +104,14 @@ func newASNMatchController(_ context.Context, logger *zap.Logger, cfg config.Con
 		return nil, fmt.Errorf("asnList is required, check your configuration")
 	}
 
-	asnListFilePath, err := filepath.Abs(config.ASNList)
+	asnListFilePath, err := cfg.ResolvePath(config.ASNList)
 	if err != nil {
 		return nil, fmt.Errorf("asnList path is not valid: %w", err)
 	}
 
-	asnListFileContent, err := os.ReadFile(asnListFilePath)
+	asnListFileContent, err := controller.ReadFile(ctx, asnListFilePath, "asnList")
 	if err != nil {
-		return nil, fmt.Errorf("could not read asnList file: %w", err)
+		return nil, err
 	}
 
 	asnMap := make(map[uint]string)

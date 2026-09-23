@@ -8,7 +8,7 @@ RELEASE_BUMP ?= auto
 POSTGRES_USER ?= postgres
 POSTGRES_PASSWORD ?= postgres
 
-.PHONY: all build build-all clean test test-e2e tidy run run-redis run-postgres fetch-maxmind seed-postgres seed-redis fmt docker release compose-up compose-down
+.PHONY: all build build-all clean test test-e2e tidy run run-redis run-postgres fetch-maxmind seed-postgres seed-redis fmt docker release compose-up compose-down validate-configs
 
 all: clean tidy fmt test build-all
 
@@ -34,6 +34,14 @@ clean:
 
 test:
 	$(GO) test -cover ./...
+
+# Validate every shipped configuration offline: syntax, keys, policy, list files and MaxMind databases
+# are checked; database connections, credentials and files that only exist inside a pod are reported as warnings.
+validate-configs: fetch-maxmind
+	@for f in config/config.*.yaml kubernetes/examples/*/config.yaml; do \
+		echo "==> $$f"; \
+		$(GO) run . validate --offline --config "$$f" || exit 1; \
+	done
 
 test-e2e: fetch-maxmind
 	@mkdir -p .cache/go-build .cache/go-tmp

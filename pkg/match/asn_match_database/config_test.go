@@ -1,8 +1,12 @@
 package asn_match_database
 
 import (
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
+	"github.com/gtriggiano/envoy-authorization-service/pkg/controller"
 )
 
 // TestConfigValidation tests configuration validation
@@ -19,23 +23,25 @@ func TestConfigValidation(t *testing.T) {
 		}
 	})
 
-	t.Run("invalid cache TTL fails", func(t *testing.T) {
-		config := &ASNMatchDatabaseConfig{
-			Cache: &CacheConfig{
-				TTL: "invalid",
-			},
-			Database: DatabaseConfig{
-				Type: "redis",
-				Redis: &RedisConfig{
-					KeyPrefix: "test:",
-					Host:      "localhost",
-					Port:      6379,
-				},
-			},
+	t.Run("invalid cache TTL is rejected when settings are decoded", func(t *testing.T) {
+		var decoded ASNMatchDatabaseConfig
+		err := controller.DecodeControllerSettings(map[string]any{
+			"cache":    map[string]any{"ttl": "invalid"},
+			"database": map[string]any{"type": "redis"},
+		}, &decoded)
+		if err == nil || !strings.Contains(err.Error(), "invalid duration") {
+			t.Fatalf("expected invalid duration error, got %v", err)
 		}
+	})
 
-		if err := config.Validate(); err == nil {
-			t.Fatal("expected validation error for invalid cache TTL")
+	t.Run("unknown settings keys are rejected", func(t *testing.T) {
+		var decoded ASNMatchDatabaseConfig
+		err := controller.DecodeControllerSettings(map[string]any{
+			"matchOnFailure": true,
+			"database":       map[string]any{"type": "redis"},
+		}, &decoded)
+		if err == nil || !strings.Contains(err.Error(), `unknown key "matchOnFailure"`) {
+			t.Fatalf("expected unknown key error, got %v", err)
 		}
 	})
 
@@ -60,7 +66,7 @@ func TestConfigValidation(t *testing.T) {
 	t.Run("valid cache config passes", func(t *testing.T) {
 		config := &ASNMatchDatabaseConfig{
 			Cache: &CacheConfig{
-				TTL: "10m",
+				TTL: config.Duration(10 * time.Minute),
 			},
 			Database: DatabaseConfig{
 				Type: "redis",
@@ -90,7 +96,7 @@ func TestGetCacheTTL(t *testing.T) {
 	t.Run("returns parsed TTL when cache is configured", func(t *testing.T) {
 		config := &ASNMatchDatabaseConfig{
 			Cache: &CacheConfig{
-				TTL: "15m",
+				TTL: config.Duration(15 * time.Minute),
 			},
 		}
 		expected := 15 * time.Minute
@@ -115,7 +121,7 @@ func TestGetDatabaseConnectionTimeout(t *testing.T) {
 	t.Run("returns parsed connectionTimeout when configured", func(t *testing.T) {
 		config := &ASNMatchDatabaseConfig{
 			Database: DatabaseConfig{
-				ConnectionTimeout: "500ms",
+				ConnectionTimeout: durationPtr(500 * time.Millisecond),
 			},
 		}
 		expected := 500 * time.Millisecond

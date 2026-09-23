@@ -2,18 +2,22 @@ package ip_match_database
 
 import (
 	"fmt"
-	"os"
+
+	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
+	"github.com/gtriggiano/envoy-authorization-service/pkg/controller"
 )
 
 // RedisConfig represents Redis-specific configuration
 type RedisConfig struct {
-	KeyPrefix   string          `yaml:"keyPrefix"`
-	Host        string          `yaml:"host"`
-	Port        int             `yaml:"port"`
-	UsernameEnv string          `yaml:"usernameEnv"`
-	PasswordEnv string          `yaml:"passwordEnv"`
-	DB          int             `yaml:"db"`
-	TLS         *RedisTLSConfig `yaml:"tls"`
+	KeyPrefix    string          `yaml:"keyPrefix"`
+	Host         string          `yaml:"host"`
+	Port         int             `yaml:"port"`
+	Username     string          `yaml:"username"`
+	UsernameFile string          `yaml:"usernameFile"`
+	Password     string          `yaml:"password"`
+	PasswordFile string          `yaml:"passwordFile"`
+	DB           int             `yaml:"db"`
+	TLS          *RedisTLSConfig `yaml:"tls"`
 }
 
 // RedisTLSConfig represents TLS configuration for Redis
@@ -22,6 +26,16 @@ type RedisTLSConfig struct {
 	CACert             string `yaml:"caCert"`
 	ClientCert         string `yaml:"clientCert"`
 	ClientKey          string `yaml:"clientKey"`
+}
+
+// UsernameSource returns where the optional Redis user name is read from.
+func (c *RedisConfig) UsernameSource() config.CredentialSource {
+	return config.CredentialSource{Value: c.Username, File: c.UsernameFile}
+}
+
+// PasswordSource returns where the optional Redis password is read from.
+func (c *RedisConfig) PasswordSource() config.CredentialSource {
+	return config.CredentialSource{Value: c.Password, File: c.PasswordFile}
 }
 
 // ApplyDefaults sets default values for the redis configuration
@@ -34,7 +48,7 @@ func (c *RedisConfig) ApplyDefaults() {
 }
 
 // validateRedisConfig checks the Redis-specific configuration
-func (c *IpMatchDatabaseConfig) validateRedisConfig() error {
+func (c *IpMatchDatabaseConfig) validateRedisConfig(opts controller.ValidationOptions) error {
 	if c.Database.Redis == nil {
 		return fmt.Errorf("database.redis configuration is required when database.type is 'redis'")
 	}
@@ -61,23 +75,17 @@ func (c *IpMatchDatabaseConfig) validateRedisConfig() error {
 		return fmt.Errorf("database.redis.db must be non-negative")
 	}
 
-	// Validate username env var exists if specified
-	if redis.UsernameEnv != "" {
-		if _, exists := os.LookupEnv(redis.UsernameEnv); !exists {
-			return fmt.Errorf("environment variable '%s' not found", redis.UsernameEnv)
-		}
+	// Credentials are optional; when configured their source must be consistent and exist
+	if err := checkCredential(redis.UsernameSource(), "database.redis.username", opts); err != nil {
+		return err
 	}
-
-	// Validate password env var exists if specified
-	if redis.PasswordEnv != "" {
-		if _, exists := os.LookupEnv(redis.PasswordEnv); !exists {
-			return fmt.Errorf("environment variable '%s' not found", redis.PasswordEnv)
-		}
+	if err := checkCredential(redis.PasswordSource(), "database.redis.password", opts); err != nil {
+		return err
 	}
 
 	// Validate TLS configuration
 	if redis.TLS != nil {
-		if err := validateRedisTLS(redis.TLS); err != nil {
+		if err := validateRedisTLS(redis.TLS, opts); err != nil {
 			return fmt.Errorf("invalid redis TLS configuration: %w", err)
 		}
 	}
@@ -86,22 +94,22 @@ func (c *IpMatchDatabaseConfig) validateRedisConfig() error {
 }
 
 // validateRedisTLS ensures optional Redis TLS settings point to valid certificates/keys and are consistent.
-func validateRedisTLS(tls *RedisTLSConfig) error {
+func validateRedisTLS(tls *RedisTLSConfig, opts controller.ValidationOptions) error {
 	// Validate certificate files exist and are readable if specified
 	if tls.CACert != "" {
-		if err := validateCertificateFile(tls.CACert, "CA certificate"); err != nil {
+		if err := validateCertificateFile(tls.CACert, "CA certificate", opts); err != nil {
 			return err
 		}
 	}
 
 	if tls.ClientCert != "" {
-		if err := validateCertificateFile(tls.ClientCert, "client certificate"); err != nil {
+		if err := validateCertificateFile(tls.ClientCert, "client certificate", opts); err != nil {
 			return err
 		}
 	}
 
 	if tls.ClientKey != "" {
-		if err := validateKeyFile(tls.ClientKey, "client key"); err != nil {
+		if err := validateKeyFile(tls.ClientKey, "client key", opts); err != nil {
 			return err
 		}
 	}

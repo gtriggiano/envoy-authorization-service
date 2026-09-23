@@ -2,10 +2,11 @@ package asn_match_database
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
-	"time"
+
+	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
+	"github.com/gtriggiano/envoy-authorization-service/pkg/controller"
 )
 
 // PostgresConfig represents PostgreSQL-specific configuration
@@ -14,18 +15,20 @@ type PostgresConfig struct {
 	Host         string              `yaml:"host"`
 	Port         int                 `yaml:"port"`
 	DatabaseName string              `yaml:"databaseName"`
-	UsernameEnv  string              `yaml:"usernameEnv"`
-	PasswordEnv  string              `yaml:"passwordEnv"`
+	Username     string              `yaml:"username"`
+	UsernameFile string              `yaml:"usernameFile"`
+	Password     string              `yaml:"password"`
+	PasswordFile string              `yaml:"passwordFile"`
 	Pool         *PostgresPoolConfig `yaml:"pool"`
 	TLS          *PostgresTLSConfig  `yaml:"tls"`
 }
 
 // PostgresPoolConfig represents connection pool configuration
 type PostgresPoolConfig struct {
-	MaxConnections    int    `yaml:"maxConnections"`
-	MinConnections    int    `yaml:"minConnections"`
-	MaxIdleTime       string `yaml:"maxIdleTime"`
-	ConnectionTimeout string `yaml:"connectionTimeout"`
+	MaxConnections    int              `yaml:"maxConnections"`
+	MinConnections    int              `yaml:"minConnections"`
+	MaxIdleTime       *config.Duration `yaml:"maxIdleTime"`
+	ConnectionTimeout *config.Duration `yaml:"connectionTimeout"`
 }
 
 // PostgresTLSConfig represents TLS configuration for PostgreSQL
@@ -34,6 +37,16 @@ type PostgresTLSConfig struct {
 	CACert     string `yaml:"caCert"`
 	ClientCert string `yaml:"clientCert"`
 	ClientKey  string `yaml:"clientKey"`
+}
+
+// UsernameSource returns where the database user name is read from.
+func (c *PostgresConfig) UsernameSource() config.CredentialSource {
+	return config.CredentialSource{Value: c.Username, File: c.UsernameFile}
+}
+
+// PasswordSource returns where the database password is read from.
+func (c *PostgresConfig) PasswordSource() config.CredentialSource {
+	return config.CredentialSource{Value: c.Password, File: c.PasswordFile}
 }
 
 // ApplyDefaults sets default values for the postgres configuration
@@ -46,7 +59,7 @@ func (c *PostgresConfig) ApplyDefaults() {
 }
 
 // validatePostgresConfig checks the PostgreSQL-specific configuration
-func (c *ASNMatchDatabaseConfig) validatePostgresConfig() error {
+func (c *ASNMatchDatabaseConfig) validatePostgresConfig(opts controller.ValidationOptions) error {
 	if c.Database.Postgres == nil {
 		return fmt.Errorf("database.postgres configuration is required when database.type is 'postgres'")
 	}
@@ -82,22 +95,18 @@ func (c *ASNMatchDatabaseConfig) validatePostgresConfig() error {
 		return fmt.Errorf("database.postgres.databaseName is required")
 	}
 
-	if pg.UsernameEnv == "" {
-		return fmt.Errorf("database.postgres.usernameEnv is required")
+	// Credentials are required, inline (e.g. "${POSTGRES_USER}") or from a file
+	if !pg.UsernameSource().IsSet() {
+		return fmt.Errorf("database.postgres.username or database.postgres.usernameFile is required")
 	}
-
-	if pg.PasswordEnv == "" {
-		return fmt.Errorf("database.postgres.passwordEnv is required")
+	if !pg.PasswordSource().IsSet() {
+		return fmt.Errorf("database.postgres.password or database.postgres.passwordFile is required")
 	}
-
-	// Validate username env var exists
-	if _, exists := os.LookupEnv(pg.UsernameEnv); !exists {
-		return fmt.Errorf("environment variable '%s' not found", pg.UsernameEnv)
+	if err := checkCredential(pg.UsernameSource(), "database.postgres.username", opts); err != nil {
+		return err
 	}
-
-	// Validate password env var exists
-	if _, exists := os.LookupEnv(pg.PasswordEnv); !exists {
-		return fmt.Errorf("environment variable '%s' not found", pg.PasswordEnv)
+	if err := checkCredential(pg.PasswordSource(), "database.postgres.password", opts); err != nil {
+		return err
 	}
 
 	// Validate pool configuration if present
@@ -109,7 +118,7 @@ func (c *ASNMatchDatabaseConfig) validatePostgresConfig() error {
 
 	// Validate TLS configuration
 	if pg.TLS != nil {
-		if err := validatePostgresTLS(pg.TLS); err != nil {
+		if err := validatePostgresTLS(pg.TLS, opts); err != nil {
 			return fmt.Errorf("invalid postgres TLS configuration: %w", err)
 		}
 	}
@@ -131,31 +140,19 @@ func validatePostgresPoolConfig(pool *PostgresPoolConfig) error {
 		return fmt.Errorf("pool.minConnections (%d) must not exceed pool.maxConnections (%d)", pool.MinConnections, pool.MaxConnections)
 	}
 
-	if pool.MaxIdleTime != "" {
-		poolMaxIdleTime, err := time.ParseDuration(pool.MaxIdleTime)
-		if err != nil {
-			return fmt.Errorf("invalid pool.maxIdleTime: %w", err)
-		}
-		if poolMaxIdleTime < 0 {
-			return fmt.Errorf("pool.maxIdleTime must be non-negative")
-		}
+	if pool.MaxIdleTime != nil && pool.MaxIdleTime.Std() <= 0 {
+		return fmt.Errorf("pool.maxIdleTime must be positive")
 	}
 
-	if pool.ConnectionTimeout != "" {
-		timeout, err := time.ParseDuration(pool.ConnectionTimeout)
-		if err != nil {
-			return fmt.Errorf("invalid pool.connectionTimeout: %w", err)
-		}
-		if timeout <= 0 {
-			return fmt.Errorf("pool.connectionTimeout must be positive")
-		}
+	if pool.ConnectionTimeout != nil && pool.ConnectionTimeout.Std() <= 0 {
+		return fmt.Errorf("pool.connectionTimeout must be positive")
 	}
 
 	return nil
 }
 
 // validatePostgresTLS ensures SSL mode is valid and any certificate/key files are usable.
-func validatePostgresTLS(tls *PostgresTLSConfig) error {
+func validatePostgresTLS(tls *PostgresTLSConfig, opts controller.ValidationOptions) error {
 	// Validate SSL mode
 	validModes := []string{"allow", "prefer", "require", "verify-ca", "verify-full"}
 	if tls.Mode != "" {
@@ -173,19 +170,19 @@ func validatePostgresTLS(tls *PostgresTLSConfig) error {
 
 	// Validate certificate files exist and are readable if specified
 	if tls.CACert != "" {
-		if err := validateCertificateFile(tls.CACert, "CA certificate"); err != nil {
+		if err := validateCertificateFile(tls.CACert, "CA certificate", opts); err != nil {
 			return err
 		}
 	}
 
 	if tls.ClientCert != "" {
-		if err := validateCertificateFile(tls.ClientCert, "client certificate"); err != nil {
+		if err := validateCertificateFile(tls.ClientCert, "client certificate", opts); err != nil {
 			return err
 		}
 	}
 
 	if tls.ClientKey != "" {
-		if err := validateKeyFile(tls.ClientKey, "client key"); err != nil {
+		if err := validateKeyFile(tls.ClientKey, "client key", opts); err != nil {
 			return err
 		}
 	}

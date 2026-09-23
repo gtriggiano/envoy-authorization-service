@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
-	"path/filepath"
 	"sync"
 
 	"github.com/oschwald/geoip2-golang/v2"
@@ -177,9 +176,12 @@ func newMaxMindCityAnalysisController(ctx context.Context, logger *zap.Logger, c
 		return nil, fmt.Errorf("databasePath is required, check your configuration")
 	}
 
-	databaseFilePath, err := filepath.Abs(config.DatabasePath)
+	databaseFilePath, err := cfg.ResolvePath(config.DatabasePath)
 	if err != nil {
 		return nil, fmt.Errorf("databasePath '%s' is not valid: %w", config.DatabasePath, err)
+	}
+	if err := controller.CheckFile(ctx, databaseFilePath, "databasePath"); err != nil {
+		return nil, err
 	}
 
 	cityDb, err := geoip2.Open(databaseFilePath)

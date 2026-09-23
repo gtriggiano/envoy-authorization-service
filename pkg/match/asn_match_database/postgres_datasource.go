@@ -23,15 +23,15 @@ func NewPostgresDataSource(ctx context.Context, config *PostgresConfig) (*Postgr
 		return nil, fmt.Errorf("postgres configuration is required")
 	}
 
-	// Get credentials from environment
-	username := os.Getenv(config.UsernameEnv)
-	if username == "" {
-		return nil, fmt.Errorf("username is empty in environment variable '%s'", config.UsernameEnv)
+	// Resolve credentials from their inline value or file
+	username, err := config.UsernameSource().Resolve("database.postgres.username")
+	if err != nil {
+		return nil, err
 	}
 
-	password := os.Getenv(config.PasswordEnv)
-	if password == "" {
-		return nil, fmt.Errorf("password is empty in environment variable '%s'", config.PasswordEnv)
+	password, err := config.PasswordSource().Resolve("database.postgres.password")
+	if err != nil {
+		return nil, err
 	}
 
 	// Build connection string
@@ -66,18 +66,12 @@ func NewPostgresDataSource(ctx context.Context, config *PostgresConfig) (*Postgr
 			poolConfig.MinConns = int32(config.Pool.MinConnections)
 		}
 
-		if config.Pool.MaxIdleTime != "" {
-			maxIdleTime, err := time.ParseDuration(config.Pool.MaxIdleTime)
-			if err == nil && maxIdleTime > 0 {
-				poolConfig.MaxConnIdleTime = maxIdleTime
-			}
+		if config.Pool.MaxIdleTime != nil {
+			poolConfig.MaxConnIdleTime = config.Pool.MaxIdleTime.Std()
 		}
 
-		if config.Pool.ConnectionTimeout != "" {
-			connTimeout, err := time.ParseDuration(config.Pool.ConnectionTimeout)
-			if err == nil && connTimeout > 0 {
-				poolConfig.ConnConfig.ConnectTimeout = connTimeout
-			}
+		if config.Pool.ConnectionTimeout != nil {
+			poolConfig.ConnConfig.ConnectTimeout = config.Pool.ConnectionTimeout.Std()
 		}
 	}
 

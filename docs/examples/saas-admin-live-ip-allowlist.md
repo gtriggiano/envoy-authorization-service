@@ -56,8 +56,8 @@ matchControllers:
           host: postgres.security.svc.cluster.local
           port: 5432
           databaseName: security
-          usernameEnv: DB_USER
-          passwordEnv: DB_PASSWORD
+          username: ${DB_USER}
+          password: ${DB_PASSWORD}
 
   - name: sre-breakglass
     type: ip-match

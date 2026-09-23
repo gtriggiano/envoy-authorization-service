@@ -57,8 +57,8 @@ metrics:
 		if cfg.Metrics.ReadinessPath != "/readyz" {
 			t.Errorf("expected default readiness path '/readyz', got %q", cfg.Metrics.ReadinessPath)
 		}
-		if cfg.Shutdown.Timeout != "20s" {
-			t.Errorf("expected default shutdown timeout '20s', got %q", cfg.Shutdown.Timeout)
+		if cfg.Shutdown.ShutdownTimeout() != 20*time.Second {
+			t.Errorf("expected default shutdown timeout 20s, got %v", cfg.Shutdown.ShutdownTimeout())
 		}
 	})
 
@@ -81,7 +81,7 @@ analysisControllers:
 matchControllers:
   - name: test-auth
     type: ip-match
-    enabled: false
+    enabled: true
     settings:
       cidrList: /tmp/cidrs
 authorizationPolicy: "test-auth"
@@ -120,6 +120,9 @@ shutdown:
 		}
 		if len(cfg.MatchControllers) != 1 {
 			t.Fatalf("expected 1 match controller, got %d", len(cfg.MatchControllers))
+		}
+		if cfg.Shutdown.ShutdownTimeout() != 30*time.Second {
+			t.Errorf("expected shutdown timeout 30s, got %v", cfg.Shutdown.ShutdownTimeout())
 		}
 	})
 }
@@ -367,27 +370,35 @@ func TestShutdownTimeout(t *testing.T) {
 		}
 	})
 
-	t.Run("valid duration string is parsed", func(t *testing.T) {
-		cfg := ShutdownConfig{Timeout: "30s"}
-		timeout := cfg.ShutdownTimeout()
-		if timeout != 30*time.Second {
+	t.Run("configured timeout is returned", func(t *testing.T) {
+		d := Duration(30 * time.Second)
+		cfg := ShutdownConfig{Timeout: &d}
+		if timeout := cfg.ShutdownTimeout(); timeout != 30*time.Second {
 			t.Errorf("expected timeout 30s, got %v", timeout)
 		}
 	})
 
-	t.Run("complex duration string is parsed", func(t *testing.T) {
-		cfg := ShutdownConfig{Timeout: "1m30s"}
-		timeout := cfg.ShutdownTimeout()
-		if timeout != 90*time.Second {
+	t.Run("complex duration string is parsed from YAML", func(t *testing.T) {
+		cfg, err := loadYAML(t, "shutdown:\n  timeout: 1m30s\n")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if timeout := cfg.Shutdown.ShutdownTimeout(); timeout != 90*time.Second {
 			t.Errorf("expected timeout 90s, got %v", timeout)
 		}
 	})
 
-	t.Run("invalid duration returns default", func(t *testing.T) {
-		cfg := ShutdownConfig{Timeout: "invalid"}
-		timeout := cfg.ShutdownTimeout()
-		if timeout != 20*time.Second {
-			t.Errorf("expected default timeout 20s, got %v", timeout)
+	t.Run("invalid duration is a load error", func(t *testing.T) {
+		_, err := loadYAML(t, "shutdown:\n  timeout: invalid\n")
+		if err == nil || !strings.Contains(err.Error(), "invalid duration") {
+			t.Fatalf("expected invalid duration error, got %v", err)
+		}
+	})
+
+	t.Run("zero duration is a validation error", func(t *testing.T) {
+		_, err := loadYAML(t, "shutdown:\n  timeout: 0s\n")
+		if err == nil || !strings.Contains(err.Error(), "shutdown.timeout' must be greater than 0") {
+			t.Fatalf("expected positive timeout error, got %v", err)
 		}
 	})
 }
@@ -410,12 +421,22 @@ func TestApplyDefaults(t *testing.T) {
 		if cfg.Metrics.ReadinessPath != "/readyz" {
 			t.Errorf("expected default readiness path '/readyz', got %q", cfg.Metrics.ReadinessPath)
 		}
-		if cfg.Shutdown.Timeout != "20s" {
-			t.Errorf("expected default shutdown timeout '20s', got %q", cfg.Shutdown.Timeout)
+		if cfg.Shutdown.ShutdownTimeout() != 20*time.Second {
+			t.Errorf("expected default shutdown timeout 20s, got %v", cfg.Shutdown.ShutdownTimeout())
+		}
+		if cfg.Metrics.TrackCountryEnabled() {
+			t.Error("trackCountry must default to false")
+		}
+		if cfg.Metrics.TrackGeofenceEnabled() {
+			t.Error("trackGeofence must default to false")
+		}
+		if cfg.Logging.Level != "info" {
+			t.Errorf("expected default logging level info, got %q", cfg.Logging.Level)
 		}
 	})
 
 	t.Run("does not override existing values", func(t *testing.T) {
+		thirty := Duration(30 * time.Second)
 		cfg := &Config{
 			Server: ServerConfig{Address: ":8080"},
 			Metrics: MetricsConfig{
@@ -423,7 +444,7 @@ func TestApplyDefaults(t *testing.T) {
 				HealthPath:    "/custom-health",
 				ReadinessPath: "/custom-ready",
 			},
-			Shutdown: ShutdownConfig{Timeout: "30s"},
+			Shutdown: ShutdownConfig{Timeout: &thirty},
 		}
 		cfg.applyDefaults()
 
@@ -439,18 +460,19 @@ func TestApplyDefaults(t *testing.T) {
 		if cfg.Metrics.ReadinessPath != "/custom-ready" {
 			t.Errorf("expected readiness path '/custom-ready', got %q", cfg.Metrics.ReadinessPath)
 		}
-		if cfg.Shutdown.Timeout != "30s" {
-			t.Errorf("expected shutdown timeout '30s', got %q", cfg.Shutdown.Timeout)
+		if cfg.Shutdown.ShutdownTimeout() != 30*time.Second {
+			t.Errorf("expected shutdown timeout 30s, got %v", cfg.Shutdown.ShutdownTimeout())
 		}
 	})
 }
 
-// TestResolveTLSPaths ensures TLS file paths become absolute relative to the cwd.
+// TestResolveTLSPaths ensures TLS file paths become absolute relative to the config directory.
 func TestResolveTLSPaths(t *testing.T) {
 	t.Run("no TLS config does nothing", func(t *testing.T) {
 		cfg := &Config{}
-		cfg.resolveTLSPaths()
-		// Should not panic
+		if err := cfg.resolveTLSPaths(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 	})
 
 	t.Run("absolute paths remain unchanged", func(t *testing.T) {
@@ -463,7 +485,9 @@ func TestResolveTLSPaths(t *testing.T) {
 				},
 			},
 		}
-		cfg.resolveTLSPaths()
+		if err := cfg.resolveTLSPaths(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		if cfg.Server.TLS.CertFile != "/absolute/path/cert.pem" {
 			t.Errorf("absolute cert path changed: %s", cfg.Server.TLS.CertFile)
@@ -476,7 +500,7 @@ func TestResolveTLSPaths(t *testing.T) {
 		}
 	})
 
-	t.Run("relative paths are resolved", func(t *testing.T) {
+	t.Run("relative paths are resolved against the working directory without a base dir", func(t *testing.T) {
 		cfg := &Config{
 			Server: ServerConfig{
 				TLS: &TLSConfig{
@@ -486,16 +510,34 @@ func TestResolveTLSPaths(t *testing.T) {
 				},
 			},
 		}
-		cfg.resolveTLSPaths()
+		if err := cfg.resolveTLSPaths(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
-		if !filepath.IsAbs(cfg.Server.TLS.CertFile) {
-			t.Error("cert file path should be absolute after resolution")
+		cwd, _ := os.Getwd()
+		if cfg.Server.TLS.CertFile != filepath.Join(cwd, "certs/cert.pem") {
+			t.Errorf("unexpected cert path %s", cfg.Server.TLS.CertFile)
 		}
-		if !filepath.IsAbs(cfg.Server.TLS.KeyFile) {
-			t.Error("key file path should be absolute after resolution")
+		if !filepath.IsAbs(cfg.Server.TLS.KeyFile) || !filepath.IsAbs(cfg.Server.TLS.CAFile) {
+			t.Error("key and CA paths should be absolute after resolution")
 		}
-		if !filepath.IsAbs(cfg.Server.TLS.CAFile) {
-			t.Error("CA file path should be absolute after resolution")
+	})
+
+	t.Run("relative paths are resolved against the configuration directory", func(t *testing.T) {
+		cfg := &Config{
+			BaseDir: "/etc/authz",
+			Server: ServerConfig{
+				TLS: &TLSConfig{CertFile: "certs/cert.pem", KeyFile: "../key.pem"},
+			},
+		}
+		if err := cfg.resolveTLSPaths(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.Server.TLS.CertFile != "/etc/authz/certs/cert.pem" {
+			t.Errorf("unexpected cert path %s", cfg.Server.TLS.CertFile)
+		}
+		if cfg.Server.TLS.KeyFile != "/etc/key.pem" {
+			t.Errorf("unexpected key path %s", cfg.Server.TLS.KeyFile)
 		}
 	})
 }

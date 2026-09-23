@@ -81,14 +81,6 @@ func TestRedisAsnMatchDatabase(t *testing.T) {
 func TestPostgresAsnMatchDatabase(t *testing.T) {
 	t.Parallel()
 
-	// Use test-unique env var names so parallel tests cannot clobber each
-	// other's credentials. t.Setenv is incompatible with t.Parallel, so we
-	// manage the env directly with a Cleanup to restore prior state.
-	userEnv := "ASN_PG_USER_" + sanitizeEnvName(t.Name())
-	passEnv := "ASN_PG_PASS_" + sanitizeEnvName(t.Name())
-	setEnvForTest(t, userEnv, "postgres")
-	setEnvForTest(t, passEnv, "postgres")
-
 	ctx := context.Background()
 	container, host, port := startPostgres(t, ctx)
 	defer func() { _ = container.Terminate(ctx) }()
@@ -117,8 +109,8 @@ func TestPostgresAsnMatchDatabase(t *testing.T) {
 					"host":         host,
 					"port":         port,
 					"databaseName": "security",
-					"usernameEnv":  userEnv,
-					"passwordEnv":  passEnv,
+					"username":     "postgres",
+					"password":     "postgres",
 					"pool": map[string]any{
 						"maxConnections":    5,
 						"minConnections":    1,

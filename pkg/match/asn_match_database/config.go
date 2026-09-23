@@ -3,11 +3,14 @@ package asn_match_database
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"time"
+
+	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
+	"github.com/gtriggiano/envoy-authorization-service/pkg/controller"
 )
 
 const (
@@ -25,15 +28,15 @@ type ASNMatchDatabaseConfig struct {
 
 // CacheConfig represents the caching configuration
 type CacheConfig struct {
-	TTL string `yaml:"ttl"`
+	TTL config.Duration `yaml:"ttl"`
 }
 
 // DatabaseConfig represents the database configuration
 type DatabaseConfig struct {
-	Type              string          `yaml:"type"`
-	ConnectionTimeout string          `yaml:"connectionTimeout"`
-	Redis             *RedisConfig    `yaml:"redis"`
-	Postgres          *PostgresConfig `yaml:"postgres"`
+	Type              string           `yaml:"type"`
+	ConnectionTimeout *config.Duration `yaml:"connectionTimeout"`
+	Redis             *RedisConfig     `yaml:"redis"`
+	Postgres          *PostgresConfig  `yaml:"postgres"`
 }
 
 // ApplyDefaults sets default values for the configuration
@@ -42,41 +45,63 @@ func (c *ASNMatchDatabaseConfig) ApplyDefaults() {
 	c.Database.Postgres.ApplyDefaults()
 }
 
-// Validate checks the configuration for completeness and correctness
-func (c *ASNMatchDatabaseConfig) Validate() error {
-	// Validate cache configuration if present
-	if c.Cache != nil {
-		if c.Cache.TTL == "" {
-			return fmt.Errorf("cache.ttl is required when cache is configured")
+// ResolvePaths turns every file path in the configuration (TLS material, credential files)
+// into an absolute path using resolve, typically config.ControllerConfig.ResolvePath.
+func (c *ASNMatchDatabaseConfig) ResolvePaths(resolve func(string) (string, error)) error {
+	var fields []*string
+	if pg := c.Database.Postgres; pg != nil {
+		fields = append(fields, &pg.UsernameFile, &pg.PasswordFile)
+		if pg.TLS != nil {
+			fields = append(fields, &pg.TLS.CACert, &pg.TLS.ClientCert, &pg.TLS.ClientKey)
 		}
-		cacheTTL, err := time.ParseDuration(c.Cache.TTL)
+	}
+	if rd := c.Database.Redis; rd != nil {
+		fields = append(fields, &rd.UsernameFile, &rd.PasswordFile)
+		if rd.TLS != nil {
+			fields = append(fields, &rd.TLS.CACert, &rd.TLS.ClientCert, &rd.TLS.ClientKey)
+		}
+	}
+	for _, field := range fields {
+		if *field == "" {
+			continue
+		}
+		resolved, err := resolve(*field)
 		if err != nil {
-			return fmt.Errorf("invalid cache.ttl: %w", err)
+			return err
 		}
-		if cacheTTL <= 0 {
-			return fmt.Errorf("cache.ttl must be positive")
-		}
+		*field = resolved
+	}
+	return nil
+}
+
+// Validate checks the configuration for completeness and correctness, including that the
+// credential sources and certificate files exist.
+func (c *ASNMatchDatabaseConfig) Validate() error {
+	return c.ValidateWith(controller.ValidationOptions{})
+}
+
+// ValidateWith is Validate with control over environment-dependent checks: when opts.Offline
+// is set, missing credentials and certificate files are reported through opts.Warn instead
+// of failing.
+func (c *ASNMatchDatabaseConfig) ValidateWith(opts controller.ValidationOptions) error {
+	// Validate cache configuration if present
+	if c.Cache != nil && c.Cache.TTL <= 0 {
+		return fmt.Errorf("cache.ttl is required and must be positive when cache is configured")
 	}
 
 	// Validate database connection timeout if present
-	if c.Database.ConnectionTimeout != "" {
-		databaseTimeout, err := time.ParseDuration(c.Database.ConnectionTimeout)
-		if err != nil {
-			return fmt.Errorf("invalid database.connectionTimeout: %w", err)
-		}
-		if databaseTimeout <= 0 {
-			return fmt.Errorf("database.connectionTimeout must be positive")
-		}
+	if c.Database.ConnectionTimeout != nil && c.Database.ConnectionTimeout.Std() <= 0 {
+		return fmt.Errorf("database.connectionTimeout must be positive")
 	}
 
 	// Validate type-specific configuration
 	switch c.Database.Type {
 	case "redis":
-		if err := c.validateRedisConfig(); err != nil {
+		if err := c.validateRedisConfig(opts); err != nil {
 			return err
 		}
 	case "postgres":
-		if err := c.validatePostgresConfig(); err != nil {
+		if err := c.validatePostgresConfig(opts); err != nil {
 			return err
 		}
 	default:
@@ -86,43 +111,55 @@ func (c *ASNMatchDatabaseConfig) Validate() error {
 	return nil
 }
 
-// GetCacheTTL returns the parsed cache TTL duration, or 0 if caching is disabled
+// GetCacheTTL returns the cache TTL duration, or 0 if caching is disabled
 func (c *ASNMatchDatabaseConfig) GetCacheTTL() time.Duration {
-	if c.Cache == nil || c.Cache.TTL == "" {
+	if c.Cache == nil {
 		return 0
 	}
-	ttl, _ := time.ParseDuration(c.Cache.TTL)
-	return ttl
+	return c.Cache.TTL.Std()
 }
 
-// GetDatabaseConnectionTimeout returns the parsed database connection timeout duration, or default if not specified
+// GetDatabaseConnectionTimeout returns the database connection timeout duration, or default if not specified
 func (c *ASNMatchDatabaseConfig) GetDatabaseConnectionTimeout() time.Duration {
-	if c.Database.ConnectionTimeout == "" {
-		return DefaultDatabaseConnectionTimeout
-	}
-	timeout, _ := time.ParseDuration(c.Database.ConnectionTimeout)
+	return c.Database.ConnectionTimeout.Or(DefaultDatabaseConnectionTimeout)
+}
 
-	if timeout <= 0 {
-		return DefaultDatabaseConnectionTimeout
+// checkCredential verifies a credential source exists. In offline validation a missing
+// environment variable or file becomes a warning.
+func checkCredential(source config.CredentialSource, name string, opts controller.ValidationOptions) error {
+	if err := source.Validate(name); err != nil {
+		return err
 	}
+	err := source.Check(name)
+	if err != nil && opts.Offline && errors.Is(err, config.ErrCredentialUnavailable) {
+		opts.Warnf("%v (not checked in offline validation)", err)
+		return nil
+	}
+	return err
+}
 
-	return timeout
+// readValidatedFile reads a certificate or key file. In offline validation a missing file is
+// reported as a warning and (nil, false, nil) is returned.
+func readValidatedFile(path, description string, opts controller.ValidationOptions) ([]byte, bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if opts.Offline && errors.Is(err, os.ErrNotExist) {
+			opts.Warnf("%s: file %s not found, its content was not checked", description, path)
+			return nil, false, nil
+		}
+		return nil, false, fmt.Errorf("could not read %s file: %w", description, err)
+	}
+	if len(data) == 0 {
+		return nil, false, fmt.Errorf("%s file is empty", description)
+	}
+	return data, true, nil
 }
 
 // validateCertificateFile checks if a certificate file exists, is readable, and contains valid PEM data
-func validateCertificateFile(path string, description string) error {
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return fmt.Errorf("%s path is not valid: %w", description, err)
-	}
-
-	data, err := os.ReadFile(absPath)
-	if err != nil {
-		return fmt.Errorf("could not read %s file: %w", description, err)
-	}
-
-	if len(data) == 0 {
-		return fmt.Errorf("%s file is empty", description)
+func validateCertificateFile(path string, description string, opts controller.ValidationOptions) error {
+	data, ok, err := readValidatedFile(path, description, opts)
+	if err != nil || !ok {
+		return err
 	}
 
 	// Validate it's a valid certificate by attempting to parse it
@@ -135,19 +172,10 @@ func validateCertificateFile(path string, description string) error {
 }
 
 // validateKeyFile checks if a private key file exists, is readable, and contains valid PEM data
-func validateKeyFile(path string, description string) error {
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return fmt.Errorf("%s path is not valid: %w", description, err)
-	}
-
-	data, err := os.ReadFile(absPath)
-	if err != nil {
-		return fmt.Errorf("could not read %s file: %w", description, err)
-	}
-
-	if len(data) == 0 {
-		return fmt.Errorf("%s file is empty", description)
+func validateKeyFile(path string, description string, opts controller.ValidationOptions) error {
+	data, ok, err := readValidatedFile(path, description, opts)
+	if err != nil || !ok {
+		return err
 	}
 
 	// Validate it contains PEM data
