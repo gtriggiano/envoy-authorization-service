@@ -3,7 +3,18 @@ DOCKER ?= docker
 BINARY ?= envoy-authorization-service
 BUILD_DIR ?= bin
 PLATFORMS ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
+
+# Build identity stamped into the binary (`envoy-authorization-service version`, the startup
+# log line and the envoy_authz_build_info metric). Local builds are "<VERSION file>-dev";
+# the release workflow overrides VERSION with the tag.
+VERSION ?= $(shell cat VERSION)-dev
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+VERSION_PKG := github.com/gtriggiano/envoy-authorization-service/pkg/version
+VERSION_LDFLAGS := -X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)
+# Extra linker flags (for example LDFLAGS="-s -w"); the version stamping is always applied.
 LDFLAGS ?=
+GO_LDFLAGS = $(VERSION_LDFLAGS) $(LDFLAGS)
 RELEASE_BUMP ?= auto
 POSTGRES_USER ?= postgres
 POSTGRES_PASSWORD ?= postgres
@@ -18,7 +29,7 @@ build:
 	GOARCH=$$(go env GOARCH); \
 	out="$(BUILD_DIR)/$(BINARY)"; \
 	echo "Building $$out"; \
-	$(GO) build -trimpath -ldflags "$(LDFLAGS)" -o "$$out" .
+	$(GO) build -trimpath -ldflags "$(GO_LDFLAGS)" -o "$$out" .
 
 build-all:
 	@mkdir -p $(BUILD_DIR)
@@ -26,7 +37,7 @@ build-all:
 		os=$${platform%/*}; arch=$${platform#*/}; \
 		out="$(BUILD_DIR)/$(BINARY)-$$os-$$arch"; \
 		echo "Building $$out"; \
-		GOOS=$$os GOARCH=$$arch $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o "$$out" . || exit 1; \
+		GOOS=$$os GOARCH=$$arch $(GO) build -trimpath -ldflags "$(GO_LDFLAGS)" -o "$$out" . || exit 1; \
 	done
 
 clean:
@@ -105,9 +116,9 @@ release: clean tidy fmt test build-all
 
 docker:
 	$(DOCKER) build \
-		--build-arg VERSION=$$(cat VERSION)-dev \
-		--build-arg REVISION=$$(git rev-parse --short HEAD 2>/dev/null || echo unknown) \
-		--build-arg CREATED=$$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg REVISION=$(COMMIT) \
+		--build-arg CREATED=$(BUILD_DATE) \
 		-t $(BINARY):dev .
 
 compose-up:

@@ -9,6 +9,18 @@ Metrics are exposed at:
 http://<service>:9090/metrics
 ```
 
+## Build Metrics
+
+### `envoy_authz_build_info` `Gauge`
+
+Always `1`. Identifies the running build so behaviour can be correlated with deployments (`envoy_authz_requests_total * on (instance) group_left (version) envoy_authz_build_info`). The same values are printed by `envoy-authorization-service version` and logged at startup.
+
+| Label Name | Example Value | Description |
+|------------|---------------|-------------|
+| `version` | `1.5.0` | Release version; `dev` for unreleased builds |
+| `commit` | `9f3c2d1e4b7a` | VCS revision the binary was built from; `-dirty` suffix when built from an uncommitted tree, `unknown` when not available |
+| `go_version` | `go1.27.0` | Go toolchain that compiled the binary |
+
 ## Core Metrics
 
 These metrics track overall authorization service performance.

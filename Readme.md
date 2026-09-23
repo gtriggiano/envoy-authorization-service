@@ -55,6 +55,7 @@ Download from [releases](https://github.com/gtriggiano/envoy-authorization-servi
 # Example for Linux AMD64 (assets are named envoy-authorization-service-<os>-<arch>)
 curl -LO https://github.com/gtriggiano/envoy-authorization-service/releases/latest/download/envoy-authorization-service-linux-amd64
 chmod +x envoy-authorization-service-linux-amd64
+./envoy-authorization-service-linux-amd64 version
 ./envoy-authorization-service-linux-amd64 start --config config.yaml
 ```
 

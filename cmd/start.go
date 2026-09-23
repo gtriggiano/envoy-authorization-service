@@ -20,6 +20,7 @@ import (
 	"github.com/gtriggiano/envoy-authorization-service/pkg/policy"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/runtime"
 	"github.com/gtriggiano/envoy-authorization-service/pkg/service"
+	"github.com/gtriggiano/envoy-authorization-service/pkg/version"
 
 	// Register analysis controllers
 	_ "github.com/gtriggiano/envoy-authorization-service/pkg/analysis/maxmind_asn"
@@ -44,9 +45,12 @@ func init() {
 }
 
 var startCmd = &cobra.Command{
-	Use:           "start",
-	Short:         "Start the authorization server",
-	SilenceErrors: true,
+	Use:   "start",
+	Short: "Start the authorization server",
+	Args:  cobra.NoArgs,
+	// Errors raised before the logger exists (config path, config load, logger setup) are
+	// returned as-is and printed by Execute; everything after that is logged and wrapped
+	// with reported() so it is not printed twice.
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		path, err := filepath.Abs(cfgFile)
 		if err != nil {
@@ -59,16 +63,26 @@ var startCmd = &cobra.Command{
 
 		baseLogger, err := logging.New(cfg.Logging)
 		if err != nil {
-			return err
+			return fmt.Errorf("configure logging: %w", err)
 		}
 		defer func() { _ = baseLogger.Sync() }()
 		logger := baseLogger.With(zap.String("component", "cli"))
+
+		build := version.Get()
+		logger.Info("starting envoy-authorization-service",
+			zap.String("version", build.Version),
+			zap.String("commit", build.Commit),
+			zap.String("build_date", build.BuildDate),
+			zap.String("go_version", build.GoVersion),
+			zap.String("platform", build.Platform),
+			zap.String("config", path),
+		)
 
 		// Parse the policy before touching any external dependency so a bad expression fails fast.
 		authorizationPolicy, err := policy.Parse(cfg.AuthorizationPolicy, cfg.EnabledMatchControllerNames())
 		if err != nil {
 			logger.Error("could not parse authorization policy", zap.Error(err))
-			return err
+			return reported(err)
 		}
 
 		// Fail-open configurations are legitimate for testing but must be impossible to miss.
@@ -85,13 +99,13 @@ var startCmd = &cobra.Command{
 		analysisControllers, err := controller.BuildAnalysisControllers(runCtx, baseLogger.With(zap.String("component", "analysis-controller")), cfg.AnalysisControllers)
 		if err != nil {
 			logger.Error("could not build analysis controllers", zap.Error(err))
-			return err
+			return reported(err)
 		}
 
 		matchControllers, err := controller.BuildMatchControllers(runCtx, baseLogger.With(zap.String("component", "match-controller")), cfg.MatchControllers)
 		if err != nil {
 			logger.Error("could not build match controllers", zap.Error(err))
-			return err
+			return reported(err)
 		}
 
 		clientIPResolver := runtime.NewClientIPResolver(cfg.ClientIP)
@@ -119,7 +133,7 @@ var startCmd = &cobra.Command{
 		)
 		if err != nil {
 			logger.Error("could not create gRPC server", zap.Error(err))
-			return err
+			return reported(err)
 		}
 
 		serversGroup, serversCtx := errgroup.WithContext(runCtx)
@@ -158,9 +172,12 @@ var startCmd = &cobra.Command{
 			}
 		}()
 
-		if err := serversGroup.Wait(); err != nil && serversCtx.Err() == nil {
+		// Both servers return nil when they stop because the context was cancelled, so any
+		// error here is a real failure (for example a listener that could not bind). The
+		// errgroup cancels serversCtx before Wait returns, so it must not be used as a guard.
+		if err := serversGroup.Wait(); err != nil {
 			logger.Error("server exited with error", zap.Error(err))
-			return err
+			return reported(err)
 		}
 		return nil
 	},

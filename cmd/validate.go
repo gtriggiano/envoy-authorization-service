@@ -42,8 +42,7 @@ reported as warnings instead of errors. Everything else is still checked, which
 makes the flag suitable for CI pipelines validating ConfigMaps before rollout.
 
 The exit status is 0 when the configuration is valid and 1 otherwise.`,
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		mode := controller.BuildModeValidate
 		if validateOffline {
@@ -52,7 +51,7 @@ The exit status is 0 when the configuration is valid and 1 otherwise.`,
 		result, err := validateConfiguration(context.Background(), validateCfgFile, mode)
 		if err != nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "✗ configuration is invalid: %v\n", err)
-			return err
+			return reported(err)
 		}
 		result.print(cmd.OutOrStdout())
 		return nil

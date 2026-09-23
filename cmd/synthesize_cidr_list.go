@@ -24,7 +24,8 @@ func init() {
 var synthesizeCIDRListCmd = &cobra.Command{
 	Use:   "synthesize-cidr-list",
 	Short: "Remove redundant CIDRs from a list file",
-	RunE: func(_ *cobra.Command, _ []string) error {
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		if cidrListFile == "" {
 			return fmt.Errorf("flag \"file\" is required")
 		}
@@ -48,7 +49,7 @@ var synthesizeCIDRListCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Println(output)
+		fmt.Fprintln(cmd.OutOrStdout(), output)
 
 		return nil
 	},

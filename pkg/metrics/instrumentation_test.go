@@ -6,7 +6,22 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+
+	"github.com/gtriggiano/envoy-authorization-service/pkg/version"
 )
+
+func TestBuildInfoGauge(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	inst := NewInstrumentation(reg, TrackOptions{})
+
+	build := version.Get()
+	if v := testutil.ToFloat64(inst.buildInfo.WithLabelValues(build.Version, build.Commit, build.GoVersion)); v != 1 {
+		t.Fatalf("expected build_info{version=%q,commit=%q,go_version=%q} to be 1, got %v", build.Version, build.Commit, build.GoVersion, v)
+	}
+	if c := testutil.CollectAndCount(inst.buildInfo); c != 1 {
+		t.Fatalf("expected exactly one build_info series, got %d", c)
+	}
+}
 
 func TestObserveDecisionCounters(t *testing.T) {
 	reg := prometheus.NewRegistry()

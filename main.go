@@ -8,8 +8,8 @@ import (
 	"github.com/gtriggiano/envoy-authorization-service/cmd"
 )
 
-// main is the application entry point. It invokes the root Cobra command and exits
-// with a non-zero status code if command execution fails.
+// main is the application entry point. It invokes the root Cobra command, which prints
+// any error on stderr, and exits with a non-zero status code when it fails.
 func main() {
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)

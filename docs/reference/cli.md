@@ -2,6 +2,13 @@
 
 Command-line interface reference for the Envoy Authorization Service.
 
+Every command exits with status `0` on success and `1` on failure. Failures are printed on stderr as a single `Error: ...` line; the command usage is appended only when the problem is a flag or argument mistake. Two exceptions: `validate` prints its own `✗ configuration is invalid: ...` line, and `start` failures raised after the logger is configured are emitted on stdout through the logger (see below).
+
+```
+$ envoy-authorization-service start --config /nonexistent.yaml
+Error: could not read the configuration file: open /nonexistent.yaml: no such file or directory
+```
+
 ## `start`
 
 Start the authorization service.
@@ -26,7 +33,47 @@ Relative paths **inside** the configuration file are resolved from the directory
 envoy-authorization-service start --config /etc/auth-service/config.yaml
 ```
 
-The process exits with status `1` when the configuration cannot be loaded or validated, or when a controller cannot be built. A configuration with an empty `authorizationPolicy` or with `authorizationPolicyBypass: true` starts, and logs a `warn` line for each at startup.
+The process exits with status `1` when the configuration cannot be loaded or validated, or when a controller cannot be built. Errors raised before the logger is configured (unreadable or invalid configuration file, invalid `logging` settings) are printed on stderr; everything after that is logged through the configured logger. A configuration with an empty `authorizationPolicy` or with `authorizationPolicyBypass: true` starts, and logs a `warn` line for each at startup.
+
+The first log line, `starting envoy-authorization-service`, carries the build identity (`version`, `commit`, `build_date`, `go_version`, `platform`) and the absolute path of the configuration file, so a log stream always tells which build produced it. The same identity is exposed as the `envoy_authz_build_info` metric.
+
+## `version`
+
+Print the version, commit and build information of this binary. `--version` on the root command prints the same line.
+
+### Usage
+
+```bash
+envoy-authorization-service version [flags]
+envoy-authorization-service --version
+```
+
+### Flags
+
+```
+-o, --output string   Output format: "text", "short" (version only) or "json" (default "text")
+```
+
+### Examples
+
+```
+$ envoy-authorization-service version
+envoy-authorization-service 1.5.0 (commit 9f3c2d1e4b7a, built 2026-09-23T10:00:00Z, go1.27.0, linux/amd64)
+
+$ envoy-authorization-service version --output short
+1.5.0
+
+$ envoy-authorization-service version --output json
+{
+  "version": "1.5.0",
+  "commit": "9f3c2d1e4b7a",
+  "buildDate": "2026-09-23T10:00:00Z",
+  "goVersion": "go1.27.0",
+  "platform": "linux/amd64"
+}
+```
+
+Release binaries and the container image carry the release version, the commit they were built from and the build time; the image also has them in its `org.opencontainers.image.version`, `revision` and `created` labels. `make build` stamps `<VERSION file>-dev` and the current commit. A binary built with a plain `go build` reports `dev` as version and takes the commit from the Git metadata embedded by the Go toolchain, with a `-dirty` suffix when the working tree had uncommitted changes; `unknown` is shown for anything the toolchain could not determine.
 
 ## `validate`
 

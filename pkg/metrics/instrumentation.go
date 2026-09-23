@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/gtriggiano/envoy-authorization-service/pkg/version"
 )
 
 const (
@@ -41,6 +43,7 @@ type Instrumentation struct {
 	geofenceMatchTotals *prometheus.CounterVec
 	policyConfigured    prometheus.Gauge
 	policyBypassEnabled prometheus.Gauge
+	buildInfo           *prometheus.GaugeVec
 
 	trackOptions TrackOptions
 }
@@ -137,7 +140,16 @@ func NewInstrumentation(reg prometheus.Registerer, opts TrackOptions) *Instrumen
 		Help:      "1 when authorizationPolicyBypass is enabled and requests denied by the policy are allowed anyway",
 	})
 
+	inst.buildInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: "envoy_authz",
+		Name:      "build_info",
+		Help:      "Build identity of the running binary, always 1; version, commit and Go version are labels",
+	}, []string{"version", "commit", "go_version"})
+	build := version.Get()
+	inst.buildInfo.WithLabelValues(build.Version, build.Commit, build.GoVersion).Set(1)
+
 	reg.MustRegister(
+		inst.buildInfo,
 		inst.policyConfigured,
 		inst.policyBypassEnabled,
 		inst.requestTotals,

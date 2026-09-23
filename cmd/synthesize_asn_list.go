@@ -24,7 +24,8 @@ func init() {
 var synthesizeASNListCmd = &cobra.Command{
 	Use:   "synthesize-asn-list",
 	Short: "Remove duplicate ASN entries from a file",
-	RunE: func(_ *cobra.Command, _ []string) error {
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		if asnListFile == "" {
 			return fmt.Errorf("flag \"file\" is required")
 		}
@@ -48,7 +49,7 @@ var synthesizeASNListCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Println(output)
+		fmt.Fprintln(cmd.OutOrStdout(), output)
 
 		return nil
 	},

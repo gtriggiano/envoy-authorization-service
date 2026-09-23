@@ -31,7 +31,8 @@ The command checks that:
 - All polygons are closed (first and last points match)
 - All coordinates are valid GPS coordinates (lat: -90 to 90, lon: -180 to 180)
 - Feature names are unique`,
-	RunE: func(_ *cobra.Command, _ []string) error {
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		if geojsonFile == "" {
 			return fmt.Errorf("flag \"file\" is required")
 		}
@@ -45,10 +46,10 @@ The command checks that:
 			return fmt.Errorf("validation failed: %w", err)
 		}
 
-		fmt.Printf("✓ GeoJSON file is valid\n")
-		fmt.Printf("  Features found: %d\n", len(names))
+		fmt.Fprintf(cmd.OutOrStdout(), "✓ GeoJSON file is valid\n")
+		fmt.Fprintf(cmd.OutOrStdout(), "  Features found: %d\n", len(names))
 		for _, name := range names {
-			fmt.Printf("    - %s\n", name)
+			fmt.Fprintf(cmd.OutOrStdout(), "    - %s\n", name)
 		}
 
 		return nil
