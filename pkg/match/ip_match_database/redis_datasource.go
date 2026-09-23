@@ -5,7 +5,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net"
 	"os"
+	"strconv"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -24,7 +26,7 @@ func NewRedisDataSource(ctx context.Context, config *RedisConfig) (*RedisDataSou
 
 	// Build Redis options
 	opts := &redis.Options{
-		Addr: fmt.Sprintf("%s:%d", config.Host, config.Port),
+		Addr: net.JoinHostPort(config.Host, strconv.Itoa(config.Port)),
 		DB:   config.DB,
 	}
 
@@ -97,7 +99,8 @@ func (r *RedisDataSource) HealthCheck(ctx context.Context) error {
 // buildRedisTLSConfig creates a TLS configuration from the provided settings
 func buildRedisTLSConfig(config *RedisTLSConfig) (*tls.Config, error) {
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: config.InsecureSkipVerify,
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: config.InsecureSkipVerify, //nolint:gosec // opt-in, reported with a startup warning
 	}
 
 	// Load CA certificate if provided

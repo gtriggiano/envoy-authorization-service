@@ -259,6 +259,30 @@ func TestValidatePostgresConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("disable is a valid ssl mode", func(t *testing.T) {
+
+		config := &IpMatchDatabaseConfig{
+			Database: DatabaseConfig{
+				Type: "postgres",
+				Postgres: &PostgresConfig{
+					Query:        "SELECT 1 FROM test WHERE ip = $1",
+					Host:         "localhost",
+					Port:         5432,
+					DatabaseName: "testdb",
+					Username:     "user",
+					Password:     "pass",
+					TLS: &PostgresTLSConfig{
+						Mode: "disable",
+					},
+				},
+			},
+		}
+
+		if err := config.Validate(); err != nil {
+			t.Fatalf("expected disable to be accepted, got: %v", err)
+		}
+	})
+
 	t.Run("client certificate without key fails", func(t *testing.T) {
 		fixtures := createTLSFixtures(t)
 

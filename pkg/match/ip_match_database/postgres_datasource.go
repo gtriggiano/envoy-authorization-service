@@ -2,10 +2,10 @@ package ip_match_database
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"os"
+	"net"
+	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -34,18 +34,10 @@ func NewPostgresDataSource(ctx context.Context, config *PostgresConfig) (*Postgr
 		return nil, err
 	}
 
-	// Build connection string
-	connString := fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s",
-		username,
-		password,
-		config.Host,
-		config.Port,
-		config.DatabaseName,
-	)
-
-	// Parse pool config
-	poolConfig, err := pgxpool.ParseConfig(connString)
+	// Parse pool config. TLS is expressed as libpq parameters in the connection
+	// string so that pgx implements the sslmode semantics (fallbacks, verify-ca,
+	// verify-full host name checks) instead of a hand-built tls.Config.
+	poolConfig, err := pgxpool.ParseConfig(buildPostgresConnString(username, password, config))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse connection string: %w", err)
 	}
@@ -75,23 +67,6 @@ func NewPostgresDataSource(ctx context.Context, config *PostgresConfig) (*Postgr
 		}
 	}
 
-	// Configure TLS if enabled
-	if config.TLS != nil {
-		tlsConfig, sslMode, err := buildPostgresTLSConfig(config.TLS)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build TLS configuration: %w", err)
-		}
-
-		if tlsConfig != nil {
-			poolConfig.ConnConfig.TLSConfig = tlsConfig
-		}
-
-		// Set SSL mode in connection string
-		if sslMode != "" {
-			poolConfig.ConnConfig.RuntimeParams["sslmode"] = sslMode
-		}
-	}
-
 	// Create pool
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
@@ -100,6 +75,7 @@ func NewPostgresDataSource(ctx context.Context, config *PostgresConfig) (*Postgr
 
 	// Test connection
 	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}
 
@@ -107,6 +83,39 @@ func NewPostgresDataSource(ctx context.Context, config *PostgresConfig) (*Postgr
 		pool:  pool,
 		query: config.Query,
 	}, nil
+}
+
+// buildPostgresConnString assembles the pgx connection URL.
+//
+// Credentials and the database name are percent-encoded, so any character is
+// allowed in them. TLS settings travel as the libpq parameters sslmode,
+// sslrootcert, sslcert and sslkey; pgx strips them from the startup message and
+// builds the TLS configuration itself. sslmode is always set so that the
+// configuration, not a PGSSLMODE environment variable, decides the TLS mode.
+func buildPostgresConnString(username, password string, config *PostgresConfig) string {
+	u := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(username, password),
+		Host:   net.JoinHostPort(config.Host, strconv.Itoa(config.Port)),
+		Path:   "/" + config.DatabaseName,
+	}
+
+	params := url.Values{}
+	params.Set("sslmode", config.TLS.EffectiveMode())
+	if config.TLS != nil {
+		if config.TLS.CACert != "" {
+			params.Set("sslrootcert", config.TLS.CACert)
+		}
+		if config.TLS.ClientCert != "" {
+			params.Set("sslcert", config.TLS.ClientCert)
+		}
+		if config.TLS.ClientKey != "" {
+			params.Set("sslkey", config.TLS.ClientKey)
+		}
+	}
+	u.RawQuery = params.Encode()
+
+	return u.String()
 }
 
 // Contains checks if the IP address exists in PostgreSQL
@@ -132,46 +141,4 @@ func (p *PostgresDataSource) Close() error {
 // HealthCheck verifies connectivity to PostgreSQL
 func (p *PostgresDataSource) HealthCheck(ctx context.Context) error {
 	return p.pool.Ping(ctx)
-}
-
-// buildPostgresTLSConfig creates a TLS configuration from the provided settings
-// Returns (tlsConfig, sslMode, error)
-func buildPostgresTLSConfig(config *PostgresTLSConfig) (*tls.Config, string, error) {
-	// Determine SSL mode
-	sslMode := "prefer" // Default
-	if config.Mode != "" {
-		sslMode = config.Mode
-	}
-
-	// If mode is "disable", no TLS config needed
-	if sslMode == "disable" {
-		return nil, sslMode, nil
-	}
-
-	tlsConfig := &tls.Config{}
-
-	// Load CA certificate if provided
-	if config.CACert != "" {
-		caCertData, err := os.ReadFile(config.CACert)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to read CA certificate file '%s': %w", config.CACert, err)
-		}
-
-		caCertPool := x509.NewCertPool()
-		if !caCertPool.AppendCertsFromPEM(caCertData) {
-			return nil, "", fmt.Errorf("failed to parse CA certificate from file '%s'", config.CACert)
-		}
-		tlsConfig.RootCAs = caCertPool
-	}
-
-	// Load client certificate and key if provided
-	if config.ClientCert != "" && config.ClientKey != "" {
-		cert, err := tls.LoadX509KeyPair(config.ClientCert, config.ClientKey)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to load client certificate pair: %w", err)
-		}
-		tlsConfig.Certificates = []tls.Certificate{cert}
-	}
-
-	return tlsConfig, sslMode, nil
 }

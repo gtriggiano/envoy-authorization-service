@@ -227,6 +227,16 @@ func newASNMatchDatabaseController(ctx context.Context, logger *zap.Logger, cfg 
 
 	switch controllerConfig.Database.Type {
 	case "redis":
+		switch redisTLS := controllerConfig.Database.Redis.TLS; {
+		case redisTLS == nil:
+			logger.Warn("Redis connection is plaintext; configure tls to encrypt it and authenticate the server",
+				zap.String("host", controllerConfig.Database.Redis.Host),
+			)
+		case redisTLS.InsecureSkipVerify:
+			logger.Warn("Redis TLS certificate verification is disabled (insecureSkipVerify: true); the server identity is not authenticated and the connection is exposed to interception",
+				zap.String("host", controllerConfig.Database.Redis.Host),
+			)
+		}
 		dataSource, err = NewRedisDataSource(initCtx, controllerConfig.Database.Redis)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Redis data source: %w", err)
@@ -238,6 +248,12 @@ func newASNMatchDatabaseController(ctx context.Context, logger *zap.Logger, cfg 
 			zap.Int("db", controllerConfig.Database.Redis.DB),
 		)
 	case "postgres":
+		if pgTLS := controllerConfig.Database.Postgres.TLS; !pgTLS.VerifiesServer() {
+			logger.Warn("PostgreSQL connection does not authenticate the server; set tls.mode to verify-full with caCert",
+				zap.String("host", controllerConfig.Database.Postgres.Host),
+				zap.String("sslmode", pgTLS.EffectiveMode()),
+			)
+		}
 		dataSource, err = NewPostgresDataSource(initCtx, controllerConfig.Database.Postgres)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create PostgreSQL data source: %w", err)
@@ -247,6 +263,7 @@ func newASNMatchDatabaseController(ctx context.Context, logger *zap.Logger, cfg 
 			zap.String("host", controllerConfig.Database.Postgres.Host),
 			zap.Int("port", controllerConfig.Database.Postgres.Port),
 			zap.String("database", controllerConfig.Database.Postgres.DatabaseName),
+			zap.String("sslmode", controllerConfig.Database.Postgres.TLS.EffectiveMode()),
 		)
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", controllerConfig.Database.Type)

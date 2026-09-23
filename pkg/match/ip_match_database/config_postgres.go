@@ -3,6 +3,7 @@ package ip_match_database
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/gtriggiano/envoy-authorization-service/pkg/config"
@@ -37,6 +38,33 @@ type PostgresTLSConfig struct {
 	CACert     string `yaml:"caCert"`
 	ClientCert string `yaml:"clientCert"`
 	ClientKey  string `yaml:"clientKey"`
+}
+
+// defaultPostgresSSLMode is the libpq default, used when tls.mode is omitted.
+const defaultPostgresSSLMode = "prefer"
+
+// postgresSSLModes lists the accepted values of tls.mode (libpq sslmode).
+var postgresSSLModes = []string{"disable", "allow", "prefer", "require", "verify-ca", "verify-full"}
+
+// EffectiveMode returns the sslmode that is sent to pgx: the configured one or the libpq default.
+func (t *PostgresTLSConfig) EffectiveMode() string {
+	if t == nil || t.Mode == "" {
+		return defaultPostgresSSLMode
+	}
+	return t.Mode
+}
+
+// VerifiesServer reports whether the effective sslmode authenticates the server
+// certificate. With libpq semantics, "require" does so only when a CA file is given.
+func (t *PostgresTLSConfig) VerifiesServer() bool {
+	switch t.EffectiveMode() {
+	case "verify-ca", "verify-full":
+		return true
+	case "require":
+		return t.CACert != ""
+	default:
+		return false
+	}
 }
 
 // UsernameSource returns where the database user name is read from.
@@ -154,18 +182,8 @@ func validatePostgresPoolConfig(pool *PostgresPoolConfig) error {
 // validatePostgresTLS ensures SSL mode is valid and any certificate/key files are usable.
 func validatePostgresTLS(tls *PostgresTLSConfig, opts controller.ValidationOptions) error {
 	// Validate SSL mode
-	validModes := []string{"allow", "prefer", "require", "verify-ca", "verify-full"}
-	if tls.Mode != "" {
-		valid := false
-		for _, mode := range validModes {
-			if tls.Mode == mode {
-				valid = true
-				break
-			}
-		}
-		if !valid {
-			return fmt.Errorf("invalid ssl mode '%s', must be one of: %s", tls.Mode, strings.Join(validModes, ", "))
-		}
+	if tls.Mode != "" && !slices.Contains(postgresSSLModes, tls.Mode) {
+		return fmt.Errorf("invalid ssl mode '%s', must be one of: %s", tls.Mode, strings.Join(postgresSSLModes, ", "))
 	}
 
 	// Validate certificate files exist and are readable if specified
